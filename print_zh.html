@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 11 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">11 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 12 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">12 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -343,6 +343,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></li>
   <li><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></li>
   <li><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></li>
+  <li><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1562,6 +1563,108 @@ handleBeforeRecall / handleTurnCommitted:
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>如果 embedding 配置不完整，系统应该如何降级才不阻塞主对话？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+当一轮对话已经提交（<span class="inline">agent_end</span> / <span class="inline">turn committed</span>）后，
+<span class="inline">performAutoCapture</span> 负责把本轮新增的用户与助手消息可靠落到 L0。
+它先做最短、最确定的捕获路径：写本地 L0，再尽量建立搜索索引，最后通知 pipeline scheduler；是否触发 L1 抽取由 scheduler 根据阈值、idle timer 和状态决定。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  对话提交后像收银小票已经打印出来：Auto Capture 先把小票存进本地账本，避免丢单；再把小票编号放进索引柜，方便以后搜索；最后提醒后台整理员“有新账了”。
+  至于后台整理员现在就归档，还是等凑够一批再处理，是调度规则决定的，不是收银台临时决定。
+</div>
+
+<h2>提交后的捕获主线</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>agent_end / turn committed</h4><p>宿主把完整 messages 交给 <span class="inline">performAutoCapture</span>，此时模型回答已产生，捕获不再影响本轮生成内容。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>checkpoint lock</h4><p><span class="inline">CheckpointManager.captureAtomically()</span> 持锁读取 cursor、调用 <span class="inline">recordConversation</span>、推进 cursor，避免并发 agent_end 读到同一个旧游标。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>record L0</h4><p><span class="inline">recordConversation</span> 从本轮消息中抽取 user / assistant，按位置切片与时间游标过滤，清洗后写入 conversations JSONL。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>index</h4><p>如果 vector / FTS store 可用，把 <span class="inline">L0Record</span> 元数据写入搜索索引；不可用时不阻断本地 L0 记录。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>notify scheduler</h4><p>调用 <span class="inline">scheduler.notifyConversation(sessionKey, [])</span>。Capture 只通知“有新对话轮次”，L1 何时跑由 scheduler 决定。</p></div></div>
+</div>
+
+<h2>一次 messages 如何变成 L0Record</h2>
+<div class="flow">
+  <div class="node"><div class="nt">messages</div><div class="nd">agent_end 提供的会话历史</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">filteredMessages</div><div class="nd">只保留新增 user / assistant，清洗短文本与污染上下文</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id、sessionKey、sessionId、role、messageText、recordedAt、timestamp</div></div>
+</div>
+
+<p>
+关键是“新增”：<span class="inline">recordConversation</span> 优先使用 before-prompt 阶段缓存的 <span class="inline">originalUserMessageCount</span> 做位置切片，
+只看本轮 prompt build 之后追加的消息；如果这个缓存不可用，再用 checkpoint 里的 <span class="inline">afterTimestamp</span> 游标过滤。
+因此 Auto Capture 不是把整段历史反复写入 L0，而是把提交后新出现的消息增量写入。
+</p>
+
+<h2>同步路径 vs 延迟 embedding 路径</h2>
+<div class="cols">
+  <div class="col"><h4>同步 embedding / VDB 路径</h4><p>当 store 不支持延迟 embedding 时，capture 会在 upsert L0 前尽量同步生成 embedding，再把 <span class="inline">L0Record</span> 和向量一起写入后端。这适合需要一次性提交向量的远程或 VDB 后端。</p></div>
+  <div class="col"><h4>延迟 embedding / SQLite 路径</h4><p>当 store 支持 <span class="inline">supportsDeferredEmbedding</span>，capture 先写 metadata + FTS，马上返回主流程；embedding batch 和 <span class="inline">updateL0Embedding</span> 在后台补齐，避免 agent_end 被 多秒级向量调用阻塞。</p></div>
+</div>
+
+<h2>伪代码</h2>
+<pre class="code">performAutoCapture(messages):
+    checkpoint.captureAtomically(sessionKey, cursor, () =&gt; {
+        filtered = recordConversation(messages, cursor)
+        return maxTimestamp(filtered)
+    })
+    upsert_l0_metadata(filtered)
+    maybe_embed_l0_in_background()
+    scheduler.notifyConversation(sessionKey)</pre>
+
+<h2>为什么 capture 不直接抽取 L1</h2>
+<p>
+<span class="inline">performAutoCapture</span> 的职责是可靠记录和通知。它不知道当前会话是否达到 <span class="inline">everyNConversations</span>，
+也不应该复制 idle timeout、warm-up、重试和 shutdown flush 等策略。<span class="inline">MemoryPipelineManager.notifyConversation</span>
+更新会话计数、持久化状态，并在达到阈值时 enqueue L1；未达到阈值时重置 idle timer。这样捕获路径更短，调度策略集中在 pipeline manager。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>：<span class="inline">performAutoCapture</span>、L0 写入、L0 vector indexing、<span class="inline">scheduler.notifyConversation</span></li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：<span class="inline">recordConversation</span>、位置切片、timestamp cursor、JSONL 写入</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：<span class="inline">captureAtomically</span> 持锁读写 cursor 与计数</li>
+    <li><span class="inline">src/core/store/types.ts</span>：<span class="inline">L0Record</span> 的索引记录结构</li>
+    <li><span class="inline">src/utils/pipeline-manager.ts</span>：<span class="inline">notifyConversation</span>、L1 threshold / idle trigger</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  Auto Capture 的顺序是：提交后增量捕获、原子更新 checkpoint、本地 L0 优先、可用时索引 L0、通知 scheduler。
+  这条路径只负责“可靠地把事实放进系统”，L1 抽取时机由 pipeline scheduler 统一裁决。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. Auto Capture 为什么不直接决定什么时候做 L1 抽取？</div>
+  <ol class="opts">
+    <li>因为 L1 已经废弃</li>
+    <li>因为 L0 不写文件</li>
+    <li>因为 Gateway 禁止 capture</li>
+    <li>触发策略属于 pipeline scheduler，capture 只负责可靠记录和通知</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。职责分离让捕获路径更短、更可靠，调度规则集中在 pipeline manager。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>如果出现重复 L0 记录，你会优先检查 capture 的哪两个机制？</li>
   </ul>
 </div>
 </div>

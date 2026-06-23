@@ -2,6 +2,7 @@
 import part1
 import part2
 import part3
+import part4
 
 CONTENT = {
     "01-why-agent-memory.html": part1.LESSON_01,
@@ -15,4 +16,5 @@ CONTENT = {
     "09-tdai-core-facade.html": part3.LESSON_09,
     "10-host-adapter-boundaries.html": part3.LESSON_10,
     "11-runtime-init-config.html": part3.LESSON_11,
+    "12-auto-capture-hook.html": part4.LESSON_12,
 }

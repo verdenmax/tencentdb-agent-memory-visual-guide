@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>02 · 一次对话的数据流 / The data flow of one conversation - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第一部分 · 数据流全景｜一次对话的数据流 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>12 · Auto Capture：对话提交后的捕获 / Auto Capture after a turn commits - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜Auto Capture：对话提交后的捕获 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="02 · 一次对话的数据流 / The data flow of one conversation - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第一部分 · 数据流全景｜一次对话的数据流 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="12 · Auto Capture：对话提交后的捕获 / Auto Capture after a turn commits - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜Auto Capture：对话提交后的捕获 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="02 · 一次对话的数据流 / The data flow of one conversation - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第一部分 · 数据流全景｜一次对话的数据流 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="12 · Auto Capture：对话提交后的捕获 / Auto Capture after a turn commits - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜Auto Capture：对话提交后的捕获 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,196 +317,214 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第一部分 · 数据流全景</span><span class="lang-en">Part 1 · Data-flow overview</span></span>
-    <span class="pill">02 / 12</span>
+    <span class="pill"><span class="lang-zh">第四部分 · L0 与 L1：捕获、抽取、去重</span><span class="lang-en">Part 4 · L0 and L1: capture, extraction, dedup</span></span>
+    <span class="pill">12 / 12</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:16%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第一部分 · 数据流全景</span><span class="lang-en">Part 1 · Data-flow overview</span></div>
-    <h1><span class="lang-zh">一次对话的数据流</span><span class="lang-en">The data flow of one conversation</span></h1>
+    <div class="part"><span class="lang-zh">第四部分 · L0 与 L1：捕获、抽取、去重</span><span class="lang-en">Part 4 · L0 and L1: capture, extraction, dedup</span></div>
+    <h1><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-这一课把镜头拉近：一轮真实对话从宿主框架进入插件后，如何被捕获、抽取、聚合，并在下一轮对话前重新注入。
-先看数据流，后面课程再逐段拆源码。
+当一轮对话已经提交（<span class="inline">agent_end</span> / <span class="inline">turn committed</span>）后，
+<span class="inline">performAutoCapture</span> 负责把本轮新增的用户与助手消息可靠落到 L0。
+它先做最短、最确定的捕获路径：写本地 L0，再尽量建立搜索索引，最后通知 pipeline scheduler；是否触发 L1 抽取由 scheduler 根据阈值、idle timer 和状态决定。
 </p>
 
 <div class="card analogy">
-  <div class="tag">🔌 生活类比</div>
-  像快递分拣：入口先登记包裹，流水线按规则抽取信息，仓库按主题归档，下一次需要时按收件地址和关键词把相关包裹找出来。
+  <div class="tag">🧩 生活类比</div>
+  对话提交后像收银小票已经打印出来：Auto Capture 先把小票存进本地账本，避免丢单；再把小票编号放进索引柜，方便以后搜索；最后提醒后台整理员“有新账了”。
+  至于后台整理员现在就归档，还是等凑够一批再处理，是调度规则决定的，不是收银台临时决定。
 </div>
 
-<h2>完整路径</h2>
+<h2>提交后的捕获主线</h2>
 <div class="vflow">
-  <div class="step"><b>1. before prompt</b><span>读取 Persona、Scene Navigation，并按用户输入搜索 L1。</span></div>
-  <div class="step"><b>2. model turn</b><span>宿主框架运行主 Agent。</span></div>
-  <div class="step"><b>3. turn committed</b><span>对话结束后，插件捕获新增 user/assistant 消息。</span></div>
-  <div class="step"><b>4. L0 write</b><span>写入 conversations JSONL，并更新 checkpoint。</span></div>
-  <div class="step"><b>5. pipeline</b><span>调度 L1 抽取、L2 场景、L3 Persona。</span></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>agent_end / turn committed</h4><p>宿主把完整 messages 交给 <span class="inline">performAutoCapture</span>，此时模型回答已产生，捕获不再影响本轮生成内容。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>checkpoint lock</h4><p><span class="inline">CheckpointManager.captureAtomically()</span> 持锁读取 cursor、调用 <span class="inline">recordConversation</span>、推进 cursor，避免并发 agent_end 读到同一个旧游标。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>record L0</h4><p><span class="inline">recordConversation</span> 从本轮消息中抽取 user / assistant，按位置切片与时间游标过滤，清洗后写入 conversations JSONL。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>index</h4><p>如果 vector / FTS store 可用，把 <span class="inline">L0Record</span> 元数据写入搜索索引；不可用时不阻断本地 L0 记录。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>notify scheduler</h4><p>调用 <span class="inline">scheduler.notifyConversation(sessionKey, [])</span>。Capture 只通知“有新对话轮次”，L1 何时跑由 scheduler 决定。</p></div></div>
+</div>
+
+<h2>一次 messages 如何变成 L0Record</h2>
+<div class="flow">
+  <div class="node"><div class="nt">messages</div><div class="nd">agent_end 提供的会话历史</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">filteredMessages</div><div class="nd">只保留新增 user / assistant，清洗短文本与污染上下文</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id、sessionKey、sessionId、role、messageText、recordedAt、timestamp</div></div>
 </div>
 
 <p>
-按时间线看，只有 recall/search 属于模型回答前的准备阶段：它把已经沉淀的 Persona、Scene 导航和相关 L1 记忆放到本轮上下文里，
-帮助模型带着“该记得的东西”开始回答。模型回答之后，capture 才能拿到完整的新消息并写入 L0；随后 pipeline 再异步或按触发条件抽取 L1、
-合并 L2、更新 L3。这样设计避免了把尚未完成的回答提前写成事实，也让每一轮都遵循“先召回旧证据，再沉淀新证据”的节奏。
-如果排查召回问题，也应按这个顺序定位：先看回答前是否查到了合适记忆，再看回答后是否成功捕获并进入管线。
-前后阶段分清后，日志、文件和代码入口才不会混在一起。
+关键是“新增”：<span class="inline">recordConversation</span> 优先使用 before-prompt 阶段缓存的 <span class="inline">originalUserMessageCount</span> 做位置切片，
+只看本轮 prompt build 之后追加的消息；如果这个缓存不可用，再用 checkpoint 里的 <span class="inline">afterTimestamp</span> 游标过滤。
+因此 Auto Capture 不是把整段历史反复写入 L0，而是把提交后新出现的消息增量写入。
 </p>
 
-<h2>核心模块关系</h2>
-<div class="flow">
-  <div class="node"><div class="nt">index.ts</div><div class="nd">OpenClaw 插件壳</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">TdaiCore</div><div class="nd">宿主无关门面</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">Auto Capture</div><div class="nd">提交后记录</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">Pipeline</div><div class="nd">L1/L2/L3 调度</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">Auto Recall</div><div class="nd">下一轮注入</div></div>
-</div>
-
-<h2>宿主差异被 Adapter 收起来</h2>
+<h2>同步路径 vs 延迟 embedding 路径</h2>
 <div class="cols">
-  <div class="col"><h4>OpenClaw</h4><p><span class="inline">index.ts</span> 注册 hooks、tools 和 CLI，运行时通过 <span class="inline">OpenClawHostAdapter</span> 调用核心。</p></div>
-  <div class="col"><h4>Hermes / Gateway</h4><p>Gateway 通过 HTTP 接收 capture/search/recall 请求，再使用 standalone adapter 进入同一个 <span class="inline">TdaiCore</span>。</p></div>
+  <div class="col"><h4>同步 embedding / VDB 路径</h4><p>当 store 不支持延迟 embedding 时，capture 会在 upsert L0 前尽量同步生成 embedding，再把 <span class="inline">L0Record</span> 和向量一起写入后端。这适合需要一次性提交向量的远程或 VDB 后端。</p></div>
+  <div class="col"><h4>延迟 embedding / SQLite 路径</h4><p>当 store 支持 <span class="inline">supportsDeferredEmbedding</span>，capture 先写 metadata + FTS，马上返回主流程；embedding batch 和 <span class="inline">updateL0Embedding</span> 在后台补齐，避免 agent_end 被 多秒级向量调用阻塞。</p></div>
 </div>
 
-<h2>伪代码：TdaiCore 是统一入口（概念示意）</h2>
-<pre class="code">class TdaiCore:
-    async handleBeforeRecall(user_text, session_key):
-        return perform_auto_recall(user_text, session_key)
+<h2>伪代码</h2>
+<pre class="code">performAutoCapture(messages):
+    checkpoint.captureAtomically(sessionKey, cursor, () =&gt; {
+        filtered = recordConversation(messages, cursor)
+        return maxTimestamp(filtered)
+    })
+    upsert_l0_metadata(filtered)
+    maybe_embed_l0_in_background()
+    scheduler.notifyConversation(sessionKey)</pre>
 
-    async handleTurnCommitted(messages, session_key):
-        captured = perform_auto_capture(messages, session_key)
-        scheduler.notify_conversation(session_key, captured)
-
-    async searchMemory(query):
-        return execute_memory_search(query)</pre>
+<h2>为什么 capture 不直接抽取 L1</h2>
+<p>
+<span class="inline">performAutoCapture</span> 的职责是可靠记录和通知。它不知道当前会话是否达到 <span class="inline">everyNConversations</span>，
+也不应该复制 idle timeout、warm-up、重试和 shutdown flush 等策略。<span class="inline">MemoryPipelineManager.notifyConversation</span>
+更新会话计数、持久化状态，并在达到阈值时 enqueue L1；未达到阈值时重置 idle timer。这样捕获路径更短，调度策略集中在 pipeline manager。
+</p>
 
 <div class="card detail">
-  <div class="tag">🔬 源码对应</div>
-  入口壳：<span class="inline">index.ts</span>。核心门面：<span class="inline">src/core/tdai-core.ts</span> 的 <span class="inline">TdaiCore</span>。
-  宿主适配：<span class="inline">src/adapters/openclaw/host-adapter.ts</span> 与 <span class="inline">src/adapters/standalone/host-adapter.ts</span>。
-  调度工厂：<span class="inline">src/utils/pipeline-factory.ts</span>。
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>：<span class="inline">performAutoCapture</span>、L0 写入、L0 vector indexing、<span class="inline">scheduler.notifyConversation</span></li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：<span class="inline">recordConversation</span>、位置切片、timestamp cursor、JSONL 写入</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：<span class="inline">captureAtomically</span> 持锁读写 cursor 与计数</li>
+    <li><span class="inline">src/core/store/types.ts</span>：<span class="inline">L0Record</span> 的索引记录结构</li>
+    <li><span class="inline">src/utils/pipeline-manager.ts</span>：<span class="inline">notifyConversation</span>、L1 threshold / idle trigger</li>
+  </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  读源码时先抓住一条线：宿主事件进入 <span class="inline">index.ts</span>，具体能力交给 <span class="inline">TdaiCore</span>，
-  核心再调用 capture、pipeline、recall、tools。Adapter 负责隔离 OpenClaw 和 Hermes 的差异。
+  Auto Capture 的顺序是：提交后增量捕获、原子更新 checkpoint、本地 L0 优先、可用时索引 L0、通知 scheduler。
+  这条路径只负责“可靠地把事实放进系统”，L1 抽取时机由 pipeline scheduler 统一裁决。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. 在源码阅读主线里，为什么先找 <code>TdaiCore</code>？</div>
+  <div class="qn">1. Auto Capture 为什么不直接决定什么时候做 L1 抽取？</div>
   <ol class="opts">
-    <li>它替代了所有存储后端</li>
-    <li>它负责 CSS 和页面构建</li>
-    <li>它是宿主无关的核心门面，OpenClaw 和 Gateway 都会走到这里</li>
-    <li>它只保存 README 内容</li>
+    <li>因为 L1 已经废弃</li>
+    <li>因为 L0 不写文件</li>
+    <li>因为 Gateway 禁止 capture</li>
+    <li>触发策略属于 pipeline scheduler，capture 只负责可靠记录和通知</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。TdaiCore 把 recall、capture、search、pipeline 管理收成统一入口，Adapter 再隔离不同宿主。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。职责分离让捕获路径更短、更可靠，调度规则集中在 pipeline manager。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>画一条线说明：用户发出一句话后，哪些阶段发生在模型回答前，哪些发生在回答后？</li>
+    <li>如果出现重复 L0 记录，你会优先检查 capture 的哪两个机制？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-This lesson zooms in on one real turn: how it enters the plugin, gets captured, extracted, aggregated, and injected before the next turn.
-Start with the data flow; later lessons will open each source file.
+After a turn is committed (<span class="inline">agent_end</span> / <span class="inline">turn committed</span>),
+<span class="inline">performAutoCapture</span> reliably records the new user and assistant messages into L0.
+It keeps the capture path short and deterministic: write local L0 first, index it for search when possible, then notify the pipeline scheduler; whether L1 extraction runs is a scheduler decision.
 </p>
 
 <div class="card analogy">
-  <div class="tag">🔌 Analogy</div>
-  Think of package sorting: the entrance registers the package, the line extracts routing facts, the warehouse groups by topic, and the next request retrieves the relevant packages.
+  <div class="tag">🧩 Analogy</div>
+  After checkout, the receipt already exists. Auto Capture first saves that receipt in the local ledger so it is not lost, then places its number in a search cabinet, then tells the back-office clerk “new work arrived”.
+  Whether the clerk files it immediately or waits for a batch is scheduling policy, not a decision made at the register.
 </div>
 
-<h2>End-to-end path</h2>
+<h2>The post-commit capture path</h2>
 <div class="vflow">
-  <div class="step"><b>1. before prompt</b><span>Read Persona and Scene Navigation, then search L1 using the user input.</span></div>
-  <div class="step"><b>2. model turn</b><span>The host runs the main agent.</span></div>
-  <div class="step"><b>3. turn committed</b><span>After the turn, the plugin captures new user/assistant messages.</span></div>
-  <div class="step"><b>4. L0 write</b><span>Write conversation JSONL and advance checkpoints.</span></div>
-  <div class="step"><b>5. pipeline</b><span>Schedule L1 extraction, L2 scenes, and L3 persona generation.</span></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>agent_end / turn committed</h4><p>The host passes the full messages array to <span class="inline">performAutoCapture</span>. The model response already exists, so capture no longer changes this turn's generation.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>checkpoint lock</h4><p><span class="inline">CheckpointManager.captureAtomically()</span> holds the lock while reading the cursor, calling <span class="inline">recordConversation</span>, and advancing the cursor. That prevents concurrent agent_end events from reading the same stale cursor.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>record L0</h4><p><span class="inline">recordConversation</span> extracts user / assistant messages for this turn, filters them by position slice and timestamp cursor, sanitizes them, and appends them to conversations JSONL.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>index</h4><p>If a vector / FTS store is available, capture writes <span class="inline">L0Record</span> metadata into the search index. If it is unavailable, local L0 recording still stands.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>notify scheduler</h4><p>Capture calls <span class="inline">scheduler.notifyConversation(sessionKey, [])</span>. It only says “a new conversation round exists”; scheduler policy decides when L1 runs.</p></div></div>
 </div>
 
-<h2>Core module relationships</h2>
+<h2>How messages become an L0Record</h2>
 <div class="flow">
-  <div class="node"><div class="nt">index.ts</div><div class="nd">OpenClaw shell</div></div>
+  <div class="node"><div class="nt">messages</div><div class="nd">session history from agent_end</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">TdaiCore</div><div class="nd">host-neutral facade</div></div>
+  <div class="node"><div class="nt">filteredMessages</div><div class="nd">new user / assistant messages, sanitized and filtered</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">Auto Capture</div><div class="nd">after commit</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">Pipeline</div><div class="nd">L1/L2/L3 scheduling</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">Auto Recall</div><div class="nd">next turn</div></div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, messageText, recordedAt, timestamp</div></div>
 </div>
 
-<h2>Host differences are hidden behind adapters</h2>
+<p>
+The important word is “new”. <span class="inline">recordConversation</span> prefers the <span class="inline">originalUserMessageCount</span>
+recorded before prompt build and slices the raw messages after that position; if that cache is unavailable, it falls back to the checkpoint <span class="inline">afterTimestamp</span> cursor.
+Auto Capture therefore does not keep rewriting the whole history into L0. It appends only the incremental messages that appeared after the committed turn.
+</p>
+
+<h2>Sync path vs deferred embedding path</h2>
 <div class="cols">
-  <div class="col"><h4>OpenClaw</h4><p><span class="inline">index.ts</span> registers hooks, tools, and CLI commands, then calls the core through <span class="inline">OpenClawHostAdapter</span>.</p></div>
-  <div class="col"><h4>Hermes / Gateway</h4><p>The Gateway receives capture/search/recall over HTTP, then enters the same <span class="inline">TdaiCore</span> through the standalone adapter.</p></div>
+  <div class="col"><h4>Sync embedding / VDB path</h4><p>When the store does not support deferred embedding, capture tries to embed synchronously before upserting L0, then writes the <span class="inline">L0Record</span> and vector together. This fits remote or VDB backends that need the vector up front.</p></div>
+  <div class="col"><h4>Deferred embedding / SQLite path</h4><p>When the store supports <span class="inline">supportsDeferredEmbedding</span>, capture writes metadata + FTS first and returns to the main path quickly. Embedding batch and <span class="inline">updateL0Embedding</span> run in the background, avoiding a multi-second embedding call on agent_end.</p></div>
 </div>
 
-<h2>Pseudocode: TdaiCore is the unified entry point (conceptual)</h2>
-<pre class="code">class TdaiCore:
-    async handleBeforeRecall(user_text, session_key):
-        return perform_auto_recall(user_text, session_key)
+<h2>Pseudocode</h2>
+<pre class="code">performAutoCapture(messages):
+    checkpoint.captureAtomically(sessionKey, cursor, () =&gt; {
+        filtered = recordConversation(messages, cursor)
+        return maxTimestamp(filtered)
+    })
+    upsert_l0_metadata(filtered)
+    maybe_embed_l0_in_background()
+    scheduler.notifyConversation(sessionKey)</pre>
 
-    async handleTurnCommitted(messages, session_key):
-        captured = perform_auto_capture(messages, session_key)
-        scheduler.notify_conversation(session_key, captured)
-
-    async searchMemory(query):
-        return execute_memory_search(query)</pre>
+<h2>Why capture does not run L1 directly</h2>
+<p>
+<span class="inline">performAutoCapture</span> is responsible for reliable recording and notification. It should not duplicate policy such as
+<span class="inline">everyNConversations</span>, idle timeout, warm-up, retries, or shutdown flush. <span class="inline">MemoryPipelineManager.notifyConversation</span>
+updates the conversation count, persists state, enqueues L1 when the threshold is reached, and otherwise resets the idle timer. That keeps capture short while scheduling policy stays centralized.
+</p>
 
 <div class="card detail">
-  <div class="tag">🔬 Source map</div>
-  Shell entry: <span class="inline">index.ts</span>. Core facade: <span class="inline">TdaiCore</span> in <span class="inline">src/core/tdai-core.ts</span>.
-  Host adapters: <span class="inline">src/adapters/openclaw/host-adapter.ts</span> and <span class="inline">src/adapters/standalone/host-adapter.ts</span>.
-  Pipeline wiring: <span class="inline">src/utils/pipeline-factory.ts</span>.
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>: <span class="inline">performAutoCapture</span>, L0 writes, L0 vector indexing, <span class="inline">scheduler.notifyConversation</span></li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: <span class="inline">recordConversation</span>, position slice, timestamp cursor, JSONL append</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">captureAtomically</span> locks cursor and count updates</li>
+    <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">L0Record</span> index record shape</li>
+    <li><span class="inline">src/utils/pipeline-manager.ts</span>: <span class="inline">notifyConversation</span>, L1 threshold / idle triggers</li>
+  </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Read the source through one line: host events enter <span class="inline">index.ts</span>, capabilities go through <span class="inline">TdaiCore</span>,
-  and the core calls capture, pipeline, recall, and tools. Adapters isolate OpenClaw and Hermes differences.
+  Auto Capture's order is: post-commit incremental capture, atomic checkpoint update, local L0 first, index L0 when available, notify the scheduler.
+  This path only makes facts reliably available to the system; the pipeline scheduler decides when L1 extraction runs.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. Why should the source-reading path find <code>TdaiCore</code> early?</div>
+  <div class="qn">1. Why doesn't Auto Capture directly decide when to run L1 extraction?</div>
   <ol class="opts">
-    <li>It replaces every storage backend</li>
-    <li>It owns CSS and page building</li>
-    <li>It is the host-neutral facade reached by both OpenClaw and Gateway paths</li>
-    <li>It only stores README content</li>
+    <li>Because L1 is deprecated</li>
+    <li>Because L0 does not write files</li>
+    <li>Because Gateway forbids capture</li>
+    <li>Trigger policy belongs to the pipeline scheduler; capture records reliably and notifies it</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. TdaiCore unifies recall, capture, search, and pipeline management, while adapters isolate host differences.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. Separation keeps capture short and reliable while scheduling policy stays in the pipeline manager.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>Draw a line showing which stages happen before the model responds and which stages happen after the response is committed.</li>
+    <li>If duplicate L0 records appear, which two capture mechanisms would you inspect first?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="01-why-agent-memory.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></div></a><a class="next" href="03-two-memory-spines.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">两条记忆主线</span><span class="lang-en">Two memory spines</span></div></a></div>
+  <div class="footnav"><a class="prev" href="11-runtime-init-config.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

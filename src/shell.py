@@ -68,6 +68,8 @@ PAGES = [
      "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
     ("11-runtime-init-config.html", "运行时初始化与配置解析", "Runtime init and config parsing",
      "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
+    ("12-auto-capture-hook.html", "Auto Capture：对话提交后的捕获", "Auto Capture after a turn commits",
+     "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
 ]
 
 def bi(zh, en):
@@ -523,6 +525,8 @@ SUBTITLES = {
                                        "host context, logging, LLM execution, and data dirs are isolated by adapters"),
     "11-runtime-init-config.html": ("parseConfig、默认值、目录初始化、store/backend/offload 接线",
                                    "parseConfig, defaults, directories, store/backend/offload wiring"),
+    "12-auto-capture-hook.html": ("agent_end / turn committed 后写 L0、索引向量、通知 pipeline",
+                                  "after agent_end / turn committed, write L0, index vectors, notify pipeline"),
 }
 
 def index_page(lesson_prefix="lessons/"):

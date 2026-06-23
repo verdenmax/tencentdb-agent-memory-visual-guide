@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 11 lessons.
+The guide currently contains 12 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -21,6 +21,7 @@ The guide currently contains 11 lessons.
 | 09 | TdaiCore: host-neutral facade |
 | 10 | HostAdapter and LLMRunner boundaries |
 | 11 | Runtime init and config parsing |
+| 12 | Auto Capture after a turn commits |
 
 ## How to view locally
 

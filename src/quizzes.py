@@ -254,6 +254,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果 embedding 配置不完整，系统应该如何降级才不阻塞主对话？", "en": "If embedding config is incomplete, how should the system degrade without blocking the main chat?"}],
     },
+    "12-auto-capture-hook.html": {
+        "mcq": [{
+            "q": {"zh": "Auto Capture 为什么不直接决定什么时候做 L1 抽取？", "en": "Why doesn't Auto Capture directly decide when to run L1 extraction?"},
+            "opts": [
+                {"zh": "触发策略属于 pipeline scheduler，capture 只负责可靠记录和通知", "en": "Trigger policy belongs to the pipeline scheduler; capture records reliably and notifies it"},
+                {"zh": "因为 L1 已经废弃", "en": "Because L1 is deprecated"},
+                {"zh": "因为 L0 不写文件", "en": "Because L0 does not write files"},
+                {"zh": "因为 Gateway 禁止 capture", "en": "Because Gateway forbids capture"},
+            ],
+            "answer": 0,
+            "why": {"zh": "职责分离让捕获路径更短、更可靠，调度规则集中在 pipeline manager。", "en": "Separation keeps capture short and reliable while scheduling policy stays in the pipeline manager."},
+        }],
+        "open": [{"zh": "如果出现重复 L0 记录，你会优先检查 capture 的哪两个机制？", "en": "If duplicate L0 records appear, which two capture mechanisms would you inspect first?"}],
+    },
 }
 
 

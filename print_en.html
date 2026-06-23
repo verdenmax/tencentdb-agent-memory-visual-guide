@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 11 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">11 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 12 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">12 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -343,6 +343,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></li>
   <li><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></li>
   <li><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></li>
+  <li><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1548,6 +1549,108 @@ Then <span class="inline">TdaiCore</span> starts async <span class="inline">stor
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>If embedding config is incomplete, how should the system degrade without blocking the main chat?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+After a turn is committed (<span class="inline">agent_end</span> / <span class="inline">turn committed</span>),
+<span class="inline">performAutoCapture</span> reliably records the new user and assistant messages into L0.
+It keeps the capture path short and deterministic: write local L0 first, index it for search when possible, then notify the pipeline scheduler; whether L1 extraction runs is a scheduler decision.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  After checkout, the receipt already exists. Auto Capture first saves that receipt in the local ledger so it is not lost, then places its number in a search cabinet, then tells the back-office clerk “new work arrived”.
+  Whether the clerk files it immediately or waits for a batch is scheduling policy, not a decision made at the register.
+</div>
+
+<h2>The post-commit capture path</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>agent_end / turn committed</h4><p>The host passes the full messages array to <span class="inline">performAutoCapture</span>. The model response already exists, so capture no longer changes this turn's generation.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>checkpoint lock</h4><p><span class="inline">CheckpointManager.captureAtomically()</span> holds the lock while reading the cursor, calling <span class="inline">recordConversation</span>, and advancing the cursor. That prevents concurrent agent_end events from reading the same stale cursor.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>record L0</h4><p><span class="inline">recordConversation</span> extracts user / assistant messages for this turn, filters them by position slice and timestamp cursor, sanitizes them, and appends them to conversations JSONL.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>index</h4><p>If a vector / FTS store is available, capture writes <span class="inline">L0Record</span> metadata into the search index. If it is unavailable, local L0 recording still stands.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>notify scheduler</h4><p>Capture calls <span class="inline">scheduler.notifyConversation(sessionKey, [])</span>. It only says “a new conversation round exists”; scheduler policy decides when L1 runs.</p></div></div>
+</div>
+
+<h2>How messages become an L0Record</h2>
+<div class="flow">
+  <div class="node"><div class="nt">messages</div><div class="nd">session history from agent_end</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">filteredMessages</div><div class="nd">new user / assistant messages, sanitized and filtered</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, messageText, recordedAt, timestamp</div></div>
+</div>
+
+<p>
+The important word is “new”. <span class="inline">recordConversation</span> prefers the <span class="inline">originalUserMessageCount</span>
+recorded before prompt build and slices the raw messages after that position; if that cache is unavailable, it falls back to the checkpoint <span class="inline">afterTimestamp</span> cursor.
+Auto Capture therefore does not keep rewriting the whole history into L0. It appends only the incremental messages that appeared after the committed turn.
+</p>
+
+<h2>Sync path vs deferred embedding path</h2>
+<div class="cols">
+  <div class="col"><h4>Sync embedding / VDB path</h4><p>When the store does not support deferred embedding, capture tries to embed synchronously before upserting L0, then writes the <span class="inline">L0Record</span> and vector together. This fits remote or VDB backends that need the vector up front.</p></div>
+  <div class="col"><h4>Deferred embedding / SQLite path</h4><p>When the store supports <span class="inline">supportsDeferredEmbedding</span>, capture writes metadata + FTS first and returns to the main path quickly. Embedding batch and <span class="inline">updateL0Embedding</span> run in the background, avoiding a multi-second embedding call on agent_end.</p></div>
+</div>
+
+<h2>Pseudocode</h2>
+<pre class="code">performAutoCapture(messages):
+    checkpoint.captureAtomically(sessionKey, cursor, () =&gt; {
+        filtered = recordConversation(messages, cursor)
+        return maxTimestamp(filtered)
+    })
+    upsert_l0_metadata(filtered)
+    maybe_embed_l0_in_background()
+    scheduler.notifyConversation(sessionKey)</pre>
+
+<h2>Why capture does not run L1 directly</h2>
+<p>
+<span class="inline">performAutoCapture</span> is responsible for reliable recording and notification. It should not duplicate policy such as
+<span class="inline">everyNConversations</span>, idle timeout, warm-up, retries, or shutdown flush. <span class="inline">MemoryPipelineManager.notifyConversation</span>
+updates the conversation count, persists state, enqueues L1 when the threshold is reached, and otherwise resets the idle timer. That keeps capture short while scheduling policy stays centralized.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>: <span class="inline">performAutoCapture</span>, L0 writes, L0 vector indexing, <span class="inline">scheduler.notifyConversation</span></li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: <span class="inline">recordConversation</span>, position slice, timestamp cursor, JSONL append</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">captureAtomically</span> locks cursor and count updates</li>
+    <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">L0Record</span> index record shape</li>
+    <li><span class="inline">src/utils/pipeline-manager.ts</span>: <span class="inline">notifyConversation</span>, L1 threshold / idle triggers</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Auto Capture's order is: post-commit incremental capture, atomic checkpoint update, local L0 first, index L0 when available, notify the scheduler.
+  This path only makes facts reliably available to the system; the pipeline scheduler decides when L1 extraction runs.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Why doesn't Auto Capture directly decide when to run L1 extraction?</div>
+  <ol class="opts">
+    <li>Because L1 is deprecated</li>
+    <li>Because L0 does not write files</li>
+    <li>Because Gateway forbids capture</li>
+    <li>Trigger policy belongs to the pipeline scheduler; capture records reliably and notifies it</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. Separation keeps capture short and reliable while scheduling policy stays in the pipeline manager.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>If duplicate L0 records appear, which two capture mechanisms would you inspect first?</li>
   </ul>
 </div>
 </div>
