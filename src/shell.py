@@ -493,8 +493,8 @@ SUBTITLES = {
                                       "Hook -> TdaiCore -> L0/L1/L2/L3 -> Recall end-to-end"),
     "03-two-memory-spines.html": ("长期 L0-L3 沉淀经验，短期 Offload 压缩当前任务",
                                   "long-term L0-L3 preserves experience; short-term Offload compresses the current task"),
-    "04-openclaw-zero-config.html": ("安装插件、启用配置、重启 Gateway、验证 L0-L3 与 Recall",
-                                    "install plugin, enable config, restart Gateway, verify L0-L3 and Recall"),
+    "04-openclaw-zero-config.html": ("安装插件、启用配置、重启 Gateway、先验证 L0/L1 与 Recall",
+                                    "install plugin, enable config, restart Gateway, verify L0/L1 and Recall first"),
 }
 
 def index_page(lesson_prefix="lessons/"):
