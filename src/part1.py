@@ -42,7 +42,7 @@ TencentDB Agent Memory 解决的是一个长程 Agent 的老问题：Agent 做�
 </div>
 
 <h2>伪代码：不要堆历史，要分层处理</h2>
-<pre><code>on_turn_committed(messages):
+<pre class="code">on_turn_committed(messages):
     l0 = record_raw_conversation(messages)
     if pipeline.should_extract_l1():
         atoms = extract_memories(l0)
@@ -55,7 +55,7 @@ TencentDB Agent Memory 解决的是一个长程 Agent 的老问题：Agent 做�
 before_next_turn(user_text):
     memories = search_l1(user_text)
     persona = read_l3_persona()
-    return inject(memories, persona)</code></pre>
+    return inject(memories, persona)</pre>
 
 <div class="card detail">
   <div class="tag">🔬 源码对应</div>
@@ -111,7 +111,7 @@ all history back into the prompt; it stores and recalls information by layers.
 </div>
 
 <h2>Pseudocode: layer history instead of piling it up</h2>
-<pre><code>on_turn_committed(messages):
+<pre class="code">on_turn_committed(messages):
     l0 = record_raw_conversation(messages)
     if pipeline.should_extract_l1():
         atoms = extract_memories(l0)
@@ -124,7 +124,7 @@ all history back into the prompt; it stores and recalls information by layers.
 before_next_turn(user_text):
     memories = search_l1(user_text)
     persona = read_l3_persona()
-    return inject(memories, persona)</code></pre>
+    return inject(memories, persona)</pre>
 
 <div class="card detail">
   <div class="tag">🔬 Source map</div>
@@ -182,7 +182,7 @@ LESSON_02 = {
 </div>
 
 <h2>伪代码：TdaiCore 是统一入口（概念示意）</h2>
-<pre><code>class TdaiCore:
+<pre class="code">class TdaiCore:
     async handleBeforeRecall(user_text, session_key):
         return perform_auto_recall(user_text, session_key)
 
@@ -191,7 +191,7 @@ LESSON_02 = {
         scheduler.notify_conversation(session_key, captured)
 
     async searchMemory(query):
-        return execute_memory_search(query)</code></pre>
+        return execute_memory_search(query)</pre>
 
 <div class="card detail">
   <div class="tag">🔬 源码对应</div>
@@ -246,7 +246,7 @@ Start with the data flow; later lessons will open each source file.
 </div>
 
 <h2>Pseudocode: TdaiCore is the unified entry point (conceptual)</h2>
-<pre><code>class TdaiCore:
+<pre class="code">class TdaiCore:
     async handleBeforeRecall(user_text, session_key):
         return perform_auto_recall(user_text, session_key)
 
@@ -255,7 +255,7 @@ Start with the data flow; later lessons will open each source file.
         scheduler.notify_conversation(session_key, captured)
 
     async searchMemory(query):
-        return execute_memory_search(query)</code></pre>
+        return execute_memory_search(query)</pre>
 
 <div class="card detail">
   <div class="tag">🔬 Source map</div>
