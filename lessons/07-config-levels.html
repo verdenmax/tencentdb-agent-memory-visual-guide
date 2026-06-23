@@ -368,19 +368,17 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <h2>本地默认与 TCVDB 后端</h2>
 <div class="cols">
   <div class="col"><h4>SQLite default</h4><p>零配置预期可运行：默认本地 SQLite / sqlite-vec 路径适合课程、离线试用和个人 smoke test。它降低启动门槛，也让新手先验证 capture、pipeline、recall 的闭环。清理策略默认保守：<span class="inline">capture.l0l1RetentionDays = 0</span> 表示禁用清理；任何激进清理都应显式 opt-in。</p></div>
-  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。不要只填 <span class="inline">tcvdb</span> 字段：还必须在 <span class="inline">memory-tencentdb.config</span> 的顶层设置 <span class="inline">storeBackend: "tcvdb"</span>，store bundle 才会走远程后端。</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。不要只填 <span class="inline">tcvdb</span> 字段：还必须在 <span class="inline">memory-tencentdb</span> 插件块的顶层设置 <span class="inline">storeBackend: "tcvdb"</span>，store bundle 才会走远程后端。</p></div>
 </div>
 
-<p>TCVDB 路径需要两个部分同时出现在 <span class="inline">memory-tencentdb.config</span> 中：顶层后端选择和 <span class="inline">tcvdb</span> 连接占位符。示例只使用假 URL 与环境变量名：</p>
+<p>TCVDB 路径需要两个部分同时出现在 <span class="inline">memory-tencentdb</span> 插件块中：顶层后端选择和 <span class="inline">tcvdb</span> 连接占位符。示例只使用假 URL 与环境变量名：</p>
 <pre class="code">{
   "memory-tencentdb": {
-    "config": {
-      "storeBackend": "tcvdb",
-      "tcvdb": {
-        "url": "https://example.invalid",
-        "apiKey": "${TCVDB_API_KEY}",
-        "database": "${TCVDB_DATABASE}"
-      }
+    "storeBackend": "tcvdb",
+    "tcvdb": {
+      "url": "https://example.invalid",
+      "apiKey": "${TCVDB_API_KEY}",
+      "database": "my-memory-db"
     }
   }
 }</pre>
@@ -494,19 +492,17 @@ The levels are a learning order, not a permission model. <span class="inline">pa
 <h2>SQLite default vs TCVDB backend</h2>
 <div class="cols">
   <div class="col"><h4>SQLite default</h4><p>Zero config is intended to run. The default local SQLite / sqlite-vec path is good for courses, offline trials, and personal smoke tests. Cleanup is conservative: <span class="inline">capture.l0l1RetentionDays = 0</span> disables cleanup, and aggressive deletion requires explicit opt-in.</p></div>
-  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Do not fill only the <span class="inline">tcvdb</span> object: set <span class="inline">storeBackend: "tcvdb"</span> at the top level of <span class="inline">memory-tencentdb.config</span> so the store bundle uses the remote backend.</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Do not fill only the <span class="inline">tcvdb</span> object: set <span class="inline">storeBackend: "tcvdb"</span> at the top level of the <span class="inline">memory-tencentdb</span> plugin block so the store bundle uses the remote backend.</p></div>
 </div>
 
-<p>The TCVDB path needs both pieces inside <span class="inline">memory-tencentdb.config</span>: top-level backend selection and placeholder <span class="inline">tcvdb</span> connection fields. Use fake URLs and environment variable names in examples:</p>
+<p>The TCVDB path needs both pieces inside the <span class="inline">memory-tencentdb</span> plugin block: top-level backend selection and placeholder <span class="inline">tcvdb</span> connection fields. Use fake URLs and environment variable names in examples:</p>
 <pre class="code">{
   "memory-tencentdb": {
-    "config": {
-      "storeBackend": "tcvdb",
-      "tcvdb": {
-        "url": "https://example.invalid",
-        "apiKey": "${TCVDB_API_KEY}",
-        "database": "${TCVDB_DATABASE}"
-      }
+    "storeBackend": "tcvdb",
+    "tcvdb": {
+      "url": "https://example.invalid",
+      "apiKey": "${TCVDB_API_KEY}",
+      "database": "my-memory-db"
     }
   }
 }</pre>
