@@ -329,12 +329,13 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 3 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">3 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 4 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">4 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
   <li><span class="lang-zh">一次对话的数据流</span><span class="lang-en">The data flow of one conversation</span></li>
   <li><span class="lang-zh">两条记忆主线</span><span class="lang-en">Two memory spines</span></li>
+  <li><span class="lang-zh">OpenClaw 零配置闭环</span><span class="lang-en">OpenClaw zero-config loop</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -641,6 +642,112 @@ when_agent_needs_context():
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>Give one example of information and decide whether it belongs in long-term memory or Offload. Why?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">OpenClaw 零配置闭环</span><span class="lang-en">OpenClaw zero-config loop</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+This lesson turns L0-L3, Recall, and search into a minimal working OpenClaw loop: install the plugin, enable the smallest config,
+restart the Gateway, then verify that memory is written, layered, recalled, and searchable.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🔌 Analogy</div>
+  Zero config is like plugging in a default local disk: you can save and read without first designing cloud storage or tuning indexes.
+  For stronger vector recall or larger deployments, you still add real embedding and backend configuration later.
+</div>
+
+<h2>One minimal loop</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Install or update the plugin</h4><p>Install <span class="inline">@tencentdb-agent-memory/memory-tencentdb</span> with the OpenClaw plugin command; use the matching update command or reinstall the latest version when upgrading.</p><p class="mono">openclaw plugins install @tencentdb-agent-memory/memory-tencentdb</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Enable the smallest config</h4><p>Set only <span class="inline">enabled</span> in <span class="inline">~/.openclaw/openclaw.json</span>. Never put real API keys in guide examples.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Restart the Gateway</h4><p>Plugin config, hooks, and tools are registered during the Gateway lifecycle, so a restart makes the new config take effect reliably.</p><p class="mono">openclaw gateway restart</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Talk for 2-3 turns</h4><p>Give the agent a reusable preference or project constraint, then continue the conversation so capture has enough committed context.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Verify files, recall, and search</h4><p>Start a new turn, watch for recall, then use <span class="inline">tdai_memory_search</span> and <span class="inline">tdai_conversation_search</span>.</p></div></div>
+</div>
+
+<h2>The minimal config</h2>
+<pre class="code">{
+  "memory-tencentdb": {
+    "enabled": true
+  }
+}</pre>
+
+<p>
+Zero config means the plugin can use the default local SQLite plus sqlite-vec path for course work, personal trials, and offline smoke tests.
+It does not mean every capability is automatically optimal: when no usable embedding is configured, vector behavior may be disabled or degraded by default.
+Start with the loop, then tune embeddings, remote storage, retention, and observability only when the loop is proven.
+</p>
+
+<h2>Minimal daily config vs advanced tuning</h2>
+<div class="cols">
+  <div class="col"><h4>Minimal daily config</h4><p>Use only <span class="inline">enabled: true</span> with the default local SQLite + sqlite-vec path. Verify plugin registration, L0 raw capture, L1/L2/L3 extraction, Recall, and search.</p></div>
+  <div class="col"><h4>Advanced tuning</h4><p>Add embeddings, remote databases, TCVDB, retention policy, debug logging, and performance settings as needed. Real API keys belong in secure local config or environment variables, not in public examples.</p></div>
+</div>
+
+<h2>Pseudocode</h2>
+<pre class="code">openclaw plugins install @tencentdb-agent-memory/memory-tencentdb
+
+# ~/.openclaw/openclaw.json
+{
+  "memory-tencentdb": { "enabled": true }
+}
+
+openclaw gateway restart</pre>
+
+<h2>Smoke test: observe three things</h2>
+<ul>
+  <li><strong>Memory is captured:</strong> talk for 2-3 turns and state a durable preference or project rule.</li>
+  <li><strong>A new turn recalls it:</strong> ask about that preference in a later turn or session and check whether Recall influences the answer.</li>
+  <li><strong>Tools can find it:</strong> use <span class="inline">tdai_memory_search</span> for L1/L2/L3 and <span class="inline">tdai_conversation_search</span> for L0 raw conversation evidence.</li>
+</ul>
+
+<div class="card warn">
+  <div class="tag">🔒 Credential safety</div>
+  Guide examples must never contain real API keys, cloud database passwords, or private endpoints. Show placeholders only; use secure local config or environment variables for real runs.
+</div>
+
+<div class="card detail">
+  <div class="tag">🔬 Source map</div>
+  <div class="flow">
+    <div class="node"><div class="nt">README_CN.md / SKILL.md</div><div class="nd">quick start and standard setup workflow</div></div>
+    <div class="arrow">-&gt;</div>
+    <div class="node"><div class="nt">src/config.ts</div><div class="nd">parseConfig, defaults, MemoryTdaiConfig</div></div>
+    <div class="arrow">-&gt;</div>
+    <div class="node hl"><div class="nt">index.ts</div><div class="nd">register(api) and CLI metadata mode</div></div>
+  </div>
+  Start with the OpenClaw quick start in <span class="inline">README_CN.md</span> and the standard setup workflow in <span class="inline">SKILL.md</span>.
+  Then read <span class="inline">src/config.ts</span> for <span class="inline">parseConfig</span>, defaults, and <span class="inline">MemoryTdaiConfig</span>.
+  Finally check <span class="inline">index.ts</span> for <span class="inline">register(api)</span>, hook/tool registration, and CLI metadata mode.
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  A zero-config loop is working when OpenClaw reloads the plugin, Gateway registration succeeds, conversation enters L0-L3, a later turn can Recall it, and search tools can find both memory structure and raw evidence.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. After enabling zero config, why restart the Gateway?</div>
+  <ol class="opts">
+    <li>To let OpenClaw reload plugin config and register hooks/tools</li>
+    <li>To delete all memory files</li>
+    <li>To retrain the model</li>
+    <li>To convert SQLite to TCVDB</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Plugin config and hook registration happen during the Gateway lifecycle; restarting makes the new config take effect reliably.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Which three observations would you use to decide whether the OpenClaw memory plugin is really working?</li>
   </ul>
 </div>
 </div>

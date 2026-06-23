@@ -52,6 +52,8 @@ PAGES = [
      "第一部分 · 数据流全景", "Part 1 · Data-flow overview"),
     ("03-two-memory-spines.html", "两条记忆主线", "Two memory spines",
      "第一部分 · 数据流全景", "Part 1 · Data-flow overview"),
+    ("04-openclaw-zero-config.html", "OpenClaw 零配置闭环", "OpenClaw zero-config loop",
+     "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
 ]
 
 def bi(zh, en):
@@ -491,6 +493,8 @@ SUBTITLES = {
                                       "Hook -> TdaiCore -> L0/L1/L2/L3 -> Recall end-to-end"),
     "03-two-memory-spines.html": ("长期 L0-L3 沉淀经验，短期 Offload 压缩当前任务",
                                   "long-term L0-L3 preserves experience; short-term Offload compresses the current task"),
+    "04-openclaw-zero-config.html": ("安装插件、启用配置、重启 Gateway、验证 L0-L3 与 Recall",
+                                    "install plugin, enable config, restart Gateway, verify L0-L3 and Recall"),
 }
 
 def index_page(lesson_prefix="lessons/"):

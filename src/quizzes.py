@@ -126,6 +126,24 @@ QUIZZES = {
             }
         ],
     },
+    "04-openclaw-zero-config.html": {
+        "mcq": [
+            {
+                "q": {"zh": "零配置启用后，为什么仍然要重启 Gateway？", "en": "After enabling zero config, why restart the Gateway?"},
+                "opts": [
+                    {"zh": "让 OpenClaw 重新加载插件配置并注册 hooks/tools", "en": "To let OpenClaw reload plugin config and register hooks/tools"},
+                    {"zh": "清空所有记忆文件", "en": "To delete all memory files"},
+                    {"zh": "把 SQLite 转成 TCVDB", "en": "To convert SQLite to TCVDB"},
+                    {"zh": "重新训练模型", "en": "To retrain the model"},
+                ],
+                "answer": 0,
+                "why": {"zh": "插件配置和 hook 注册发生在 Gateway 生命周期中，改配置后需要重启才能稳定生效。", "en": "Plugin config and hook registration happen during the Gateway lifecycle; restarting makes the new config take effect reliably."},
+            }
+        ],
+        "open": [
+            {"zh": "你会用哪三个现象判断 OpenClaw 记忆插件真的工作了？", "en": "Which three observations would you use to decide whether the OpenClaw memory plugin is really working?"}
+        ],
+    },
 }
 
 
