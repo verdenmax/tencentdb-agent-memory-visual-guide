@@ -70,6 +70,8 @@ PAGES = [
      "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
     ("12-auto-capture-hook.html", "Auto Capture：对话提交后的捕获", "Auto Capture after a turn commits",
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
+    ("13-l0-jsonl-recorder.html", "L0 JSONL：原始对话证据层", "L0 JSONL: raw conversation evidence",
+     "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
 ]
 
 def bi(zh, en):
@@ -527,6 +529,8 @@ SUBTITLES = {
                                    "parseConfig, defaults, directories, store/backend/offload wiring"),
     "12-auto-capture-hook.html": ("agent_end / turn committed 后写 L0、索引向量、通知 pipeline",
                                   "after agent_end / turn committed, write L0, index vectors, notify pipeline"),
+    "13-l0-jsonl-recorder.html": ("一行一条消息、按天写入、清洗注入标签、保留可追溯证据",
+                                  "one message per line, daily files, sanitize injected tags, preserve evidence"),
 }
 
 def index_page(lesson_prefix="lessons/"):

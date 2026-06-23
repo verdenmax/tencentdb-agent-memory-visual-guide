@@ -317,7 +317,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <span class="home">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></span>
-    <span class="pill"><span class="lang-zh">共 12 课 · 4 个部分</span><span class="lang-en">12 lessons · 4 parts</span></span>
+    <span class="pill"><span class="lang-zh">共 13 课 · 4 个部分</span><span class="lang-en">13 lessons · 4 parts</span></span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
   <div class="progress"><span style="width:100%"></span></div>
@@ -355,7 +355,8 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <a href="lessons/10-host-adapter-boundaries.html"><span class="n">10</span><span class="tt"><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></span><span class="ts"><span class="lang-zh">宿主上下文、日志、LLM 执行、数据目录都通过 adapter 隔离</span><span class="lang-en">host context, logging, LLM execution, and data dirs are isolated by adapters</span></span></a>
 <a href="lessons/11-runtime-init-config.html"><span class="n">11</span><span class="tt"><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></span><span class="ts"><span class="lang-zh">parseConfig、默认值、目录初始化、store/backend/offload 接线</span><span class="lang-en">parseConfig, defaults, directories, store/backend/offload wiring</span></span></a>
 <div class="toc-part"><span class="lang-zh">第四部分 · L0 与 L1：捕获、抽取、去重</span><span class="lang-en">Part 4 · L0 and L1: capture, extraction, dedup</span></div>
-<a href="lessons/12-auto-capture-hook.html"><span class="n">12</span><span class="tt"><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></span><span class="ts"><span class="lang-zh">agent_end / turn committed 后写 L0、索引向量、通知 pipeline</span><span class="lang-en">after agent_end / turn committed, write L0, index vectors, notify pipeline</span></span></a></div>
+<a href="lessons/12-auto-capture-hook.html"><span class="n">12</span><span class="tt"><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></span><span class="ts"><span class="lang-zh">agent_end / turn committed 后写 L0、索引向量、通知 pipeline</span><span class="lang-en">after agent_end / turn committed, write L0, index vectors, notify pipeline</span></span></a>
+<a href="lessons/13-l0-jsonl-recorder.html"><span class="n">13</span><span class="tt"><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></span><span class="ts"><span class="lang-zh">一行一条消息、按天写入、清洗注入标签、保留可追溯证据</span><span class="lang-en">one message per line, daily files, sanitize injected tags, preserve evidence</span></span></a></div>
   <div class="toc-empty" id="tocempty"><span class="lang-zh">没有匹配的课程，换个关键词试试。</span><span class="lang-en">No matching lessons, try another keyword.</span></div>
 </div>
 <script>

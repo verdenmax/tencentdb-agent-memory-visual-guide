@@ -17,4 +17,5 @@ CONTENT = {
     "10-host-adapter-boundaries.html": part3.LESSON_10,
     "11-runtime-init-config.html": part3.LESSON_11,
     "12-auto-capture-hook.html": part4.LESSON_12,
+    "13-l0-jsonl-recorder.html": part4.LESSON_13,
 }

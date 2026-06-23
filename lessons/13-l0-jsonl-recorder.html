@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>09 · TdaiCore：宿主无关核心门面 / TdaiCore: host-neutral facade - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜TdaiCore：宿主无关核心门面 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>13 · L0 JSONL：原始对话证据层 / L0 JSONL: raw conversation evidence - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜L0 JSONL：原始对话证据层 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="09 · TdaiCore：宿主无关核心门面 / TdaiCore: host-neutral facade - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜TdaiCore：宿主无关核心门面 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="13 · L0 JSONL：原始对话证据层 / L0 JSONL: raw conversation evidence - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜L0 JSONL：原始对话证据层 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="09 · TdaiCore：宿主无关核心门面 / TdaiCore: host-neutral facade - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜TdaiCore：宿主无关核心门面 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="13 · L0 JSONL：原始对话证据层 / L0 JSONL: raw conversation evidence - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜L0 JSONL：原始对话证据层 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,226 +317,240 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></span>
-    <span class="pill">09 / 13</span>
+    <span class="pill"><span class="lang-zh">第四部分 · L0 与 L1：捕获、抽取、去重</span><span class="lang-en">Part 4 · L0 and L1: capture, extraction, dedup</span></span>
+    <span class="pill">13 / 13</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:69%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></div>
-    <h1><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></h1>
+    <div class="part"><span class="lang-zh">第四部分 · L0 与 L1：捕获、抽取、去重</span><span class="lang-en">Part 4 · L0 and L1: capture, extraction, dedup</span></div>
+    <h1><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-<span class="inline">TdaiCore</span> 是 OpenClaw 插件路径与 Gateway/Hermes 路径共用的宿主无关核心门面。
-宿主差异由 adapter 吸收；core 对外稳定暴露自动召回、对话提交捕获、记忆搜索、对话搜索与 pipeline scheduler 生命周期。
+L0 不是摘要层，而是“原始对话证据层”：它把可追溯的 user / assistant 消息按 JSONL 追加到本地文件中。
+<span class="inline">recordConversation</span> 只负责从原始 messages 中找出本次新增内容，清洗注入标签与噪声，再一行一条写入当天文件。
 </p>
 
 <div class="card analogy">
   <div class="tag">🧩 生活类比</div>
-  如果 OpenClaw 与 Gateway/Hermes 是不同入口大厅，adapter 就是前台翻译，<span class="inline">TdaiCore</span> 是同一个资料室柜台。
-  不管访客从哪个大厅来，最终都向同一个柜台办理“查资料、登记新资料、维护后台整理任务”。
+  L0 像法庭证物袋，不像会议纪要。证物袋要保存“当时看到的原文”，方便以后核查；纪要可以提炼观点，但不能替代证物。
+  所以 L0 先写原文账本，L1/L2/L3 才在后面从账本中抽取结构化记忆。
 </div>
 
-<h2>三层边界：宿主、Adapter、Core</h2>
-<div class="layers">
-  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway</span></div><div class="ld">OpenClaw hooks/tools 或 Gateway/Hermes HTTP 调用，负责宿主生命周期与请求形态。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">Host adapters</span></div><div class="ld">把日志、路径、LLM runner、运行上下文翻译成 core 可用的统一接口。</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">统一处理 recall、capture、memory search、conversation search 与 scheduler。</div></div>
-</div>
-
-<p>
-这个边界让核心能力可以被复用：OpenClaw 的 before/after hook 不需要复制 Gateway 的记忆逻辑；Gateway/Hermes 也不需要理解
-OpenClaw 的插件注册细节。两条路径都把请求变成 <span class="inline">TdaiCore</span> 能理解的方法调用。
-</p>
-
-<h2>生命周期先于能力调用</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>initialize()</h4><p>创建数据目录，调用 <span class="inline">initStores</span> 准备向量/embedding 存储，并用 <span class="inline">createPipelineManager</span> 构造 scheduler。</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>handleBeforeRecall</h4><p>在模型回答前转交给 <span class="inline">performAutoRecall</span>，返回要注入上下文的召回片段。</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>handleTurnCommitted</h4><p>对话提交后先确保 scheduler 已启动，再调用 <span class="inline">performAutoCapture</span> 写入 L0 并触发后续 pipeline。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>scheduler / destroy()</h4><p>后台 pipeline 持续整理 L1-L3；关闭时 <span class="inline">destroy()</span> 先排空后台任务，再关闭 store。</p></div></div>
-</div>
-
-<h2>两条宿主路径复用同一个门面</h2>
+<h2>L0 的边界：证据，不是结论</h2>
 <div class="cols">
-  <div class="col"><h4>OpenClaw path</h4><p><span class="inline">index.ts</span> 注册 hooks 和 tools。before hook 调 <span class="inline">handleBeforeRecall</span>；after/agent_end 提交完整 turn 给 <span class="inline">handleTurnCommitted</span>；工具调用转到 search 方法。</p></div>
-  <div class="col"><h4>Gateway / Hermes path</h4><p>Gateway HTTP handler 接收 Hermes provider 的请求，同样调用 <span class="inline">handleBeforeRecall</span>、<span class="inline">handleTurnCommitted</span> 和搜索方法，因此不复制核心算法。</p></div>
+  <div class="col"><h4>L0 raw evidence</h4><p>保存单条消息、角色、时间、会话标识与清洗后的正文。它强调可追加、可 grep、可流式读取、可回放排查。</p></div>
+  <div class="col"><h4>L1 extracted memory</h4><p>从多条 L0 中抽取事实、偏好、任务片段或经验。它是解释后的结果，必须能回到 L0 找证据。</p></div>
 </div>
 
-<h2>核心伪代码</h2>
-<pre class="code">core.initialize():
-    initDataDirectories()
-    storeReady = initStores()
-    scheduler = createPipelineManager()
+<h2>从原始会话到 JSONL</h2>
+<div class="flow">
+  <div class="node"><div class="nt">raw session messages</div><div class="nd">宿主传入的完整历史</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">slice</div><div class="nd">按位置或 timestamp cursor 只取新增消息</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">filter</div><div class="nd">只保留 user / assistant，跳过不应捕获内容</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">sanitize</div><div class="nd">移除注入标签、噪声与不安全片段</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">JSONL</div><div class="nd">按天追加，一行一条消息</div></div>
+</div>
 
-before_prompt(user_text):
-    return performAutoRecall(user_text)
-
-turn_committed(messages):
-    await ensureSchedulerStarted()
-    return performAutoCapture(messages)</pre>
-
-<h2>为什么 schedulerStartPromise 是并发闸门</h2>
 <p>
-Gateway 场景中，多个 HTTP 请求可能同时进入 <span class="inline">handleTurnCommitted</span>。
-如果只用布尔值标记“scheduler 已启动”，第一个请求可能在异步读取 checkpoint 尚未完成时就把标记改成 true；后续请求会越过启动流程，提前更新 scheduler 状态。
-当真正的 <span class="inline">scheduler.start(restoredStates)</span> 稍后执行时，恢复出的旧状态可能覆盖这些并发更新。
-</p>
-<p>
-<span class="inline">schedulerStartPromise</span> 把“正在启动”本身保存为同一个 promise。所有并发请求都 await 同一段启动过程；启动成功后，已 resolve 的 promise 又成为廉价哨兵，后续调用不会重复 start。
+<span class="inline">src/core/conversation/l0-recorder.ts</span> 中的 <span class="inline">recordConversation</span>
+接收会话消息、会话标识与游标信息。它优先用位置切片避免重复写入；当位置缓存缺失时，再用 timestamp cursor 排除已经记录过的消息。
+随后 <span class="inline">extractUserAssistantMessages</span> 只提取 user / assistant 消息，避免把 system、tool 或中间协议文本混进 L0。
 </p>
 
-<h2>为什么要登记后台任务</h2>
+<h2>JSONL 字段</h2>
+<table class="t">
+  <thead><tr><th>字段</th><th>含义</th><th>为什么重要</th></tr></thead>
+  <tbody>
+    <tr><td><span class="inline">id</span></td><td>单条 L0 记录 ID</td><td>供索引、去重和回查引用</td></tr>
+    <tr><td><span class="inline">sessionKey</span></td><td>逻辑会话键</td><td>把同一任务或窗口的记录归组</td></tr>
+    <tr><td><span class="inline">sessionId</span></td><td>宿主会话 ID</td><td>保留宿主侧可追溯来源</td></tr>
+    <tr><td><span class="inline">role</span></td><td>user 或 assistant</td><td>区分问题、回答和后续抽取方向</td></tr>
+    <tr><td><span class="inline">messageText</span></td><td>清洗后的消息正文</td><td>L1 抽取与人工排查的原文输入</td></tr>
+    <tr><td><span class="inline">timestamp</span> / <span class="inline">recordedAt</span></td><td>消息时间与记录时间</td><td>支持游标过滤、排序和审计</td></tr>
+  </tbody>
+</table>
+
+<h2>按天写入，而不是一个巨型文件</h2>
 <p>
-<span class="inline">performAutoCapture</span> 可能为 L0 embedding 发起延迟后台写入。它们是 fire-and-forget，但并不代表可以在关闭时忽略。
-<span class="inline">TdaiCore</span> 用 background task registry 记录这些 in-flight promise；<span class="inline">destroy()</span> 会在关闭 vector store 与 embedding service 前等待它们完成或超时，避免迟到写入打到已关闭数据库连接。
+<span class="inline">src/utils/time.ts</span> 的 <span class="inline">formatLocalDate</span> 生成本地日期，L0 recorder 用它决定当天 JSONL 文件名。
+这种布局让追加写入很便宜，也让排查时可以按日期定位：今天的 agent 任务只查今天文件，历史导出也可以按天流式处理。
 </p>
+
+<h2>清洗和“还原原始 prompt”</h2>
+<div class="cols">
+  <div class="col"><h4>清洗后再写入</h4><p><span class="inline">src/utils/sanitize.ts</span> 的 <span class="inline">sanitizeText</span> 会移除注入标签、召回包裹标记、过度噪声和不安全片段；<span class="inline">shouldCaptureL0</span> 决定清洗后是否值得捕获。</p></div>
+  <div class="col"><h4>被 prepend 污染时回退</h4><p><span class="inline">index.ts</span> 中的 <span class="inline">pendingOriginalPrompts</span> 缓存原始用户 prompt。若 recall prepend 改写了用户消息，recorder 会用缓存的原始 prompt 替换被污染文本。</p></div>
+</div>
+
+<p>
+这一步很关键：L0 要记录用户真正说了什么，而不是“用户消息 + 系统召回上下文”的拼接物。
+否则后续 L1 会把 recall 注入的旧记忆误当成本轮新事实，造成证据污染和重复抽取。
+</p>
+
+<h2>伪代码</h2>
+<pre class="code">recordConversation(rawMessages):
+    new_messages = slice_by_position_or_timestamp(rawMessages)
+    user_assistant = extract_user_assistant(new_messages)
+    clean = sanitize_and_filter(user_assistant)
+    append_jsonl(daily_file, clean)</pre>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/tdai-core.ts</span>：<span class="inline">TdaiCore</span>、<span class="inline">initialize</span>、<span class="inline">destroy</span>、<span class="inline">handleBeforeRecall</span>、<span class="inline">handleTurnCommitted</span></li>
-    <li><span class="inline">src/utils/pipeline-factory.ts</span>：<span class="inline">initStores</span>、<span class="inline">createPipelineManager</span></li>
-    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：<span class="inline">performAutoRecall</span></li>
-    <li><span class="inline">src/core/hooks/auto-capture.ts</span>：<span class="inline">performAutoCapture</span></li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：<span class="inline">recordConversation</span>、<span class="inline">extractUserAssistantMessages</span>、位置切片、timestamp cursor、JSONL 追加</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>：<span class="inline">sanitizeText</span>、<span class="inline">shouldCaptureL0</span>、注入标签与噪声过滤</li>
+    <li><span class="inline">src/utils/time.ts</span>：<span class="inline">formatLocalDate</span>、按本地日期生成 daily file</li>
+    <li><span class="inline">index.ts</span>：<span class="inline">pendingOriginalPrompts</span> 缓存被 prepend 前的原始 prompt</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  <span class="inline">TdaiCore</span> 的价值不是“又包一层”，而是把 OpenClaw 与 Gateway/Hermes 的宿主差异挡在 adapter 外侧，
-  让 recall、capture、search 与 pipeline lifecycle 只有一套实现、一套资源关闭顺序和一套并发保护。
+  L0 是可追溯证据层：JSONL 一行一条消息，按天追加，带 <span class="inline">sessionKey</span> / <span class="inline">sessionId</span>，
+  先切片去重，再提取 user / assistant，清洗注入污染，必要时把用户消息替换回原始 prompt。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. TdaiCore 的核心价值是什么？</div>
+  <div class="qn">1. L0 为什么采用 JSONL 一行一条消息？</div>
   <ol class="opts">
-    <li>让 OpenClaw 与 Gateway/Hermes 复用同一套记忆能力</li>
-    <li>只负责 CORS</li>
-    <li>只负责读取 README</li>
-    <li>替代所有 HTML 构建脚本</li>
+    <li>便于追加、grep、流式读取和保留原始证据</li>
+    <li>因为必须压缩成二进制</li>
+    <li>因为不能保存时间戳</li>
+    <li>因为 L1 不能读取 JSON</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：A</strong>。宿主差异被 adapter 吸收，TdaiCore 统一 expose recall/capture/search/pipeline。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：A</strong>。JSONL 适合增量写入和排查证据，是 L0 的“原文账本”。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>为什么 Gateway 并发请求需要 scheduler 启动 promise gate？</li>
+    <li>为什么需要把被 recall prepend 污染过的用户消息替换回原始 prompt？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-<span class="inline">TdaiCore</span> is the host-neutral core facade shared by the OpenClaw plugin path and the Gateway/Hermes path.
-Adapters absorb host differences; the core exposes stable methods for auto recall, turn capture, memory search, conversation search, and the pipeline scheduler lifecycle.
+L0 is not a summary layer. It is the raw conversation evidence layer: append traceable user / assistant messages into local JSONL files.
+<span class="inline">recordConversation</span> finds the new messages in the raw messages array, sanitizes injected tags and noise, then writes one message per line to the daily file.
 </p>
 
 <div class="card analogy">
   <div class="tag">🧩 Analogy</div>
-  If OpenClaw and Gateway/Hermes are different entrance halls, the adapter is the front-desk translator and <span class="inline">TdaiCore</span> is the same records counter.
-  No matter which hall a visitor uses, they reach one counter for “look up records, register new records, and keep background filing running.”
+  L0 is an evidence bag, not meeting minutes. The evidence bag keeps what was seen at the time so it can be inspected later; minutes may summarize ideas, but they cannot replace evidence.
+  L0 writes the raw ledger first, and L1/L2/L3 extract structured memory from that ledger afterward.
 </div>
 
-<h2>Three boundaries: host, adapter, core</h2>
-<div class="layers">
-  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway</span></div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">Host adapters</span></div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
+<h2>L0's boundary: evidence, not conclusions</h2>
+<div class="cols">
+  <div class="col"><h4>L0 raw evidence</h4><p>Stores each message, role, time, session identifiers, and sanitized text. It favors appendability, grep, streaming reads, and replayable debugging.</p></div>
+  <div class="col"><h4>L1 extracted memory</h4><p>Extracts facts, preferences, task fragments, or lessons from multiple L0 messages. It is an interpreted result and should be traceable back to L0 evidence.</p></div>
+</div>
+
+<h2>Raw conversation to JSONL</h2>
+<div class="flow">
+  <div class="node"><div class="nt">raw session messages</div><div class="nd">complete history from the host</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">slice</div><div class="nd">take only new messages by position or timestamp cursor</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">filter</div><div class="nd">keep user / assistant and skip non-capturable text</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">sanitize</div><div class="nd">remove injected tags, noise, and unsafe fragments</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">JSONL</div><div class="nd">daily append, one message per line</div></div>
 </div>
 
 <p>
-This boundary is what makes reuse possible: OpenClaw before/after hooks do not copy Gateway memory logic, and Gateway/Hermes do not need to understand OpenClaw plugin registration details.
-Both paths turn host events into method calls that <span class="inline">TdaiCore</span> understands.
+In <span class="inline">src/core/conversation/l0-recorder.ts</span>, <span class="inline">recordConversation</span>
+receives session messages, session identifiers, and cursor data. It prefers a position slice to avoid duplicate writes; if that cache is unavailable, it uses a timestamp cursor to exclude messages already recorded.
+Then <span class="inline">extractUserAssistantMessages</span> extracts only user / assistant messages so system, tool, or protocol text does not enter L0.
 </p>
 
-<h2>Lifecycle comes before capability calls</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>initialize()</h4><p>Create data directories, call <span class="inline">initStores</span> for vector/embedding storage, and build the scheduler with <span class="inline">createPipelineManager</span>.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>handleBeforeRecall</h4><p>Before the model answers, delegate to <span class="inline">performAutoRecall</span> and return snippets that can be injected into context.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>handleTurnCommitted</h4><p>After a turn is committed, ensure the scheduler has started, then call <span class="inline">performAutoCapture</span> to write L0 and trigger later pipeline work.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>scheduler / destroy()</h4><p>The background pipeline keeps organizing L1-L3; shutdown drains background tasks before closing stores.</p></div></div>
+<h2>JSONL fields</h2>
+<table class="t">
+  <thead><tr><th>Field</th><th>Meaning</th><th>Why it matters</th></tr></thead>
+  <tbody>
+    <tr><td><span class="inline">id</span></td><td>Single L0 record ID</td><td>Used for indexing, dedup, and evidence lookup</td></tr>
+    <tr><td><span class="inline">sessionKey</span></td><td>Logical session key</td><td>Groups records from the same task or window</td></tr>
+    <tr><td><span class="inline">sessionId</span></td><td>Host session ID</td><td>Preserves the traceable host source</td></tr>
+    <tr><td><span class="inline">role</span></td><td>user or assistant</td><td>Separates requests, answers, and extraction direction</td></tr>
+    <tr><td><span class="inline">messageText</span></td><td>Sanitized message body</td><td>Raw input for L1 extraction and human inspection</td></tr>
+    <tr><td><span class="inline">timestamp</span> / <span class="inline">recordedAt</span></td><td>Message time and record time</td><td>Supports cursor filtering, ordering, and audit</td></tr>
+  </tbody>
+</table>
+
+<h2>Daily files, not one giant file</h2>
+<p>
+<span class="inline">formatLocalDate</span> in <span class="inline">src/utils/time.ts</span> produces the local date, and the L0 recorder uses it to choose the daily JSONL filename.
+This layout keeps appends cheap and makes inspection date-scoped: today's agent task can read today's file, while historical export can stream day by day.
+</p>
+
+<h2>Sanitization and restoring the original prompt</h2>
+<div class="cols">
+  <div class="col"><h4>Sanitize before writing</h4><p><span class="inline">sanitizeText</span> in <span class="inline">src/utils/sanitize.ts</span> removes injected tags, recall wrapper markers, excessive noise, and unsafe fragments; <span class="inline">shouldCaptureL0</span> decides whether the cleaned text is worth capturing.</p></div>
+  <div class="col"><h4>Fall back when prepend polluted it</h4><p><span class="inline">pendingOriginalPrompts</span> in <span class="inline">index.ts</span> caches the original user prompt. If recall prepend changed the user message, the recorder replaces the polluted text with the cached original prompt.</p></div>
 </div>
 
-<h2>Two host paths reuse the same facade</h2>
-<div class="cols">
-  <div class="col"><h4>OpenClaw path</h4><p><span class="inline">index.ts</span> registers hooks and tools. The before hook calls <span class="inline">handleBeforeRecall</span>; after/agent_end submits the full turn to <span class="inline">handleTurnCommitted</span>; tools forward to search methods.</p></div>
-  <div class="col"><h4>Gateway / Hermes path</h4><p>A Gateway HTTP handler receives requests from the Hermes provider and calls the same <span class="inline">handleBeforeRecall</span>, <span class="inline">handleTurnCommitted</span>, and search methods, so core algorithms are not duplicated.</p></div>
-</div>
+<p>
+That replacement is essential: L0 should record what the user actually said, not “user message plus system recall context”.
+Otherwise L1 may treat old recalled memory as a new fact from this turn, creating evidence pollution and duplicate extraction.
+</p>
 
 <h2>Pseudocode</h2>
-<pre class="code">core.initialize():
-    initDataDirectories()
-    storeReady = initStores()
-    scheduler = createPipelineManager()
-
-before_prompt(user_text):
-    return performAutoRecall(user_text)
-
-turn_committed(messages):
-    await ensureSchedulerStarted()
-    return performAutoCapture(messages)</pre>
-
-<h2>Why schedulerStartPromise is a concurrency gate</h2>
-<p>
-In the Gateway path, several HTTP requests can enter <span class="inline">handleTurnCommitted</span> at the same time.
-With only a boolean “scheduler started” flag, the first request could flip the flag before the async checkpoint read finishes; later requests would skip startup and update scheduler state too early.
-When <span class="inline">scheduler.start(restoredStates)</span> finally runs, restored old state could overwrite those concurrent updates.
-</p>
-<p>
-<span class="inline">schedulerStartPromise</span> stores the in-flight startup itself. Every concurrent request awaits the same promise; after startup succeeds, the resolved promise becomes a cheap sentinel so later calls do not start the scheduler again.
-</p>
-
-<h2>Why the background task registry exists</h2>
-<p>
-<span class="inline">performAutoCapture</span> can launch deferred background writes for L0 embeddings. They are fire-and-forget, but shutdown still has to respect them.
-<span class="inline">TdaiCore</span> records those in-flight promises in a background task registry; <span class="inline">destroy()</span> waits for them, or a bounded timeout, before closing the vector store and embedding service. That prevents late writes from hitting a closed database connection.
-</p>
+<pre class="code">recordConversation(rawMessages):
+    new_messages = slice_by_position_or_timestamp(rawMessages)
+    user_assistant = extract_user_assistant(new_messages)
+    clean = sanitize_and_filter(user_assistant)
+    append_jsonl(daily_file, clean)</pre>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">TdaiCore</span>, <span class="inline">initialize</span>, <span class="inline">destroy</span>, <span class="inline">handleBeforeRecall</span>, <span class="inline">handleTurnCommitted</span></li>
-    <li><span class="inline">src/utils/pipeline-factory.ts</span>: <span class="inline">initStores</span>, <span class="inline">createPipelineManager</span></li>
-    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">performAutoRecall</span></li>
-    <li><span class="inline">src/core/hooks/auto-capture.ts</span>: <span class="inline">performAutoCapture</span></li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: <span class="inline">recordConversation</span>, <span class="inline">extractUserAssistantMessages</span>, position slice, timestamp cursor, JSONL append</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">sanitizeText</span>, <span class="inline">shouldCaptureL0</span>, injected tag and noise filtering</li>
+    <li><span class="inline">src/utils/time.ts</span>: <span class="inline">formatLocalDate</span>, daily files by local date</li>
+    <li><span class="inline">index.ts</span>: <span class="inline">pendingOriginalPrompts</span> caches the original prompt before prepend</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  The value of <span class="inline">TdaiCore</span> is not “one more wrapper.” It keeps OpenClaw and Gateway/Hermes host differences outside the adapter boundary,
-  so recall, capture, search, and pipeline lifecycle share one implementation, one resource shutdown order, and one concurrency guard.
+  L0 is the traceable evidence layer: JSONL uses one message per line, appends by day, carries <span class="inline">sessionKey</span> / <span class="inline">sessionId</span>,
+  slices before extracting user / assistant messages, sanitizes injected pollution, and restores the original prompt when recall prepend changed it.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. What is the core value of TdaiCore?</div>
+  <div class="qn">1. Why does L0 use JSONL with one message per line?</div>
   <ol class="opts">
-    <li>It lets OpenClaw and Gateway/Hermes reuse the same memory capabilities</li>
-    <li>It only handles CORS</li>
-    <li>It only reads README</li>
-    <li>It replaces all HTML build scripts</li>
+    <li>It is easy to append, grep, stream, and preserve raw evidence</li>
+    <li>Because it must be binary-compressed</li>
+    <li>Because timestamps cannot be stored</li>
+    <li>Because L1 cannot read JSON</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Adapters absorb host differences; TdaiCore exposes recall/capture/search/pipeline uniformly.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. JSONL fits incremental writes and evidence inspection; it is L0's raw ledger.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>Why does the Gateway path need a promise gate for scheduler startup?</li>
+    <li>Why replace a recall-prepended user message with the original prompt?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="08-openclaw-plugin-shell.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></div></a><a class="next" href="10-host-adapter-boundaries.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></div></a></div>
+  <div class="footnav"><a class="prev" href="12-auto-capture-hook.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

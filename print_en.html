@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 12 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">12 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 13 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">13 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -344,6 +344,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></li>
   <li><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></li>
   <li><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></li>
+  <li><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1650,6 +1651,121 @@ updates the conversation count, persists state, enqueues L1 when the threshold i
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>If duplicate L0 records appear, which two capture mechanisms would you inspect first?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+L0 is not a summary layer. It is the raw conversation evidence layer: append traceable user / assistant messages into local JSONL files.
+<span class="inline">recordConversation</span> finds the new messages in the raw messages array, sanitizes injected tags and noise, then writes one message per line to the daily file.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  L0 is an evidence bag, not meeting minutes. The evidence bag keeps what was seen at the time so it can be inspected later; minutes may summarize ideas, but they cannot replace evidence.
+  L0 writes the raw ledger first, and L1/L2/L3 extract structured memory from that ledger afterward.
+</div>
+
+<h2>L0's boundary: evidence, not conclusions</h2>
+<div class="cols">
+  <div class="col"><h4>L0 raw evidence</h4><p>Stores each message, role, time, session identifiers, and sanitized text. It favors appendability, grep, streaming reads, and replayable debugging.</p></div>
+  <div class="col"><h4>L1 extracted memory</h4><p>Extracts facts, preferences, task fragments, or lessons from multiple L0 messages. It is an interpreted result and should be traceable back to L0 evidence.</p></div>
+</div>
+
+<h2>Raw conversation to JSONL</h2>
+<div class="flow">
+  <div class="node"><div class="nt">raw session messages</div><div class="nd">complete history from the host</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">slice</div><div class="nd">take only new messages by position or timestamp cursor</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">filter</div><div class="nd">keep user / assistant and skip non-capturable text</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">sanitize</div><div class="nd">remove injected tags, noise, and unsafe fragments</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">JSONL</div><div class="nd">daily append, one message per line</div></div>
+</div>
+
+<p>
+In <span class="inline">src/core/conversation/l0-recorder.ts</span>, <span class="inline">recordConversation</span>
+receives session messages, session identifiers, and cursor data. It prefers a position slice to avoid duplicate writes; if that cache is unavailable, it uses a timestamp cursor to exclude messages already recorded.
+Then <span class="inline">extractUserAssistantMessages</span> extracts only user / assistant messages so system, tool, or protocol text does not enter L0.
+</p>
+
+<h2>JSONL fields</h2>
+<table class="t">
+  <thead><tr><th>Field</th><th>Meaning</th><th>Why it matters</th></tr></thead>
+  <tbody>
+    <tr><td><span class="inline">id</span></td><td>Single L0 record ID</td><td>Used for indexing, dedup, and evidence lookup</td></tr>
+    <tr><td><span class="inline">sessionKey</span></td><td>Logical session key</td><td>Groups records from the same task or window</td></tr>
+    <tr><td><span class="inline">sessionId</span></td><td>Host session ID</td><td>Preserves the traceable host source</td></tr>
+    <tr><td><span class="inline">role</span></td><td>user or assistant</td><td>Separates requests, answers, and extraction direction</td></tr>
+    <tr><td><span class="inline">messageText</span></td><td>Sanitized message body</td><td>Raw input for L1 extraction and human inspection</td></tr>
+    <tr><td><span class="inline">timestamp</span> / <span class="inline">recordedAt</span></td><td>Message time and record time</td><td>Supports cursor filtering, ordering, and audit</td></tr>
+  </tbody>
+</table>
+
+<h2>Daily files, not one giant file</h2>
+<p>
+<span class="inline">formatLocalDate</span> in <span class="inline">src/utils/time.ts</span> produces the local date, and the L0 recorder uses it to choose the daily JSONL filename.
+This layout keeps appends cheap and makes inspection date-scoped: today's agent task can read today's file, while historical export can stream day by day.
+</p>
+
+<h2>Sanitization and restoring the original prompt</h2>
+<div class="cols">
+  <div class="col"><h4>Sanitize before writing</h4><p><span class="inline">sanitizeText</span> in <span class="inline">src/utils/sanitize.ts</span> removes injected tags, recall wrapper markers, excessive noise, and unsafe fragments; <span class="inline">shouldCaptureL0</span> decides whether the cleaned text is worth capturing.</p></div>
+  <div class="col"><h4>Fall back when prepend polluted it</h4><p><span class="inline">pendingOriginalPrompts</span> in <span class="inline">index.ts</span> caches the original user prompt. If recall prepend changed the user message, the recorder replaces the polluted text with the cached original prompt.</p></div>
+</div>
+
+<p>
+That replacement is essential: L0 should record what the user actually said, not “user message plus system recall context”.
+Otherwise L1 may treat old recalled memory as a new fact from this turn, creating evidence pollution and duplicate extraction.
+</p>
+
+<h2>Pseudocode</h2>
+<pre class="code">recordConversation(rawMessages):
+    new_messages = slice_by_position_or_timestamp(rawMessages)
+    user_assistant = extract_user_assistant(new_messages)
+    clean = sanitize_and_filter(user_assistant)
+    append_jsonl(daily_file, clean)</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: <span class="inline">recordConversation</span>, <span class="inline">extractUserAssistantMessages</span>, position slice, timestamp cursor, JSONL append</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">sanitizeText</span>, <span class="inline">shouldCaptureL0</span>, injected tag and noise filtering</li>
+    <li><span class="inline">src/utils/time.ts</span>: <span class="inline">formatLocalDate</span>, daily files by local date</li>
+    <li><span class="inline">index.ts</span>: <span class="inline">pendingOriginalPrompts</span> caches the original prompt before prepend</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  L0 is the traceable evidence layer: JSONL uses one message per line, appends by day, carries <span class="inline">sessionKey</span> / <span class="inline">sessionId</span>,
+  slices before extracting user / assistant messages, sanitizes injected pollution, and restores the original prompt when recall prepend changed it.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Why does L0 use JSONL with one message per line?</div>
+  <ol class="opts">
+    <li>It is easy to append, grep, stream, and preserve raw evidence</li>
+    <li>Because it must be binary-compressed</li>
+    <li>Because timestamps cannot be stored</li>
+    <li>Because L1 cannot read JSON</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. JSONL fits incremental writes and evidence inspection; it is L0's raw ledger.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Why replace a recall-prepended user message with the original prompt?</li>
   </ul>
 </div>
 </div>

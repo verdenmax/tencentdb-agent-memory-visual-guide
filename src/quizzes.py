@@ -268,6 +268,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果出现重复 L0 记录，你会优先检查 capture 的哪两个机制？", "en": "If duplicate L0 records appear, which two capture mechanisms would you inspect first?"}],
     },
+    "13-l0-jsonl-recorder.html": {
+        "mcq": [{
+            "q": {"zh": "L0 为什么采用 JSONL 一行一条消息？", "en": "Why does L0 use JSONL with one message per line?"},
+            "opts": [
+                {"zh": "便于追加、grep、流式读取和保留原始证据", "en": "It is easy to append, grep, stream, and preserve raw evidence"},
+                {"zh": "因为不能保存时间戳", "en": "Because timestamps cannot be stored"},
+                {"zh": "因为必须压缩成二进制", "en": "Because it must be binary-compressed"},
+                {"zh": "因为 L1 不能读取 JSON", "en": "Because L1 cannot read JSON"},
+            ],
+            "answer": 0,
+            "why": {"zh": "JSONL 适合增量写入和排查证据，是 L0 的“原文账本”。", "en": "JSONL fits incremental writes and evidence inspection; it is L0's raw ledger."},
+        }],
+        "open": [{"zh": "为什么需要把被 recall prepend 污染过的用户消息替换回原始 prompt？", "en": "Why replace a recall-prepended user message with the original prompt?"}],
+    },
 }
 
 

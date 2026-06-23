@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 12 lessons.
+The guide currently contains 13 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -22,6 +22,7 @@ The guide currently contains 12 lessons.
 | 10 | HostAdapter and LLMRunner boundaries |
 | 11 | Runtime init and config parsing |
 | 12 | Auto Capture after a turn commits |
+| 13 | L0 JSONL: raw conversation evidence |
 
 ## How to view locally
 
