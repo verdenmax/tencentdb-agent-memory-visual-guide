@@ -194,9 +194,9 @@ LESSON_09 = {
 
 <h2>三层边界：宿主、Adapter、Core</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw hooks/tools 或 Gateway/Hermes HTTP 调用，负责宿主生命周期与请求形态。</div></div>
-  <div class="layer l-part"><div class="lt">Adapters</div><div class="ld">把日志、路径、LLM runner、运行上下文翻译成 core 可用的统一接口。</div></div>
-  <div class="layer l-main"><div class="lt">TdaiCore</div><div class="ld">统一处理 recall、capture、memory search、conversation search 与 scheduler。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway</span></div><div class="ld">OpenClaw hooks/tools 或 Gateway/Hermes HTTP 调用，负责宿主生命周期与请求形态。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">Host adapters</span></div><div class="ld">把日志、路径、LLM runner、运行上下文翻译成 core 可用的统一接口。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">统一处理 recall、capture、memory search、conversation search 与 scheduler。</div></div>
 </div>
 
 <p>
@@ -277,9 +277,9 @@ Adapters absorb host differences; the core exposes stable methods for auto recal
 
 <h2>Three boundaries: host, adapter, core</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
-  <div class="layer l-part"><div class="lt">Adapters</div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
-  <div class="layer l-main"><div class="lt">TdaiCore</div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway</span></div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">Host adapters</span></div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
 </div>
 
 <p>
@@ -363,9 +363,9 @@ LESSON_10 = {
 
 <h2>Adapter 是宿主与 core 的边界</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw plugin API、Gateway HTTP handler、Hermes provider：负责生命周期、请求来源和宿主能力。</div></div>
-  <div class="layer l-part"><div class="lt">HostAdapter</div><div class="ld">统一暴露 logger、runtime context、dataDir 与 LLMRunnerFactory。</div></div>
-  <div class="layer l-main"><div class="lt">Core</div><div class="ld">TdaiCore、recall、capture、pipeline、persona/offload prompt：只看接口，不看宿主。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway / Hermes</span></div><div class="ld">OpenClaw plugin API、Gateway HTTP handler、Hermes provider：负责生命周期、请求来源和宿主能力。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">统一暴露 logger、runtime context、dataDir 与 LLMRunnerFactory。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">TdaiCore、recall、capture、pipeline、persona prompts：只看接口，不看宿主。</div></div>
 </div>
 
 <p>
@@ -449,9 +449,9 @@ core = TdaiCore({
 
 <h2>The adapter is the host/core boundary</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
-  <div class="layer l-part"><div class="lt">HostAdapter</div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
-  <div class="layer l-main"><div class="lt">Core</div><div class="ld">TdaiCore, recall, capture, pipeline, persona/offload prompts: interface-only, host-free.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway / Hermes</span></div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">TdaiCore, recall, capture, pipeline, persona prompts: interface-only, host-free.</div></div>
 </div>
 
 <p>

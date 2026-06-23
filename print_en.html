@@ -1232,9 +1232,9 @@ Adapters absorb host differences; the core exposes stable methods for auto recal
 
 <h2>Three boundaries: host, adapter, core</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
-  <div class="layer l-part"><div class="lt">Adapters</div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
-  <div class="layer l-main"><div class="lt">TdaiCore</div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway</span></div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">Host adapters</span></div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
 </div>
 
 <p>
@@ -1340,9 +1340,9 @@ When <span class="inline">scheduler.start(restoredStates)</span> finally runs, r
 
 <h2>The adapter is the host/core boundary</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
-  <div class="layer l-part"><div class="lt">HostAdapter</div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
-  <div class="layer l-main"><div class="lt">Core</div><div class="ld">TdaiCore, recall, capture, pipeline, persona/offload prompts: interface-only, host-free.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway / Hermes</span></div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">TdaiCore, recall, capture, pipeline, persona prompts: interface-only, host-free.</div></div>
 </div>
 
 <p>

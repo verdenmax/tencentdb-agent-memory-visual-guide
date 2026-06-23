@@ -342,9 +342,9 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 
 <h2>三层边界：宿主、Adapter、Core</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw hooks/tools 或 Gateway/Hermes HTTP 调用，负责宿主生命周期与请求形态。</div></div>
-  <div class="layer l-part"><div class="lt">Adapters</div><div class="ld">把日志、路径、LLM runner、运行上下文翻译成 core 可用的统一接口。</div></div>
-  <div class="layer l-main"><div class="lt">TdaiCore</div><div class="ld">统一处理 recall、capture、memory search、conversation search 与 scheduler。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway</span></div><div class="ld">OpenClaw hooks/tools 或 Gateway/Hermes HTTP 调用，负责宿主生命周期与请求形态。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">Host adapters</span></div><div class="ld">把日志、路径、LLM runner、运行上下文翻译成 core 可用的统一接口。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">统一处理 recall、capture、memory search、conversation search 与 scheduler。</div></div>
 </div>
 
 <p>
@@ -446,9 +446,9 @@ Adapters absorb host differences; the core exposes stable methods for auto recal
 
 <h2>Three boundaries: host, adapter, core</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
-  <div class="layer l-part"><div class="lt">Adapters</div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
-  <div class="layer l-main"><div class="lt">TdaiCore</div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway</span></div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">Host adapters</span></div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
 </div>
 
 <p>
