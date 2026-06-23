@@ -58,6 +58,8 @@ PAGES = [
      "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
     ("06-runtime-files.html", "运行后会出现哪些文件", "Runtime files and data products",
      "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
+    ("07-config-levels.html", "配置层级与安全默认值", "Configuration levels and safe defaults",
+     "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
 ]
 
 def bi(zh, en):
@@ -503,6 +505,8 @@ SUBTITLES = {
                                     "the Hermes provider reuses the same TdaiCore through a local Gateway"),
     "06-runtime-files.html": ("conversations、records、scene_blocks、persona、vectors.db、context-offload",
                               "conversations, records, scene_blocks, persona, vectors.db, context-offload"),
+    "07-config-levels.html": ("capture、pipeline、recall、embedding、tcvdb、offload 的渐进式调参",
+                              "progressive tuning for capture, pipeline, recall, embedding, tcvdb, offload"),
 }
 
 def index_page(lesson_prefix="lessons/"):

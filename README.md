@@ -4,12 +4,17 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 > This is standalone educational material about TencentDB Agent Memory. It explains the project with diagrams, pseudocode, and small cited source references.
 
-## What M0 contains
+## Current lessons
 
 | Lesson | Topic |
 | --- | --- |
 | 01 | Why Agent Memory |
 | 02 | The data flow of one conversation |
+| 03 | Two memory spines |
+| 04 | OpenClaw zero-config loop |
+| 05 | Hermes and Gateway path |
+| 06 | Runtime files and data products |
+| 07 | Configuration levels and safe defaults |
 
 ## How to view locally
 

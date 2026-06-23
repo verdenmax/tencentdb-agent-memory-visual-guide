@@ -180,6 +180,24 @@ QUIZZES = {
             {"zh": "如果用户说“召回错了”，你会先打开哪个文件或目录？为什么？", "en": "If a user says recall is wrong, which file or directory would you open first, and why?"}
         ],
     },
+    "07-config-levels.html": {
+        "mcq": [
+            {
+                "q": {"zh": "远程 embedding 配置最容易漏掉哪组必填信息？", "en": "Which required fields are easiest to miss in remote embedding configuration?"},
+                "opts": [
+                    {"zh": "apiKey、baseUrl、model、dimensions", "en": "apiKey, baseUrl, model, dimensions"},
+                    {"zh": "README、LICENSE、package name", "en": "README, LICENSE, package name"},
+                    {"zh": "sceneBackupCount 和 favicon", "en": "sceneBackupCount and favicon"},
+                    {"zh": "GitHub Pages source", "en": "GitHub Pages source"},
+                ],
+                "answer": 0,
+                "why": {"zh": "远程 embedding 少任一关键字段都会导致向量能力无法正常启用或被降级。", "en": "Missing any of these fields prevents remote embedding from working correctly or causes degraded behavior."},
+            }
+        ],
+        "open": [
+            {"zh": "为什么召回 timeout 是用户体验上的安全默认值？", "en": "Why is a recall timeout a safe default for user experience?"}
+        ],
+    },
 }
 
 

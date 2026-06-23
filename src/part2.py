@@ -504,3 +504,190 @@ Offload <span class="inline">refs/</span> keep large source text or referenced m
 </div>
 """,
 }
+
+LESSON_07 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+配置不是越多越专业。TencentDB Agent Memory 的安全心智模型是：先让零配置闭环能跑，再只调日常旋钮，最后才进入长会话、远程后端、LLM 与运维边界。
+本课把 <span class="inline">src/config.ts</span>、<span class="inline">openclaw.plugin.json</span>、<span class="inline">README_CN.md</span> 的“可调参数”说明和 <span class="inline">src/core/store/factory.ts</span> 串起来，形成一张渐进式配置地图。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🎚️ 生活类比</div>
+  配置像调音台：日常只动音量和静音，长会话才调均衡器和压缩器，真正换声卡或接远程设备时才碰驱动、接口和凭据。默认值应该让新手先听到声音，而不是先面对一整排危险旋钮。
+</div>
+
+<h2>三层配置：从日常旋钮到运维边界</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">1</span><span class="name">Daily knobs</span></div><div class="ld">日常只调 <span class="inline">capture</span>、<span class="inline">recall</span>、少量 <span class="inline">pipeline</span>：是否捕获、召回条数、召回策略、超时和最小触发条件。目标是“别打扰用户，还能想起来”。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">2</span><span class="name">Long-session tuning</span></div><div class="ld">长会话再看 <span class="inline">extraction</span>、<span class="inline">pipeline</span>、<span class="inline">offload</span>、<span class="inline">bm25</span>：抽取频率、批处理、关键词检索、上下文卸载和报告产物。目标是减少上下文压力，同时保留可追溯证据。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">3</span><span class="name">Backend / LLM / ops</span></div><div class="ld">最后才配置 <span class="inline">embedding</span>、<span class="inline">tcvdb</span>、<span class="inline">llm</span>、<span class="inline">report</span> 和网关鉴权。这里涉及远程服务、模型维度、API Key、后端选择和运维可观测性。</div></div>
+</div>
+
+<p>
+这三层不是权限等级，而是学习顺序。<span class="inline">parseConfig</span> 会把用户配置和默认值合并成运行时配置；因此文档应鼓励“少量、可解释、可回滚”的改动。
+如果一开始就同时改 embedding、TCVDB、清理策略和 LLM，很难判断问题来自网络、凭据、维度、后端还是业务触发条件。
+</p>
+
+<h2>配置组各管什么</h2>
+<ul>
+  <li><strong>capture：</strong>控制对话是否进入 L0/L1 流程，以及 <span class="inline">l0l1RetentionDays</span> 这类保留策略；值为 <span class="inline">0</span> 表示关闭清理，不会自动删 L0/L1。</li>
+  <li><strong>extraction：</strong>影响从原始对话抽取结构化记忆的方式，适合在确认捕获稳定后再调。</li>
+  <li><strong>pipeline：</strong><span class="inline">PipelineTriggerConfig</span> 这类触发配置决定何时整理 L1、场景、画像或批处理任务。</li>
+  <li><strong>recall：</strong><span class="inline">RecallConfig</span> 管理策略、最大条数和 <span class="inline">timeoutMs</span>；超时是安全默认值，防止召回卡住用户请求。</li>
+  <li><strong>embedding：</strong><span class="inline">EmbeddingConfig</span> 决定本地或远程向量能力；远程 provider 必须给出 <span class="inline">apiKey</span>、<span class="inline">baseUrl</span>、<span class="inline">model</span>、<span class="inline">dimensions</span>。</li>
+  <li><strong>bm25：</strong>关键词检索补足纯向量召回的盲区，适合术语、文件名、错误码和专有名词。</li>
+  <li><strong>tcvdb：</strong>远程 Tencent Cloud VectorDB 后端配置，和 <span class="inline">src/core/store/factory.ts</span> 的后端选择一起理解。</li>
+  <li><strong>offload：</strong><span class="inline">OffloadConfig</span> 管理长任务材料外置、refs、MMD 和会话状态，服务当前任务压缩。</li>
+  <li><strong>llm：</strong>控制抽取、总结或网关相关模型调用；真实密钥必须留在安全本地配置或环境变量中。</li>
+  <li><strong>report：</strong>面向调试和可读产物，帮助人查看发生了什么，而不是替代底层证据链。</li>
+</ul>
+
+<h2>本地默认与 TCVDB 后端</h2>
+<div class="cols">
+  <div class="col"><h4>SQLite default</h4><p>零配置预期可运行：默认本地 SQLite / sqlite-vec 路径适合课程、离线试用和个人 smoke test。它降低启动门槛，也让新手先验证 capture、pipeline、recall 的闭环。清理策略默认保守：<span class="inline">capture.l0l1RetentionDays = 0</span> 表示禁用清理；任何激进清理都应显式 opt-in。</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。后端选择要回到 <span class="inline">src/core/store/factory.ts</span> 看创建逻辑：配置不是写给好看，而是决定 store bundle 会落到本地还是远程。</p></div>
+</div>
+
+<h2>从配置到行为的路径</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>openclaw.plugin.json 暴露入口</h4><p>插件元数据告诉 OpenClaw 这个包有哪些 hooks、tools 和配置面；用户通常从 OpenClaw 配置文件写入 <span class="inline">memory-tencentdb</span>。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>src/config.ts 解析默认值</h4><p><span class="inline">parseConfig</span> 合并用户输入与默认值，形成 <span class="inline">CaptureConfig</span>、<span class="inline">PipelineTriggerConfig</span>、<span class="inline">RecallConfig</span>、<span class="inline">EmbeddingConfig</span>、<span class="inline">OffloadConfig</span> 等运行时配置。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>store bundle 选择后端</h4><p><span class="inline">src/core/store/factory.ts</span> 根据配置创建本地 SQLite 或 TCVDB 相关 store bundle，影响 L0/L1/向量和检索能力的落点。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>hooks / pipeline 改变行为</h4><p>解析后的 capture、recall、pipeline、offload 和 embedding 设置最终影响回答前召回、回答后捕获、后台整理、长任务卸载和报告输出。</p></div></div>
+</div>
+
+<h2>远程 embedding 示例只用占位符</h2>
+<pre class="code">{
+  "memory-tencentdb": {
+    "recall": {
+      "strategy": "hybrid",
+      "maxResults": 5,
+      "timeoutMs": 5000
+    },
+    "embedding": {
+      "provider": "openai",
+      "baseUrl": "https://example.invalid/v1",
+      "apiKey": "${EMBEDDING_API_KEY}",
+      "model": "text-embedding-3-small",
+      "dimensions": 1536
+    }
+  }
+}</pre>
+
+<p>
+这个片段的重点不是推荐某个服务，而是说明远程 embedding 的最小必填组合：endpoint、密钥、模型名和维度必须互相匹配。公开教程、截图、提交和 Gateway 示例中的 API Key 都必须是占位符；如果涉及 Gateway 鉴权，也只能写变量名或假值，不能写真实团队密钥。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码 / 文档锚点</div>
+  <ul>
+    <li><span class="inline">src/config.ts</span>：<span class="inline">CaptureConfig</span>、<span class="inline">PipelineTriggerConfig</span>、<span class="inline">RecallConfig</span>、<span class="inline">EmbeddingConfig</span>、<span class="inline">OffloadConfig</span>、<span class="inline">parseConfig</span>。</li>
+    <li><span class="inline">openclaw.plugin.json</span>：插件注册、配置面和 OpenClaw 入口。</li>
+    <li><span class="inline">README_CN.md</span>：可调参数 section，适合先看用户能改什么。</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite 与 TCVDB 等后端选择。</li>
+  </ul>
+</div>
+
+<div class="card warn">
+  <div class="tag">🔒 安全默认值</div>
+  零配置应该能跑；清理默认保守；召回 timeout 保护交互体验；远程 embedding 缺字段时应失败或降级而不是假装成功；所有公开文档里的 Gateway API Key、embedding key、base URL 都只能是占位符。
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  先用默认值证明闭环，再按 Level 1、Level 2、Level 3 渐进调参。安全默认值的目标是“新手能启动、用户不被阻塞、数据不被意外删除、密钥不进入文档”。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+More configuration does not mean a better setup. The safe mental model is progressive: make the zero-config loop run, tune daily knobs only when needed, then move into long-session, backend, LLM, and operational settings.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🎚️ Analogy</div>
+  Configuration is like a mixing console: everyday use changes volume and mute; long sessions tune compression and EQ; remote devices require drivers, endpoints, and credentials. Defaults should let beginners hear sound before they touch dangerous knobs.
+</div>
+
+<h2>Three configuration levels</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">1</span><span class="name">Daily knobs</span></div><div class="ld">Tune <span class="inline">capture</span>, <span class="inline">recall</span>, and a little <span class="inline">pipeline</span>: capture on/off, recall strategy, result count, timeout, and minimal trigger thresholds.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">2</span><span class="name">Long-session tuning</span></div><div class="ld">For long sessions, tune <span class="inline">extraction</span>, <span class="inline">pipeline</span>, <span class="inline">offload</span>, and <span class="inline">bm25</span>: extraction cadence, batching, keyword search, context offload, and reports.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">3</span><span class="name">Backend / LLM / ops</span></div><div class="ld">Only then configure <span class="inline">embedding</span>, <span class="inline">tcvdb</span>, <span class="inline">llm</span>, <span class="inline">report</span>, and gateway authentication, because these involve remote services, model dimensions, API keys, backend choice, and operations.</div></div>
+</div>
+
+<p>
+The levels are a learning order, not a permission model. <span class="inline">parseConfig</span> combines user settings with defaults into runtime config, so documentation should encourage small, explainable, reversible changes.
+</p>
+
+<h2>What each config group controls</h2>
+<ul>
+  <li><strong>capture:</strong> whether conversations enter L0/L1, plus retention such as <span class="inline">l0l1RetentionDays</span>; <span class="inline">0</span> means cleanup is disabled.</li>
+  <li><strong>extraction:</strong> how raw conversations become structured memories after capture is proven stable.</li>
+  <li><strong>pipeline:</strong> <span class="inline">PipelineTriggerConfig</span> decides when L1, scenes, persona, or batch work runs.</li>
+  <li><strong>recall:</strong> <span class="inline">RecallConfig</span> manages strategy, result count, and <span class="inline">timeoutMs</span>; the timeout avoids blocking the user.</li>
+  <li><strong>embedding:</strong> <span class="inline">EmbeddingConfig</span> selects local or remote vector behavior; remote providers require <span class="inline">apiKey</span>, <span class="inline">baseUrl</span>, <span class="inline">model</span>, and <span class="inline">dimensions</span>.</li>
+  <li><strong>bm25:</strong> keyword retrieval for terms, file names, error codes, and project-specific names.</li>
+  <li><strong>tcvdb:</strong> Tencent Cloud VectorDB backend settings, understood together with <span class="inline">src/core/store/factory.ts</span>.</li>
+  <li><strong>offload:</strong> <span class="inline">OffloadConfig</span> controls current-task compression, refs, MMDs, and session state.</li>
+  <li><strong>llm:</strong> model calls for extraction, summarization, or gateway behavior; real secrets stay in secure local config or environment variables.</li>
+  <li><strong>report:</strong> human-readable diagnostics and artifacts, not a replacement for lower-level evidence.</li>
+</ul>
+
+<h2>SQLite default vs TCVDB backend</h2>
+<div class="cols">
+  <div class="col"><h4>SQLite default</h4><p>Zero config is intended to run. The default local SQLite / sqlite-vec path is good for courses, offline trials, and personal smoke tests. Cleanup is conservative: <span class="inline">capture.l0l1RetentionDays = 0</span> disables cleanup, and aggressive deletion requires explicit opt-in.</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Read <span class="inline">src/core/store/factory.ts</span> to see how configuration chooses the local or remote store bundle.</p></div>
+</div>
+
+<h2>From config to behavior</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>openclaw.plugin.json exposes the entry</h4><p>Plugin metadata tells OpenClaw which hooks, tools, and configuration surface the package provides.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>src/config.ts parses defaults</h4><p><span class="inline">parseConfig</span> produces runtime <span class="inline">CaptureConfig</span>, <span class="inline">PipelineTriggerConfig</span>, <span class="inline">RecallConfig</span>, <span class="inline">EmbeddingConfig</span>, and <span class="inline">OffloadConfig</span>.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Store bundle chooses a backend</h4><p><span class="inline">src/core/store/factory.ts</span> creates the local SQLite or TCVDB-related stores for L0/L1, vector, and search behavior.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Hooks and pipeline change behavior</h4><p>The parsed capture, recall, pipeline, offload, and embedding settings affect pre-answer recall, post-answer capture, background organization, offload, and reports.</p></div></div>
+</div>
+
+<h2>Remote embedding example with placeholders only</h2>
+<pre class="code">{
+  "memory-tencentdb": {
+    "recall": {
+      "strategy": "hybrid",
+      "maxResults": 5,
+      "timeoutMs": 5000
+    },
+    "embedding": {
+      "provider": "openai",
+      "baseUrl": "https://example.invalid/v1",
+      "apiKey": "${EMBEDDING_API_KEY}",
+      "model": "text-embedding-3-small",
+      "dimensions": 1536
+    }
+  }
+}</pre>
+
+<p>
+The point is not to recommend a service; it is to show the required remote embedding fields. Endpoint, key, model, and dimensions must match. Public docs, screenshots, commits, and Gateway examples must use placeholders only.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/config.ts</span>: <span class="inline">CaptureConfig</span>, <span class="inline">PipelineTriggerConfig</span>, <span class="inline">RecallConfig</span>, <span class="inline">EmbeddingConfig</span>, <span class="inline">OffloadConfig</span>, and <span class="inline">parseConfig</span>.</li>
+    <li><span class="inline">openclaw.plugin.json</span>: plugin registration, configuration surface, and OpenClaw entry point.</li>
+    <li><span class="inline">README_CN.md</span>: the adjustable parameters section.</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite versus TCVDB backend selection.</li>
+  </ul>
+</div>
+
+<div class="card warn">
+  <div class="tag">🔒 Safe defaults</div>
+  Zero config should run; cleanup defaults should be conservative; recall timeout protects interaction; incomplete remote embedding should fail or degrade instead of pretending to work; Gateway API keys and embedding keys in docs must be placeholders.
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Prove the loop with defaults, then tune Level 1, Level 2, and Level 3 progressively. Safe defaults mean beginners can start, users are not blocked, data is not deleted by surprise, and secrets never enter documentation.
+</div>
+""",
+}

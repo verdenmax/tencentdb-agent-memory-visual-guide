@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>07 · 配置层级与安全默认值 / Configuration levels and safe defaults - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第二部分 · 最小运行闭环｜配置层级与安全默认值 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="07 · 配置层级与安全默认值 / Configuration levels and safe defaults - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第二部分 · 最小运行闭环｜配置层级与安全默认值 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="07 · 配置层级与安全默认值 / Configuration levels and safe defaults - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第二部分 · 最小运行闭环｜配置层级与安全默认值 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -318,208 +318,243 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
     <span class="pill"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></span>
-    <span class="pill">06 / 07</span>
+    <span class="pill">07 / 07</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:85%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
     <div class="part"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></div>
-    <h1><span class="lang-zh">运行后会出现哪些文件</span><span class="lang-en">Runtime files and data products</span></h1>
+    <h1><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-运行后的文件不是隐藏实现细节，而是一张调试地图：当召回、画像、场景或长任务摘要看起来不对时，先看高层产物理解系统“相信了什么”，再一路下钻到低层证据确认它为什么这么相信。
+配置不是越多越专业。TencentDB Agent Memory 的安全心智模型是：先让零配置闭环能跑，再只调日常旋钮，最后才进入长会话、远程后端、LLM 与运维边界。
+本课把 <span class="inline">src/config.ts</span>、<span class="inline">openclaw.plugin.json</span>、<span class="inline">README_CN.md</span> 的“可调参数”说明和 <span class="inline">src/core/store/factory.ts</span> 串起来，形成一张渐进式配置地图。
 </p>
 
 <div class="card analogy">
-  <div class="tag">🗺️ 生活类比</div>
-  这些目录像侦探案卷：画像和场景是案情摘要，L1 原子记忆是证词卡片，L0 对话是原始录音；Offload 的 MMD 是任务白板，JSONL 和 refs 是白板背后的材料袋。
+  <div class="tag">🎚️ 生活类比</div>
+  配置像调音台：日常只动音量和静音，长会话才调均衡器和压缩器，真正换声卡或接远程设备时才碰驱动、接口和凭据。默认值应该让新手先听到声音，而不是先面对一整排危险旋钮。
 </div>
 
-<h2>L0-L3 分层会落到哪些文件</h2>
+<h2>三层配置：从日常旋钮到运维边界</h2>
 <div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> 保存原始对话 JSONL，由 <span class="inline">src/core/conversation/l0-recorder.ts</span> 写入，负责保留最底层证据。</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> 保存结构化记忆 JSONL，由 <span class="inline">src/core/record/l1-writer.ts</span> 写入，便于搜索和召回。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> 保存 Markdown 场景块，由 <span class="inline">src/core/scene/scene-extractor.ts</span> 聚合多条 L1 证据。</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> 保存长期画像，由 <span class="inline">src/core/persona/persona-generator.ts</span> 从场景中生成稳定偏好和用户特征。</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">1</span><span class="name">Daily knobs</span></div><div class="ld">日常只调 <span class="inline">capture</span>、<span class="inline">recall</span>、少量 <span class="inline">pipeline</span>：是否捕获、召回条数、召回策略、超时和最小触发条件。目标是“别打扰用户，还能想起来”。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">2</span><span class="name">Long-session tuning</span></div><div class="ld">长会话再看 <span class="inline">extraction</span>、<span class="inline">pipeline</span>、<span class="inline">offload</span>、<span class="inline">bm25</span>：抽取频率、批处理、关键词检索、上下文卸载和报告产物。目标是减少上下文压力，同时保留可追溯证据。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">3</span><span class="name">Backend / LLM / ops</span></div><div class="ld">最后才配置 <span class="inline">embedding</span>、<span class="inline">tcvdb</span>、<span class="inline">llm</span>、<span class="inline">report</span> 和网关鉴权。这里涉及远程服务、模型维度、API Key、后端选择和运维可观测性。</div></div>
 </div>
 
 <p>
-本地长期记忆目录通常还会看到 <span class="inline">vectors.db</span>：它是本地 SQLite 向量/全文检索存储，入口可从 <span class="inline">src/core/store/factory.ts</span> 看存储后端如何创建。
-<span class="inline">.metadata/</span> 放 manifest、索引状态和检查点线索，对应 <span class="inline">src/utils/manifest.ts</span> 与 <span class="inline">src/utils/checkpoint.ts</span>；<span class="inline">.backup/</span> 用于备份，方便升级或调试前回滚。
-所以调试时不要只盯一个数据库文件：目录、JSONL、Markdown、metadata 和 backup 一起构成“可解释的记忆状态”。
+这三层不是权限等级，而是学习顺序。<span class="inline">parseConfig</span> 会把用户配置和默认值合并成运行时配置；因此文档应鼓励“少量、可解释、可回滚”的改动。
+如果一开始就同时改 embedding、TCVDB、清理策略和 LLM，很难判断问题来自网络、凭据、维度、后端还是业务触发条件。
 </p>
 
-<h2>长期记忆目录 vs Offload 目录</h2>
+<h2>配置组各管什么</h2>
+<ul>
+  <li><strong>capture：</strong>控制对话是否进入 L0/L1 流程，以及 <span class="inline">l0l1RetentionDays</span> 这类保留策略；值为 <span class="inline">0</span> 表示关闭清理，不会自动删 L0/L1。</li>
+  <li><strong>extraction：</strong>影响从原始对话抽取结构化记忆的方式，适合在确认捕获稳定后再调。</li>
+  <li><strong>pipeline：</strong><span class="inline">PipelineTriggerConfig</span> 这类触发配置决定何时整理 L1、场景、画像或批处理任务。</li>
+  <li><strong>recall：</strong><span class="inline">RecallConfig</span> 管理策略、最大条数和 <span class="inline">timeoutMs</span>；超时是安全默认值，防止召回卡住用户请求。</li>
+  <li><strong>embedding：</strong><span class="inline">EmbeddingConfig</span> 决定本地或远程向量能力；远程 provider 必须给出 <span class="inline">apiKey</span>、<span class="inline">baseUrl</span>、<span class="inline">model</span>、<span class="inline">dimensions</span>。</li>
+  <li><strong>bm25：</strong>关键词检索补足纯向量召回的盲区，适合术语、文件名、错误码和专有名词。</li>
+  <li><strong>tcvdb：</strong>远程 Tencent Cloud VectorDB 后端配置，和 <span class="inline">src/core/store/factory.ts</span> 的后端选择一起理解。</li>
+  <li><strong>offload：</strong><span class="inline">OffloadConfig</span> 管理长任务材料外置、refs、MMD 和会话状态，服务当前任务压缩。</li>
+  <li><strong>llm：</strong>控制抽取、总结或网关相关模型调用；真实密钥必须留在安全本地配置或环境变量中。</li>
+  <li><strong>report：</strong>面向调试和可读产物，帮助人查看发生了什么，而不是替代底层证据链。</li>
+</ul>
+
+<h2>本地默认与 TCVDB 后端</h2>
 <div class="cols">
-  <div class="col"><h4>长期记忆：跨会话复用</h4><p><span class="inline">memory-tdai/</span> 位于解析后的 OpenClaw state dir 下，常见完整路径是 <span class="inline">~/.openclaw/state/memory-tdai/</span>；standalone 或 fallback 路径可能不同。里面的 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">persona.md</span>、<span class="inline">vectors.db</span>、<span class="inline">.metadata/</span>、<span class="inline">.backup/</span> 关注“未来会话还能不能记得、搜到、解释清楚”。它的证据链是 L3 -&gt; L2 -&gt; L1 -&gt; L0。</p></div>
-  <div class="col"><h4>Context Offload：当前任务压缩</h4><p><span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span> 下会有 <span class="inline">refs/</span>、<span class="inline">mmds/</span>、<span class="inline">offload-&lt;session&gt;.jsonl</span>、<span class="inline">state.json</span>、<span class="inline">sessions-registry.json</span>。它关注“当前长任务如何把大块材料移出上下文，但仍能找回证据”。实现入口看 <span class="inline">src/offload/storage.ts</span>。</p></div>
+  <div class="col"><h4>SQLite default</h4><p>零配置预期可运行：默认本地 SQLite / sqlite-vec 路径适合课程、离线试用和个人 smoke test。它降低启动门槛，也让新手先验证 capture、pipeline、recall 的闭环。清理策略默认保守：<span class="inline">capture.l0l1RetentionDays = 0</span> 表示禁用清理；任何激进清理都应显式 opt-in。</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。后端选择要回到 <span class="inline">src/core/store/factory.ts</span> 看创建逻辑：配置不是写给好看，而是决定 store bundle 会落到本地还是远程。</p></div>
 </div>
 
-<h2>最小文件形状</h2>
-<pre class="code">memory-tdai/
-  conversations/     # L0 raw messages
-  records/           # L1 atoms
-  scene_blocks/      # L2 scenes
-  persona.md         # L3 persona
-  vectors.db         # local search index
+<h2>从配置到行为的路径</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>openclaw.plugin.json 暴露入口</h4><p>插件元数据告诉 OpenClaw 这个包有哪些 hooks、tools 和配置面；用户通常从 OpenClaw 配置文件写入 <span class="inline">memory-tencentdb</span>。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>src/config.ts 解析默认值</h4><p><span class="inline">parseConfig</span> 合并用户输入与默认值，形成 <span class="inline">CaptureConfig</span>、<span class="inline">PipelineTriggerConfig</span>、<span class="inline">RecallConfig</span>、<span class="inline">EmbeddingConfig</span>、<span class="inline">OffloadConfig</span> 等运行时配置。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>store bundle 选择后端</h4><p><span class="inline">src/core/store/factory.ts</span> 根据配置创建本地 SQLite 或 TCVDB 相关 store bundle，影响 L0/L1/向量和检索能力的落点。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>hooks / pipeline 改变行为</h4><p>解析后的 capture、recall、pipeline、offload 和 embedding 设置最终影响回答前召回、回答后捕获、后台整理、长任务卸载和报告输出。</p></div></div>
+</div>
 
-context-offload/
-  &lt;agent&gt;/refs/
-  &lt;agent&gt;/mmds/
-  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+<h2>远程 embedding 示例只用占位符</h2>
+<pre class="code">{
+  "memory-tencentdb": {
+    "recall": {
+      "strategy": "hybrid",
+      "maxResults": 5,
+      "timeoutMs": 5000
+    },
+    "embedding": {
+      "provider": "openai",
+      "baseUrl": "https://example.invalid/v1",
+      "apiKey": "${EMBEDDING_API_KEY}",
+      "model": "text-embedding-3-small",
+      "dimensions": 1536
+    }
+  }
+}</pre>
 
 <p>
-Offload 的 <span class="inline">refs/</span> 保存被卸载的大块原文或引用材料，<span class="inline">mmds/</span> 保存 Mermaid/MMD 任务图，<span class="inline">offload-&lt;session&gt;.jsonl</span> 记录会话内的卸载事件。
-<span class="inline">state.json</span> 维护当前状态，<span class="inline">sessions-registry.json</span> 则帮助按会话找到对应产物。MMD 适合先看全局任务结构，但如果节点描述和真实材料冲突，最终仍要回到 JSONL 与 refs。
+这个片段的重点不是推荐某个服务，而是说明远程 embedding 的最小必填组合：endpoint、密钥、模型名和维度必须互相匹配。公开教程、截图、提交和 Gateway 示例中的 API Key 都必须是占位符；如果涉及 Gateway 鉴权，也只能写变量名或假值，不能写真实团队密钥。
 </p>
-
-<h2>下钻调试：先看结构，再找证据</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -&gt; Scene</h4><p>如果用户说“画像不对”，先打开 <span class="inline">persona.md</span> 看具体 claim，再找它来自哪些 <span class="inline">scene_blocks/</span>。</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -&gt; Atom</h4><p>场景块只保结构和叙述，不是最终证据。继续到 <span class="inline">records/</span> 找 L1 Atom，核对事实、偏好、约束的抽取是否合理。</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -&gt; Conversation</h4><p>如果 L1 本身可疑，回到 <span class="inline">conversations/</span> 的 L0 JSONL，核对原始用户话语、时间和上下文。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -&gt; offload JSONL -&gt; refs</h4><p>如果长任务摘要或节点错了，先看 <span class="inline">mmds/</span> 的节点，再查 <span class="inline">offload-&lt;session&gt;.jsonl</span>，最后打开 <span class="inline">refs/</span> 里的原文材料。</p></div></div>
-</div>
 
 <div class="card detail">
-  <div class="tag">🔬 源码锚点</div>
+  <div class="tag">🔬 源码 / 文档锚点</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：L0 对话 JSONL 写入。</li>
-    <li><span class="inline">src/core/record/l1-writer.ts</span>：L1 结构化记录写入。</li>
-    <li><span class="inline">src/core/scene/scene-extractor.ts</span>：L2 场景块抽取。</li>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>：L3 persona 生成。</li>
-    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite/搜索存储创建。</li>
-    <li><span class="inline">src/offload/storage.ts</span>：context-offload 目录、refs、MMD、JSONL 和会话状态。</li>
-    <li><span class="inline">src/utils/manifest.ts</span>：manifest 元数据。</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>：checkpoint 读写。</li>
+    <li><span class="inline">src/config.ts</span>：<span class="inline">CaptureConfig</span>、<span class="inline">PipelineTriggerConfig</span>、<span class="inline">RecallConfig</span>、<span class="inline">EmbeddingConfig</span>、<span class="inline">OffloadConfig</span>、<span class="inline">parseConfig</span>。</li>
+    <li><span class="inline">openclaw.plugin.json</span>：插件注册、配置面和 OpenClaw 入口。</li>
+    <li><span class="inline">README_CN.md</span>：可调参数 section，适合先看用户能改什么。</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite 与 TCVDB 等后端选择。</li>
   </ul>
+</div>
+
+<div class="card warn">
+  <div class="tag">🔒 安全默认值</div>
+  零配置应该能跑；清理默认保守；召回 timeout 保护交互体验；远程 embedding 缺字段时应失败或降级而不是假装成功；所有公开文档里的 Gateway API Key、embedding key、base URL 都只能是占位符。
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  运行产物是调试入口：长期记忆按 Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation 下钻，Offload 按 MMD node -&gt; offload JSONL -&gt; refs 下钻。高层帮你快速定位结构，低层负责给出可核对证据。
+  先用默认值证明闭环，再按 Level 1、Level 2、Level 3 渐进调参。安全默认值的目标是“新手能启动、用户不被阻塞、数据不被意外删除、密钥不进入文档”。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. 如果想核对一条用户画像背后的原始证据，正确的下钻方向是什么？</div>
+  <div class="qn">1. 远程 embedding 配置最容易漏掉哪组必填信息？</div>
   <ol class="opts">
-    <li>Offload MMD -&gt; npm install</li>
-    <li>L0 -&gt; 删除 records -&gt; 重新启动</li>
-    <li>Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation</li>
-    <li>vectors.db -&gt; README -&gt; package.json</li>
+    <li>GitHub Pages source</li>
+    <li>README、LICENSE、package name</li>
+    <li>sceneBackupCount 和 favicon</li>
+    <li>apiKey、baseUrl、model、dimensions</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。本项目的核心是高层保结构、低层保证据；画像要通过场景、原子记忆回到原始对话。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。远程 embedding 少任一关键字段都会导致向量能力无法正常启用或被降级。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>如果用户说“召回错了”，你会先打开哪个文件或目录？为什么？</li>
+    <li>为什么召回 timeout 是用户体验上的安全默认值？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Runtime files are not hidden implementation details. They are a debugging map: when recall, persona, scenes, or long-task summaries look wrong, start with the high-level artifact to see what the system believes, then drill down to the evidence.
+More configuration does not mean a better setup. The safe mental model is progressive: make the zero-config loop run, tune daily knobs only when needed, then move into long-session, backend, LLM, and operational settings.
 </p>
 
 <div class="card analogy">
-  <div class="tag">🗺️ Analogy</div>
-  Think of the files as a detective case folder: persona and scenes are summaries, L1 atoms are evidence cards, L0 conversations are recordings; Offload MMDs are task boards, with JSONL and refs as the source bags behind them.
+  <div class="tag">🎚️ Analogy</div>
+  Configuration is like a mixing console: everyday use changes volume and mute; long sessions tune compression and EQ; remote devices require drivers, endpoints, and credentials. Defaults should let beginners hear sound before they touch dangerous knobs.
 </div>
 
-<h2>Where L0-L3 land on disk</h2>
+<h2>Three configuration levels</h2>
 <div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> stores raw conversation JSONL, written by <span class="inline">src/core/conversation/l0-recorder.ts</span>, and preserves bottom-level evidence.</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> stores structured memory JSONL, written by <span class="inline">src/core/record/l1-writer.ts</span>, for search and recall.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> stores Markdown scene blocks, produced by <span class="inline">src/core/scene/scene-extractor.ts</span> from multiple L1 records.</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> stores long-term persona, generated by <span class="inline">src/core/persona/persona-generator.ts</span> from scenes.</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">1</span><span class="name">Daily knobs</span></div><div class="ld">Tune <span class="inline">capture</span>, <span class="inline">recall</span>, and a little <span class="inline">pipeline</span>: capture on/off, recall strategy, result count, timeout, and minimal trigger thresholds.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">2</span><span class="name">Long-session tuning</span></div><div class="ld">For long sessions, tune <span class="inline">extraction</span>, <span class="inline">pipeline</span>, <span class="inline">offload</span>, and <span class="inline">bm25</span>: extraction cadence, batching, keyword search, context offload, and reports.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">3</span><span class="name">Backend / LLM / ops</span></div><div class="ld">Only then configure <span class="inline">embedding</span>, <span class="inline">tcvdb</span>, <span class="inline">llm</span>, <span class="inline">report</span>, and gateway authentication, because these involve remote services, model dimensions, API keys, backend choice, and operations.</div></div>
 </div>
 
 <p>
-The long-term memory directory usually also contains <span class="inline">vectors.db</span>, the local SQLite vector/full-text search store; use <span class="inline">src/core/store/factory.ts</span> to see how storage is created.
-<span class="inline">.metadata/</span> keeps manifest and checkpoint clues, connected to <span class="inline">src/utils/manifest.ts</span> and <span class="inline">src/utils/checkpoint.ts</span>; <span class="inline">.backup/</span> keeps backups for rollback before upgrades or debugging.
+The levels are a learning order, not a permission model. <span class="inline">parseConfig</span> combines user settings with defaults into runtime config, so documentation should encourage small, explainable, reversible changes.
 </p>
 
-<h2>Long-term memory vs Offload directories</h2>
+<h2>What each config group controls</h2>
+<ul>
+  <li><strong>capture:</strong> whether conversations enter L0/L1, plus retention such as <span class="inline">l0l1RetentionDays</span>; <span class="inline">0</span> means cleanup is disabled.</li>
+  <li><strong>extraction:</strong> how raw conversations become structured memories after capture is proven stable.</li>
+  <li><strong>pipeline:</strong> <span class="inline">PipelineTriggerConfig</span> decides when L1, scenes, persona, or batch work runs.</li>
+  <li><strong>recall:</strong> <span class="inline">RecallConfig</span> manages strategy, result count, and <span class="inline">timeoutMs</span>; the timeout avoids blocking the user.</li>
+  <li><strong>embedding:</strong> <span class="inline">EmbeddingConfig</span> selects local or remote vector behavior; remote providers require <span class="inline">apiKey</span>, <span class="inline">baseUrl</span>, <span class="inline">model</span>, and <span class="inline">dimensions</span>.</li>
+  <li><strong>bm25:</strong> keyword retrieval for terms, file names, error codes, and project-specific names.</li>
+  <li><strong>tcvdb:</strong> Tencent Cloud VectorDB backend settings, understood together with <span class="inline">src/core/store/factory.ts</span>.</li>
+  <li><strong>offload:</strong> <span class="inline">OffloadConfig</span> controls current-task compression, refs, MMDs, and session state.</li>
+  <li><strong>llm:</strong> model calls for extraction, summarization, or gateway behavior; real secrets stay in secure local config or environment variables.</li>
+  <li><strong>report:</strong> human-readable diagnostics and artifacts, not a replacement for lower-level evidence.</li>
+</ul>
+
+<h2>SQLite default vs TCVDB backend</h2>
 <div class="cols">
-  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p><span class="inline">memory-tdai/</span> lives under the resolved OpenClaw state dir, commonly <span class="inline">~/.openclaw/state/memory-tdai/</span>; standalone or fallback paths may differ. Its <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -&gt; L2 -&gt; L1 -&gt; L0.</p></div>
-  <div class="col"><h4>Context Offload: current-task compression</h4><p>Under <span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span>, expect <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;session&gt;.jsonl</span>, <span class="inline">state.json</span>, and <span class="inline">sessions-registry.json</span>. It answers how the current long task moved large evidence out of context while keeping it recoverable. See <span class="inline">src/offload/storage.ts</span>.</p></div>
+  <div class="col"><h4>SQLite default</h4><p>Zero config is intended to run. The default local SQLite / sqlite-vec path is good for courses, offline trials, and personal smoke tests. Cleanup is conservative: <span class="inline">capture.l0l1RetentionDays = 0</span> disables cleanup, and aggressive deletion requires explicit opt-in.</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Read <span class="inline">src/core/store/factory.ts</span> to see how configuration chooses the local or remote store bundle.</p></div>
 </div>
 
-<h2>Minimal file shape</h2>
-<pre class="code">memory-tdai/
-  conversations/     # L0 raw messages
-  records/           # L1 atoms
-  scene_blocks/      # L2 scenes
-  persona.md         # L3 persona
-  vectors.db         # local search index
+<h2>From config to behavior</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>openclaw.plugin.json exposes the entry</h4><p>Plugin metadata tells OpenClaw which hooks, tools, and configuration surface the package provides.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>src/config.ts parses defaults</h4><p><span class="inline">parseConfig</span> produces runtime <span class="inline">CaptureConfig</span>, <span class="inline">PipelineTriggerConfig</span>, <span class="inline">RecallConfig</span>, <span class="inline">EmbeddingConfig</span>, and <span class="inline">OffloadConfig</span>.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Store bundle chooses a backend</h4><p><span class="inline">src/core/store/factory.ts</span> creates the local SQLite or TCVDB-related stores for L0/L1, vector, and search behavior.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Hooks and pipeline change behavior</h4><p>The parsed capture, recall, pipeline, offload, and embedding settings affect pre-answer recall, post-answer capture, background organization, offload, and reports.</p></div></div>
+</div>
 
-context-offload/
-  &lt;agent&gt;/refs/
-  &lt;agent&gt;/mmds/
-  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+<h2>Remote embedding example with placeholders only</h2>
+<pre class="code">{
+  "memory-tencentdb": {
+    "recall": {
+      "strategy": "hybrid",
+      "maxResults": 5,
+      "timeoutMs": 5000
+    },
+    "embedding": {
+      "provider": "openai",
+      "baseUrl": "https://example.invalid/v1",
+      "apiKey": "${EMBEDDING_API_KEY}",
+      "model": "text-embedding-3-small",
+      "dimensions": 1536
+    }
+  }
+}</pre>
 
 <p>
-Offload <span class="inline">refs/</span> keep large source text or referenced material; <span class="inline">mmds/</span> keep Mermaid/MMD task diagrams; <span class="inline">offload-&lt;session&gt;.jsonl</span> records offload events for the session.
-<span class="inline">state.json</span> tracks current state, and <span class="inline">sessions-registry.json</span> helps find artifacts by session.
+The point is not to recommend a service; it is to show the required remote embedding fields. Endpoint, key, model, and dimensions must match. Public docs, screenshots, commits, and Gateway examples must use placeholders only.
 </p>
-
-<h2>Drill-down debugging: structure first, evidence second</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -&gt; Scene</h4><p>If the user says "the persona is wrong", open <span class="inline">persona.md</span> for the specific claim, then find the related <span class="inline">scene_blocks/</span>.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -&gt; Atom</h4><p>A scene keeps structure and narrative, not final proof. Continue to <span class="inline">records/</span> and inspect the L1 atom extraction.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -&gt; Conversation</h4><p>If the atom is suspicious, return to <span class="inline">conversations/</span> L0 JSONL and verify the raw user words, time, and context.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -&gt; offload JSONL -&gt; refs</h4><p>If a long-task node is wrong, inspect the <span class="inline">mmds/</span> node, then <span class="inline">offload-&lt;session&gt;.jsonl</span>, then the raw material in <span class="inline">refs/</span>.</p></div></div>
-</div>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: L0 conversation JSONL.</li>
-    <li><span class="inline">src/core/record/l1-writer.ts</span>: L1 structured records.</li>
-    <li><span class="inline">src/core/scene/scene-extractor.ts</span>: L2 scene extraction.</li>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>: L3 persona generation.</li>
-    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite/search store creation.</li>
-    <li><span class="inline">src/offload/storage.ts</span>: context-offload directory, refs, MMDs, JSONL, and session state.</li>
-    <li><span class="inline">src/utils/manifest.ts</span>: manifest metadata.</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: checkpoint reads and writes.</li>
+    <li><span class="inline">src/config.ts</span>: <span class="inline">CaptureConfig</span>, <span class="inline">PipelineTriggerConfig</span>, <span class="inline">RecallConfig</span>, <span class="inline">EmbeddingConfig</span>, <span class="inline">OffloadConfig</span>, and <span class="inline">parseConfig</span>.</li>
+    <li><span class="inline">openclaw.plugin.json</span>: plugin registration, configuration surface, and OpenClaw entry point.</li>
+    <li><span class="inline">README_CN.md</span>: the adjustable parameters section.</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite versus TCVDB backend selection.</li>
   </ul>
+</div>
+
+<div class="card warn">
+  <div class="tag">🔒 Safe defaults</div>
+  Zero config should run; cleanup defaults should be conservative; recall timeout protects interaction; incomplete remote embedding should fail or degrade instead of pretending to work; Gateway API keys and embedding keys in docs must be placeholders.
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Runtime artifacts are debugging entry points: long-term memory drills down Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation, while Offload drills down MMD node -&gt; offload JSONL -&gt; refs. Upper layers locate structure; lower layers provide verifiable evidence.
+  Prove the loop with defaults, then tune Level 1, Level 2, and Level 3 progressively. Safe defaults mean beginners can start, users are not blocked, data is not deleted by surprise, and secrets never enter documentation.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. To verify raw evidence behind a persona claim, which drill-down direction is correct?</div>
+  <div class="qn">1. Which required fields are easiest to miss in remote embedding configuration?</div>
   <ol class="opts">
-    <li>Offload MMD -&gt; npm install</li>
-    <li>L0 -&gt; delete records -&gt; restart</li>
-    <li>Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation</li>
-    <li>vectors.db -&gt; README -&gt; package.json</li>
+    <li>GitHub Pages source</li>
+    <li>README, LICENSE, package name</li>
+    <li>sceneBackupCount and favicon</li>
+    <li>apiKey, baseUrl, model, dimensions</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. The project keeps structure in upper layers and evidence in lower layers; a persona claim drills down through scenes and atoms to raw conversation.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. Missing any of these fields prevents remote embedding from working correctly or causes degraded behavior.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>If a user says recall is wrong, which file or directory would you open first, and why?</li>
+    <li>Why is a recall timeout a safe default for user experience?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="05-hermes-gateway-path.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></div></a><a class="next" href="07-config-levels.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></div></a></div>
+  <div class="footnav"><a class="prev" href="06-runtime-files.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">运行后会出现哪些文件</span><span class="lang-en">Runtime files and data products</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

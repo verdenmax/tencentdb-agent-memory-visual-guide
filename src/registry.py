@@ -9,4 +9,5 @@ CONTENT = {
     "04-openclaw-zero-config.html": part2.LESSON_04,
     "05-hermes-gateway-path.html": part2.LESSON_05,
     "06-runtime-files.html": part2.LESSON_06,
+    "07-config-levels.html": part2.LESSON_07,
 }
