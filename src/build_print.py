@@ -29,6 +29,19 @@ INTRO = {
 TOC = {"zh": "目录", "en": "Contents"}
 
 PRINT_CSS = """
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f0f2f5;
+  --ink: #1d2129;
+  --muted: #5b6470;
+  --faint: #8a939f;
+  --line: #e1e5ea;
+  --accent: #0f766e;
+  --accent-soft: #dff7f3;
+  --accent-ink: #115e59;
+}
 body { max-width: 820px; margin: 0 auto; padding: 1.6rem; background: #fff; }
 .print-toc { margin: 1rem 0 2rem; }
 .print-toc li { margin: .2rem 0; }
