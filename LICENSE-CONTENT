@@ -19,6 +19,6 @@ Under the following term:
 Full legal code: https://creativecommons.org/licenses/by/4.0/legalcode
 Human-readable summary: https://creativecommons.org/licenses/by/4.0/
 
-NOTE: This guide is third-party educational material ABOUT llama.cpp. It does
-not include llama.cpp source code; llama.cpp itself is MIT-licensed by its own
-authors (https://github.com/ggml-org/llama.cpp).
+NOTE: This guide is third-party educational material ABOUT TencentDB Agent
+Memory. It does not include TencentDB-Agent-Memory source code;
+TencentDB-Agent-Memory itself is licensed by its own authors/repository.
