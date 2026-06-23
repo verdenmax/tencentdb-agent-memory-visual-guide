@@ -1588,8 +1588,8 @@ It keeps the capture path short and deterministic: write local L0 first, index i
 
 <p>
 The important word is “new”. <span class="inline">recordConversation</span> prefers the <span class="inline">originalUserMessageCount</span>
-recorded before prompt build and slices the raw messages after that position; if that cache is unavailable, it falls back to the checkpoint <span class="inline">afterTimestamp</span> cursor.
-Auto Capture therefore does not keep rewriting the whole history into L0. It appends only the incremental messages that appeared after the committed turn.
+recorded before prompt build and slices the raw messages after that position; if that cache is unavailable, <span class="inline">captureAtomically</span> reads the checkpoint-owned <span class="inline">afterTimestamp</span> cursor inside the atomic section and passes it to the callback for filtering.
+The caller does not provide a cursor outside the critical section; checkpoint owns cursor read/update under the same lock. Auto Capture therefore does not keep rewriting the whole history into L0. It appends only the incremental messages that appeared after the committed turn.
 </p>
 
 <h2>Sync path vs deferred embedding path</h2>
@@ -1600,13 +1600,12 @@ Auto Capture therefore does not keep rewriting the whole history into L0. It app
 
 <h2>Pseudocode</h2>
 <pre class="code">performAutoCapture(messages):
-    checkpoint.captureAtomically(sessionKey, cursor, () =&gt; {
-        filtered = recordConversation(messages, cursor)
-        return maxTimestamp(filtered)
+    checkpoint.captureAtomically(sessionKey, pluginStartTimestamp, (afterTimestamp) =&gt; {
+        filtered = recordConversation(messages, afterTimestamp)
+        return { maxTimestamp: maxTimestamp(filtered), messageCount: filtered.length }
     })
-    upsert_l0_metadata(filtered)
-    maybe_embed_l0_in_background()
-    scheduler.notifyConversation(sessionKey)</pre>
+    ...
+    scheduler.notifyConversation(sessionKey, [])</pre>
 
 <h2>Why capture does not run L1 directly</h2>
 <p>
@@ -1620,7 +1619,7 @@ updates the conversation count, persists state, enqueues L1 when the threshold i
   <ul>
     <li><span class="inline">src/core/hooks/auto-capture.ts</span>: <span class="inline">performAutoCapture</span>, L0 writes, L0 vector indexing, <span class="inline">scheduler.notifyConversation</span></li>
     <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: <span class="inline">recordConversation</span>, position slice, timestamp cursor, JSONL append</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">captureAtomically</span> locks cursor and count updates</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">captureAtomically</span> owns cursor and count read/update inside the lock</li>
     <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">L0Record</span> index record shape</li>
     <li><span class="inline">src/utils/pipeline-manager.ts</span>: <span class="inline">notifyConversation</span>, L1 threshold / idle triggers</li>
   </ul>
