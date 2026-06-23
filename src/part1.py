@@ -1,5 +1,8 @@
 """Part 1 content for the TencentDB Agent Memory visual guide."""
 
+# Code examples intentionally use <pre class="code"> instead of nested
+# <pre><code> so they share the guide's existing shell CSS styling.
+
 LESSON_01 = {
     "zh": r"""
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">

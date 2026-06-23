@@ -57,6 +57,8 @@ def build_lang(lang):
         f"<title>{TITLE[lang]}</title>\n"
         f"<style>{shell.CSS}\n{PRINT_CSS}</style>\n</head>\n<body>\n"
     )
+    # Keep shell.bi marker spans deliberately: each print page renders one
+    # language body, while shared shell CSS still expects bilingual markers.
     parts = [
         f'<h1>{shell.bi(TITLE["zh"], TITLE["en"])}</h1>\n'
         f'<p style="color:var(--muted)">{shell.bi(INTRO["zh"], INTRO["en"])}</p>'
