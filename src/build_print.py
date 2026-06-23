@@ -57,21 +57,28 @@ def build_lang(lang):
         f"<title>{TITLE[lang]}</title>\n"
         f"<style>{shell.CSS}\n{PRINT_CSS}</style>\n</head>\n<body>\n"
     )
-    parts = [f'<h1>{TITLE[lang]}</h1>\n<p style="color:var(--muted)">{INTRO[lang]}</p>']
-    toc = [f'<div class="print-toc"><h2>{TOC[lang]}</h2>\n<ol>']
+    parts = [
+        f'<h1>{shell.bi(TITLE["zh"], TITLE["en"])}</h1>\n'
+        f'<p style="color:var(--muted)">{shell.bi(INTRO["zh"], INTRO["en"])}</p>'
+    ]
+    toc = [
+        f'<div class="print-toc"><h2>{shell.bi(TOC["zh"], TOC["en"])}</h2>\n<ol>'
+    ]
     for page in shell.PAGES:
-        title = page[1] if lang == "zh" else page[2]
-        toc.append(f"  <li>{title}</li>")
+        toc.append(f"  <li>{shell.bi(page[1], page[2])}</li>")
     toc.append("</ol></div>")
     parts.append("\n".join(toc))
     for page in shell.PAGES:
         fname = page[0]
         if fname not in CONTENT:
             sys.exit(f"build_print error: no registry.CONTENT entry for {fname!r} (declared in shell.PAGES)")
-        title = page[1] if lang == "zh" else page[2]
         body = _expand_details(CONTENT[fname][lang])
         quiz = _expand_details(quizzes.render(fname, lang))
-        parts.append(f'<section class="lesson-print">\n<h1>{title}</h1>\n{body}\n{quiz}\n</section>')
+        parts.append(
+            f'<section class="lesson-print">\n'
+            f'<h1>{shell.bi(page[1], page[2])}</h1>\n'
+            f'{body}\n{quiz}\n</section>'
+        )
     return head + "\n".join(parts) + "\n</body>\n</html>\n"
 
 
