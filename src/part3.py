@@ -525,22 +525,22 @@ LESSON_11 = {
     "zh": r"""
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 本课把前几课的“入口壳、adapter、core”串到启动顺序上：OpenClaw 给插件一份原始 <span class="inline">api.pluginConfig</span>，
-<span class="inline">index.ts</span> 每次注册只解析一次，随后用统一的 <span class="inline">cfg</span> 初始化时间、目录、存储和 <span class="inline">TdaiCore</span>。
+<span class="inline">index.ts</span> 每次注册只解析一次，先准备配置、时间模块和目录；<span class="inline">TdaiCore.initialize()</span> 随后启动异步 store 初始化，但不会等 store 全部完成才创建 pipeline manager。
 </p>
 
 <div class="card analogy">
   <div class="tag">🧩 生活类比</div>
-  开店前先看当天排班表：店长只读一次排班表，把默认岗位补齐，再依次开门、清点库房、接好收银系统，最后才开始接待客人。
-  运行时初始化也是这样：配置先变成稳定对象，目录和存储先准备好，hooks 才能安全处理真实对话。
+  开店前先看当天排班表：店长只读一次排班表，把默认岗位补齐，先开门并准备货架；清点库房可以在后台继续，收银系统也能先接线。
+  运行时初始化也是这样：配置和目录先稳定下来，store 初始化异步推进；需要 store 的路径再等待 <span class="inline">storeReady</span>，或在 store 不可用时降级。
 </div>
 
 <h2>启动主线：原始配置到 hooks</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> 从 <span class="inline">api.pluginConfig</span> 取得原始对象，并记录收到的 key 数量。</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> 把用户配置与默认值合并成 <span class="inline">MemoryTdaiConfig</span>，本次 register 后续都复用它。</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> 选出 OpenClaw state 目录；<span class="inline">initDataDirectories</span> 创建 conversations、records、scene_blocks、.metadata 和 .backup。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>store bundle</h4><p><span class="inline">initStores</span> 调 <span class="inline">createStoreBundle</span>，并写入或比较 manifest，必要时标记 reindex。</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>core / hooks</h4><p>目录和 store 准备后，<span class="inline">TdaiCore</span> 初始化 pipeline manager，OpenClaw hooks/tools 才把请求转给 core。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> 选出 OpenClaw state 目录；<span class="inline">index.ts</span> 先创建 conversations、records、scene_blocks、.metadata 和 .backup。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>core starts</h4><p><span class="inline">core.initialize()</span> 再确认目录，立即把 <span class="inline">storeReady = initStores()</span> 放到后台，并同步创建 pipeline manager。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>hooks / tools</h4><p><span class="inline">index.ts</span> 在 core 初始化启动后注册 hooks/tools；store 依赖路径在调用时 await <span class="inline">storeReady</span>，pipeline runners 在 store 完成或失败后接线。</p></div></div>
 </div>
 
 <p>
@@ -561,11 +561,14 @@ LESSON_11 = {
   <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend 决定 SQLite 还是 TCVDB；SQLite 再按 embedding 配置决定是否创建远程 embedding service；TCVDB 使用服务端 embedding 与可选 BM25。</div></div>
 </div>
 
-<h2>目录、manifest 与 checkpoint 为什么先初始化</h2>
+<h2>目录、manifest 与 checkpoint 为什么先于 store 完成态</h2>
 <p>
 <span class="inline">initDataDirectories(dataDir)</span> 先把运行时目录建好，后续 L0 JSONL、L1 records、scene blocks、metadata 和备份才有稳定落点。
-<span class="inline">initStores</span> 初始化 store 后会维护 manifest：首次写入 store binding，之后比较当前配置是否和已绑定后端不同。
-pipeline 工作时再通过 <span class="inline">CheckpointManager</span> 读取和更新游标，确保抽取、场景和画像任务能从已处理位置继续。
+进入 <span class="inline">TdaiCore.initialize()</span> 后，<span class="inline">initStores</span> 以 promise 形式启动：它会维护 manifest、创建 store bundle，并在失败时记录降级。
+同时 <span class="inline">createPipelineManager</span> 可以同步创建，因为 runner 接线被挂到 <span class="inline">storeReady.then(...).catch(...)</span> 后面。
+</p>
+<p>
+因此“目录先准备”是真的；“store 一定先于 pipeline manager、hooks 和 tools 完成”不准确。自动 recall、capture、session end 等 store 依赖入口会 await <span class="inline">storeReady</span>；搜索工具则使用当前可用的 store 句柄，缺失时走无向量/空结果等降级路径。
 </p>
 
 <h2>伪代码</h2>
@@ -573,19 +576,32 @@ pipeline 工作时再通过 <span class="inline">CheckpointManager</span> 读取
 cfg = parseConfig(raw)
 initTimeModule(cfg.timezone)
 initDataDirectories(dataDir)
-store = createStoreBundle(cfg)
-core = new TdaiCore(adapter, cfg)</pre>
+core = new TdaiCore(adapter, cfg)
+coreReady = core.initialize()
+
+TdaiCore.initialize():
+    initDataDirectories(dataDir)
+    storeReady = initStores()      # async; do not await here
+    scheduler = createPipelineManager()  # sync; no store needed
+    storeReady.then(wirePipelineRunners).catch(wireDegradedRunners)
+
+register_tools_and_hooks(core)     # after initialize starts
+
+handleBeforeRecall / handleTurnCommitted:
+    await storeReady.catch(ignore)
+    run recall or capture with available stores</pre>
 
 <p>
-这段伪代码省略了日志、hook policy、adapter 创建和异步 store cache，但保留了关键顺序：先把 raw config 固化为 cfg，再准备运行目录和 store bundle，
-最后创建 core 并注册 hooks。offload 是旁路能力：只有 <span class="inline">cfg.offload.enabled</span> 为真，入口才调用 <span class="inline">registerOffload(api, cfg.offload)</span>。
+这段伪代码省略了日志、hook policy 和 adapter 细节，但保留了关键顺序：先把 raw config 固化为 cfg，再准备运行目录；
+然后 <span class="inline">TdaiCore</span> 启动异步 <span class="inline">storeReady</span>，pipeline manager 可先创建，hooks/tools 在 core 初始化启动后注册。offload 是旁路能力：只有 <span class="inline">cfg.offload.enabled</span> 为真，入口才调用 <span class="inline">registerOffload(api, cfg.offload)</span>。
 </p>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
     <li><span class="inline">src/config.ts</span>：<span class="inline">parseConfig</span>、配置接口与默认值</li>
-    <li><span class="inline">index.ts</span>：读取 <span class="inline">api.pluginConfig</span>、配置日志、初始化时间和目录、条件注册 offload</li>
+    <li><span class="inline">index.ts</span>：读取 <span class="inline">api.pluginConfig</span>、配置日志、初始化时间和目录、启动 core 初始化、注册 hooks/tools、条件注册 offload</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>：<span class="inline">initialize</span> 中启动 <span class="inline">storeReady</span>、同步创建 pipeline manager、store 依赖方法 await 或降级</li>
     <li><span class="inline">src/utils/pipeline-factory.ts</span>：<span class="inline">initDataDirectories</span>、<span class="inline">initStores</span>、<span class="inline">createPipelineManager</span></li>
     <li><span class="inline">src/core/store/factory.ts</span>：<span class="inline">createStoreBundle</span> 按 storeBackend 与 embedding 配置选后端</li>
     <li><span class="inline">src/utils/openclaw-state-dir.ts</span>：OpenClaw state 目录解析与 fallback</li>
@@ -594,29 +610,29 @@ core = new TdaiCore(adapter, cfg)</pre>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  运行时初始化的核心不是“读很多配置”，而是把配置稳定化、把默认值补齐、把目录与 store 先接好。
-  这样零配置能安全启动，高级配置能精确影响各功能组，offload 和 embedding 不完整时也能降级而不阻塞主对话。
+  运行时初始化的核心不是“读很多配置”，而是把配置稳定化、把默认值补齐、先准备目录，再让 store readiness 与 pipeline/hook 接线按各自依赖推进。
+  这样零配置能安全启动，高级配置能精确影响各功能组，store、offload 和 embedding 不完整时也能降级而不阻塞主对话。
 </div>
 """,
     "en": r"""
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 This lesson connects the plugin shell, adapter, and core to startup order: OpenClaw gives the plugin raw <span class="inline">api.pluginConfig</span>;
-<span class="inline">index.ts</span> parses it once for that registration, then uses the resulting <span class="inline">cfg</span> to initialize time, directories, stores, and <span class="inline">TdaiCore</span>.
+<span class="inline">index.ts</span> parses it once for that registration and prepares config, time, and directories first. Then <span class="inline">TdaiCore.initialize()</span> starts async store initialization, but does not wait for stores to finish before creating the pipeline manager.
 </p>
 
 <div class="card analogy">
   <div class="tag">🧩 Analogy</div>
-  Before a shop opens, the manager reads the roster once, fills default roles, unlocks the door, checks inventory, wires the register, and only then serves customers.
-  Runtime initialization is the same: config becomes a stable object first, directories and stores are prepared next, and hooks handle real conversations afterward.
+  Before a shop opens, the manager reads the roster once, fills default roles, opens the door, and prepares shelves; inventory counting can continue in the background while the register is being wired.
+  Runtime initialization is similar: config and directories become stable first, store initialization proceeds asynchronously, and store-dependent paths later await <span class="inline">storeReady</span> or degrade when stores are unavailable.
 </div>
 
 <h2>Startup path: raw config to hooks</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> reads <span class="inline">api.pluginConfig</span> and logs how many keys arrived.</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> merges user config with defaults into <span class="inline">MemoryTdaiConfig</span>; the rest of this register call reuses it.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> chooses the OpenClaw state directory; <span class="inline">initDataDirectories</span> creates conversations, records, scene_blocks, .metadata, and .backup.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>store bundle</h4><p><span class="inline">initStores</span> calls <span class="inline">createStoreBundle</span>, then writes or compares the manifest and marks reindex when needed.</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>core / hooks</h4><p>After dirs and stores are ready, <span class="inline">TdaiCore</span> initializes the pipeline manager, and OpenClaw hooks/tools forward requests into core.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> chooses the OpenClaw state directory; <span class="inline">index.ts</span> first creates conversations, records, scene_blocks, .metadata, and .backup.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>core starts</h4><p><span class="inline">core.initialize()</span> confirms dirs again, starts <span class="inline">storeReady = initStores()</span> in the background, and creates the pipeline manager synchronously.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>hooks / tools</h4><p><span class="inline">index.ts</span> registers hooks/tools after core initialization starts; store-dependent paths await <span class="inline">storeReady</span>, and pipeline runners wire after store success or failure.</p></div></div>
 </div>
 
 <p>
@@ -637,11 +653,14 @@ channel bootstrap, or config reload. Each call receives the full config, so the 
   <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend chooses SQLite or TCVDB; SQLite then checks embedding config before creating a remote embedding service; TCVDB uses server-side embedding and optional BM25.</div></div>
 </div>
 
-<h2>Why directories, manifest, and checkpoints come first</h2>
+<h2>Why directories come before store readiness</h2>
 <p>
 <span class="inline">initDataDirectories(dataDir)</span> creates stable homes for L0 JSONL, L1 records, scene blocks, metadata, and backups before any work writes files.
-After store initialization, <span class="inline">initStores</span> maintains the manifest: first it records the store binding, later it compares the current config against that binding.
-During pipeline work, <span class="inline">CheckpointManager</span> reads and updates cursors so extraction, scene, and persona jobs resume from the processed position.
+Inside <span class="inline">TdaiCore.initialize()</span>, <span class="inline">initStores</span> starts as a promise: it maintains the manifest, creates the store bundle, and records degraded mode if initialization fails.
+At the same time, <span class="inline">createPipelineManager</span> can run synchronously because runner wiring is deferred behind <span class="inline">storeReady.then(...).catch(...)</span>.
+</p>
+<p>
+So “directories first” is true; “stores are definitely ready before the pipeline manager, hooks, and tools” is not. Auto recall, capture, and session-end paths await <span class="inline">storeReady</span>; search tools use whatever store handles are currently available and degrade to no-vector or empty-result behavior when needed.
 </p>
 
 <h2>Pseudocode</h2>
@@ -649,12 +668,24 @@ During pipeline work, <span class="inline">CheckpointManager</span> reads and up
 cfg = parseConfig(raw)
 initTimeModule(cfg.timezone)
 initDataDirectories(dataDir)
-store = createStoreBundle(cfg)
-core = new TdaiCore(adapter, cfg)</pre>
+core = new TdaiCore(adapter, cfg)
+coreReady = core.initialize()
+
+TdaiCore.initialize():
+    initDataDirectories(dataDir)
+    storeReady = initStores()      # async; do not await here
+    scheduler = createPipelineManager()  # sync; no store needed
+    storeReady.then(wirePipelineRunners).catch(wireDegradedRunners)
+
+register_tools_and_hooks(core)     # after initialize starts
+
+handleBeforeRecall / handleTurnCommitted:
+    await storeReady.catch(ignore)
+    run recall or capture with available stores</pre>
 
 <p>
-This pseudocode omits logging, hook policy, adapter construction, and the async store cache, but keeps the important order: freeze raw config into cfg,
-prepare runtime directories and the store bundle, then create core and register hooks. Offload is a side capability: only when
+This pseudocode omits logging, hook policy, and adapter details, but keeps the important order: freeze raw config into cfg and prepare runtime directories first.
+Then <span class="inline">TdaiCore</span> starts async <span class="inline">storeReady</span>, the pipeline manager may already exist, and hooks/tools register after core initialization starts. Offload is a side capability: only when
 <span class="inline">cfg.offload.enabled</span> is true does the entry call <span class="inline">registerOffload(api, cfg.offload)</span>.
 </p>
 
@@ -662,7 +693,8 @@ prepare runtime directories and the store bundle, then create core and register 
   <div class="tag">🔬 Source anchors</div>
   <ul>
     <li><span class="inline">src/config.ts</span>: <span class="inline">parseConfig</span>, interfaces, and defaults</li>
-    <li><span class="inline">index.ts</span>: reads <span class="inline">api.pluginConfig</span>, logs config, initializes time and dirs, conditionally registers offload</li>
+    <li><span class="inline">index.ts</span>: reads <span class="inline">api.pluginConfig</span>, logs config, initializes time and dirs, starts core initialization, registers hooks/tools, conditionally registers offload</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">initialize</span> starts <span class="inline">storeReady</span>, creates the pipeline manager synchronously, and makes store-dependent methods await or degrade</li>
     <li><span class="inline">src/utils/pipeline-factory.ts</span>: <span class="inline">initDataDirectories</span>, <span class="inline">initStores</span>, <span class="inline">createPipelineManager</span></li>
     <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> selects the backend from storeBackend and embedding config</li>
     <li><span class="inline">src/utils/openclaw-state-dir.ts</span>: OpenClaw state directory resolution and fallback</li>
@@ -671,8 +703,8 @@ prepare runtime directories and the store bundle, then create core and register 
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Runtime initialization is not “reading lots of config”; it stabilizes config, fills defaults, and wires directories and stores before work starts.
-  That lets zero config start safely, lets advanced config steer each functional group, and lets incomplete offload or embedding setup degrade without blocking the main chat.
+  Runtime initialization is not “reading lots of config”; it stabilizes config, fills defaults, prepares directories first, then lets store readiness and pipeline/hook wiring advance according to their dependencies.
+  That lets zero config start safely, lets advanced config steer each functional group, and lets incomplete store, offload, or embedding setup degrade without blocking the main chat.
 </div>
 """,
 }
