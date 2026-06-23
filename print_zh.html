@@ -648,7 +648,7 @@ when_agent_needs_context():
 
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 本课把前面讲过的 L0-L3、Recall 和搜索工具接到一个最小可运行闭环里：安装 OpenClaw 插件、打开最小配置、重启 Gateway，
-再用几轮对话验证记忆是否真正写入、分层和召回。这里的目标不是调优，而是先证明“能跑、能存、能找、能在新回合被想起”。
+再用几轮对话先验证 L0 捕获和 L1 搜索/召回。这里的目标不是调优，而是先证明“能跑、能存、能找、能在新回合被想起”；L2/L3 可能稍后出现。
 </p>
 
 <div class="card analogy">
@@ -659,11 +659,11 @@ when_agent_needs_context():
 
 <h2>一条最小闭环</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>安装或更新插件</h4><p>使用 OpenClaw 插件命令安装 <span class="inline">@tencentdb-agent-memory/memory-tencentdb</span>；升级时使用同名 update 命令或按 OpenClaw 文档重新安装最新版本。</p><p class="mono">openclaw plugins install @tencentdb-agent-memory/memory-tencentdb</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>安装或更新插件</h4><p>使用 OpenClaw 插件命令安装 <span class="inline">@tencentdb-agent-memory/memory-tencentdb</span>；升级时显式运行同名 update 命令。</p><p class="mono">openclaw plugins install @tencentdb-agent-memory/memory-tencentdb<br>openclaw plugins update @tencentdb-agent-memory/memory-tencentdb</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>启用最小配置</h4><p>在 <span class="inline">~/.openclaw/openclaw.json</span> 中只打开 <span class="inline">enabled</span>。不要在教程示例里写真实 API Key。</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>重启 Gateway</h4><p>插件配置、hooks 和 tools 注册发生在 Gateway 生命周期里，改完配置后要重启才能稳定生效。</p><p class="mono">openclaw gateway restart</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>对话 2-3 轮</h4><p>告诉 Agent 一个可复用偏好或项目约束，再继续追问，让自动捕获有足够上下文沉淀到 L0/L1/L2/L3。</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>验证文件与召回/搜索</h4><p>开启新一轮对话，观察是否自动 recall；再调用 <span class="inline">tdai_memory_search</span> 与 <span class="inline">tdai_conversation_search</span> 查找刚才的事实和原始对话。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>对话 2-3 轮</h4><p>告诉 Agent 一个可复用偏好或项目约束，再继续追问，让自动捕获先沉淀到 L0 原文与 L1 结构化记忆。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>验证文件与召回/搜索</h4><p>先确认 <span class="inline">~/.openclaw/state/memory-tdai/</span> 下出现 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span> 或 <span class="inline">vectors.db</span> 等产物，再验证 L0 捕获、L1 搜索/召回；L2 场景块和 L3 persona 可能需要管线延迟或触发条件才会出现。</p></div></div>
 </div>
 
 <h2>最小配置就是这么少</h2>
@@ -681,12 +681,13 @@ when_agent_needs_context():
 
 <h2>日常最小配置 vs 高级调优</h2>
 <div class="cols">
-  <div class="col"><h4>日常最小配置</h4><p>只写 <span class="inline">enabled: true</span>，用默认本地 SQLite + sqlite-vec 路径。适合先验证 OpenClaw 能注册插件、能写入 L0 原文、能抽取 L1/L2/L3，并能通过 Recall 或搜索取回。</p></div>
+  <div class="col"><h4>日常最小配置</h4><p>只写 <span class="inline">enabled: true</span>，用默认本地 SQLite + sqlite-vec 路径。适合先验证 OpenClaw 能注册插件、能写入 L0 原文、能抽取并搜索/召回 L1；L2 场景块和 L3 persona 可能稍后在管线延迟或触发条件满足后出现。</p></div>
   <div class="col"><h4>高级调优</h4><p>再按需要配置 embedding、远程数据库、TCVDB、保留策略、调试日志和性能参数。真实 API Key 只放在本机安全配置或环境变量中，不写进公开教程、截图、提交或示例代码。</p></div>
 </div>
 
 <h2>完整伪代码</h2>
 <pre class="code">openclaw plugins install @tencentdb-agent-memory/memory-tencentdb
+openclaw plugins update @tencentdb-agent-memory/memory-tencentdb
 
 # ~/.openclaw/openclaw.json
 {
@@ -697,9 +698,9 @@ openclaw gateway restart</pre>
 
 <h2>Smoke test：三种现象一起看</h2>
 <ul>
-  <li><strong>对话后有沉淀：</strong>连续 2-3 轮告诉 Agent 一个偏好，例如“这个项目的提交信息要简短”，随后继续讨论，让捕获流程有完整 turn。</li>
-  <li><strong>新回合能想起：</strong>开启新 turn 或新会话，问“这个项目提交信息有什么要求？”，观察 Recall 是否把相关记忆注入回答前上下文。</li>
-  <li><strong>工具能查到：</strong>用 <span class="inline">tdai_memory_search</span> 查 L1/L2/L3 记忆，用 <span class="inline">tdai_conversation_search</span> 查 L0 原始对话；两者都能找到，才说明结构和证据都在。</li>
+  <li><strong>先看文件产物：</strong>检查 <span class="inline">~/.openclaw/state/memory-tdai/</span>，预期可见 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">vectors.db</span> 等本地状态产物。</li>
+  <li><strong>先验证 L0/L1：</strong>连续 2-3 轮告诉 Agent 一个偏好，例如“这个项目的提交信息要简短”，随后开启新 turn 或新会话追问，先确认 L0 原始对话被捕获、L1 结构化记忆能被搜索或 Recall 使用。</li>
+  <li><strong>工具范围要分清：</strong><span class="inline">tdai_memory_search</span> 搜索结构化 L1 记忆，<span class="inline">tdai_conversation_search</span> 搜索原始 L0 对话；L2 场景块和 L3 persona 可能在管线延迟或触发条件满足后才出现。</li>
 </ul>
 
 <div class="card warn">
@@ -723,7 +724,7 @@ openclaw gateway restart</pre>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  零配置闭环的判断标准不是“配置文件很短”，而是：OpenClaw 重新加载插件、Gateway 注册成功、对话进入 L0-L3、下一轮能 Recall、搜索工具能同时找到结构化记忆和原始证据。
+  零配置闭环的判断标准不是“配置文件很短”，而是：OpenClaw 重新加载插件、Gateway 注册成功、L0 原始对话被保存、L1 结构化记忆能搜索/召回；L2/L3 可能稍后由管线或触发条件产生。
 </div>
 
 <div class="selftest">

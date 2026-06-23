@@ -651,7 +651,7 @@ when_agent_needs_context():
 
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 This lesson turns L0-L3, Recall, and search into a minimal working OpenClaw loop: install the plugin, enable the smallest config,
-restart the Gateway, then verify that memory is written, layered, recalled, and searchable.
+restart the Gateway, then first verify L0 capture and L1 search/recall. L2/L3 may appear later.
 </p>
 
 <div class="card analogy">
@@ -662,11 +662,11 @@ restart the Gateway, then verify that memory is written, layered, recalled, and 
 
 <h2>One minimal loop</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Install or update the plugin</h4><p>Install <span class="inline">@tencentdb-agent-memory/memory-tencentdb</span> with the OpenClaw plugin command; use the matching update command or reinstall the latest version when upgrading.</p><p class="mono">openclaw plugins install @tencentdb-agent-memory/memory-tencentdb</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Install or update the plugin</h4><p>Install <span class="inline">@tencentdb-agent-memory/memory-tencentdb</span> with the OpenClaw plugin command; run the matching update command explicitly when upgrading.</p><p class="mono">openclaw plugins install @tencentdb-agent-memory/memory-tencentdb<br>openclaw plugins update @tencentdb-agent-memory/memory-tencentdb</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>Enable the smallest config</h4><p>Set only <span class="inline">enabled</span> in <span class="inline">~/.openclaw/openclaw.json</span>. Never put real API keys in guide examples.</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>Restart the Gateway</h4><p>Plugin config, hooks, and tools are registered during the Gateway lifecycle, so a restart makes the new config take effect reliably.</p><p class="mono">openclaw gateway restart</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>Talk for 2-3 turns</h4><p>Give the agent a reusable preference or project constraint, then continue the conversation so capture has enough committed context.</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>Verify files, recall, and search</h4><p>Start a new turn, watch for recall, then use <span class="inline">tdai_memory_search</span> and <span class="inline">tdai_conversation_search</span>.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Talk for 2-3 turns</h4><p>Give the agent a reusable preference or project constraint, then continue the conversation so capture first lands in L0 raw conversation and L1 structured memory.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Verify files, recall, and search</h4><p>First check for artifacts under <span class="inline">~/.openclaw/state/memory-tdai/</span>, such as <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, or <span class="inline">vectors.db</span>; then verify L0 capture and L1 search/recall. L2 scene blocks and L3 persona may appear only after pipeline delay or trigger conditions.</p></div></div>
 </div>
 
 <h2>The minimal config</h2>
@@ -684,12 +684,13 @@ Start with the loop, then tune embeddings, remote storage, retention, and observ
 
 <h2>Minimal daily config vs advanced tuning</h2>
 <div class="cols">
-  <div class="col"><h4>Minimal daily config</h4><p>Use only <span class="inline">enabled: true</span> with the default local SQLite + sqlite-vec path. Verify plugin registration, L0 raw capture, L1/L2/L3 extraction, Recall, and search.</p></div>
+  <div class="col"><h4>Minimal daily config</h4><p>Use only <span class="inline">enabled: true</span> with the default local SQLite + sqlite-vec path. Verify plugin registration, L0 raw capture, and L1 search/recall first; L2 scene blocks and L3 persona may appear later after pipeline delay or trigger conditions.</p></div>
   <div class="col"><h4>Advanced tuning</h4><p>Add embeddings, remote databases, TCVDB, retention policy, debug logging, and performance settings as needed. Real API keys belong in secure local config or environment variables, not in public examples.</p></div>
 </div>
 
 <h2>Pseudocode</h2>
 <pre class="code">openclaw plugins install @tencentdb-agent-memory/memory-tencentdb
+openclaw plugins update @tencentdb-agent-memory/memory-tencentdb
 
 # ~/.openclaw/openclaw.json
 {
@@ -700,9 +701,9 @@ openclaw gateway restart</pre>
 
 <h2>Smoke test: observe three things</h2>
 <ul>
-  <li><strong>Memory is captured:</strong> talk for 2-3 turns and state a durable preference or project rule.</li>
-  <li><strong>A new turn recalls it:</strong> ask about that preference in a later turn or session and check whether Recall influences the answer.</li>
-  <li><strong>Tools can find it:</strong> use <span class="inline">tdai_memory_search</span> for L1/L2/L3 and <span class="inline">tdai_conversation_search</span> for L0 raw conversation evidence.</li>
+  <li><strong>Check file artifacts first:</strong> inspect <span class="inline">~/.openclaw/state/memory-tdai/</span>; expected local state artifacts include <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, and <span class="inline">vectors.db</span>.</li>
+  <li><strong>Verify L0/L1 first:</strong> talk for 2-3 turns, state a durable preference or project rule, then ask about it in a later turn or session. First confirm L0 raw conversation capture and L1 structured memory search/recall.</li>
+  <li><strong>Keep tool scope clear:</strong> <span class="inline">tdai_memory_search</span> searches structured L1 memories; <span class="inline">tdai_conversation_search</span> searches raw L0 conversations. L2 scene blocks and L3 persona may appear only after pipeline delay or trigger conditions.</li>
 </ul>
 
 <div class="card warn">
@@ -726,7 +727,7 @@ openclaw gateway restart</pre>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  A zero-config loop is working when OpenClaw reloads the plugin, Gateway registration succeeds, conversation enters L0-L3, a later turn can Recall it, and search tools can find both memory structure and raw evidence.
+  A zero-config loop is working when OpenClaw reloads the plugin, Gateway registration succeeds, L0 raw conversation is stored, and L1 structured memory can be searched/recalled; L2/L3 may be produced later by pipeline or trigger conditions.
 </div>
 
 <div class="selftest">
