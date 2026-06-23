@@ -23,6 +23,8 @@ LESSON_08 = {
 <p>
 这个分支解释了为什么阅读 <span class="inline">index.ts</span> 时不要把所有代码都当成“记忆算法”：
 有一部分只是给 OpenClaw CLI 发现插件、显示工具说明或暴露元数据；另一部分才会进入完整运行路径。
+同一个 <span class="inline">register(api)</span> 也可能在不同 OpenClaw 生命周期上下文或注册模式中被调用，
+因此 CLI 注册和配置解析都应保持可重复调用时安全。
 </p>
 
 <h2>从 OpenClaw API 到核心门面</h2>
@@ -52,7 +54,7 @@ LESSON_08 = {
 <h2>入口伪代码</h2>
 <pre class="code">register(api):
     if api.registrationMode == "cli-metadata":
-        register_memory_tdai_cli()
+        api.registerCli(lambda program: registerMemoryTdaiCli(program))
         return
 
     cfg = parseConfig(api.pluginConfig)
@@ -60,7 +62,8 @@ LESSON_08 = {
     core = TdaiCore(adapter, cfg)
     register_tools_and_hooks(core)
     if cfg.offload.enabled:
-        registerOffload(api, cfg.offload)</pre>
+        registerOffload(api, cfg.offload)
+    api.registerCli(lambda program: registerMemoryTdaiCli(program))</pre>
 
 <h2>为什么需要 pending 缓存</h2>
 <p>
@@ -108,6 +111,8 @@ It is the plugin shell that detects registration mode, parses config, creates th
 <p>
 This branch explains why you should not read every line of <span class="inline">index.ts</span> as “the memory algorithm”.
 Some code only helps the OpenClaw CLI discover the plugin, show tool descriptions, or expose metadata; the rest enters the full runtime path.
+The same <span class="inline">register(api)</span> may run in different OpenClaw lifecycle contexts or registration modes,
+so CLI registration and config parsing should stay safe across repeated calls.
 </p>
 
 <h2>From OpenClaw API to the core facade</h2>
@@ -137,7 +142,7 @@ Tools and hooks then forward OpenClaw lifecycle events to the core.
 <h2>Pseudocode</h2>
 <pre class="code">register(api):
     if api.registrationMode == "cli-metadata":
-        register_memory_tdai_cli()
+        api.registerCli(lambda program: registerMemoryTdaiCli(program))
         return
 
     cfg = parseConfig(api.pluginConfig)
@@ -145,7 +150,8 @@ Tools and hooks then forward OpenClaw lifecycle events to the core.
     core = TdaiCore(adapter, cfg)
     register_tools_and_hooks(core)
     if cfg.offload.enabled:
-        registerOffload(api, cfg.offload)</pre>
+        registerOffload(api, cfg.offload)
+    api.registerCli(lambda program: registerMemoryTdaiCli(program))</pre>
 
 <h2>Why pending caches exist</h2>
 <p>

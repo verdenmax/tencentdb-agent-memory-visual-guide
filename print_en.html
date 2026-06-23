@@ -1125,6 +1125,8 @@ It is the plugin shell that detects registration mode, parses config, creates th
 <p>
 This branch explains why you should not read every line of <span class="inline">index.ts</span> as “the memory algorithm”.
 Some code only helps the OpenClaw CLI discover the plugin, show tool descriptions, or expose metadata; the rest enters the full runtime path.
+The same <span class="inline">register(api)</span> may run in different OpenClaw lifecycle contexts or registration modes,
+so CLI registration and config parsing should stay safe across repeated calls.
 </p>
 
 <h2>From OpenClaw API to the core facade</h2>
@@ -1154,7 +1156,7 @@ Tools and hooks then forward OpenClaw lifecycle events to the core.
 <h2>Pseudocode</h2>
 <pre class="code">register(api):
     if api.registrationMode == "cli-metadata":
-        register_memory_tdai_cli()
+        api.registerCli(lambda program: registerMemoryTdaiCli(program))
         return
 
     cfg = parseConfig(api.pluginConfig)
@@ -1162,7 +1164,8 @@ Tools and hooks then forward OpenClaw lifecycle events to the core.
     core = TdaiCore(adapter, cfg)
     register_tools_and_hooks(core)
     if cfg.offload.enabled:
-        registerOffload(api, cfg.offload)</pre>
+        registerOffload(api, cfg.offload)
+    api.registerCli(lambda program: registerMemoryTdaiCli(program))</pre>
 
 <h2>Why pending caches exist</h2>
 <p>
