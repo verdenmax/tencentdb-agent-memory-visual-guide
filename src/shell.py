@@ -54,6 +54,8 @@ PAGES = [
      "第一部分 · 数据流全景", "Part 1 · Data-flow overview"),
     ("04-openclaw-zero-config.html", "OpenClaw 零配置闭环", "OpenClaw zero-config loop",
      "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
+    ("05-hermes-gateway-path.html", "Hermes 与 Gateway 路径", "Hermes and Gateway path",
+     "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
 ]
 
 def bi(zh, en):
@@ -495,6 +497,8 @@ SUBTITLES = {
                                   "long-term L0-L3 preserves experience; short-term Offload compresses the current task"),
     "04-openclaw-zero-config.html": ("安装插件、启用配置、重启 Gateway、先验证 L0/L1 与 Recall",
                                     "install plugin, enable config, restart Gateway, verify L0/L1 and Recall first"),
+    "05-hermes-gateway-path.html": ("Hermes provider 通过本地 Gateway 复用同一个 TdaiCore",
+                                    "the Hermes provider reuses the same TdaiCore through a local Gateway"),
 }
 
 def index_page(lesson_prefix="lessons/"):

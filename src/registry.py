@@ -7,4 +7,5 @@ CONTENT = {
     "02-one-conversation-flow.html": part1.LESSON_02,
     "03-two-memory-spines.html": part1.LESSON_03,
     "04-openclaw-zero-config.html": part2.LESSON_04,
+    "05-hermes-gateway-path.html": part2.LESSON_05,
 }

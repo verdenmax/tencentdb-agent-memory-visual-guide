@@ -329,13 +329,14 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 4 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">4 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 5 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">5 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
   <li><span class="lang-zh">一次对话的数据流</span><span class="lang-en">The data flow of one conversation</span></li>
   <li><span class="lang-zh">两条记忆主线</span><span class="lang-en">Two memory spines</span></li>
   <li><span class="lang-zh">OpenClaw 零配置闭环</span><span class="lang-en">OpenClaw zero-config loop</span></li>
+  <li><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -749,6 +750,123 @@ openclaw gateway restart</pre>
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>Which three observations would you use to decide whether the OpenClaw memory plugin is really working?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+The Hermes path looks different from OpenClaw: one is a Python Agent memory provider, the other is an OpenClaw plugin and Gateway lifecycle.
+But it is not a different memory engine. Hermes is an alternate host entry: the provider translates Hermes recall, capture, and search calls into HTTP, sends them to the local Gateway, and the Gateway reaches the same <span class="inline">TdaiCore</span> through <span class="inline">StandaloneHostAdapter</span>.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🚪 Analogy</div>
+  OpenClaw and Hermes are two doors into the same library. The front desk differs: OpenClaw uses plugin hooks/tools; Hermes uses the <span class="inline">memory_tencentdb</span> provider.
+  Once inside, archiving, searching, recall, and shelf organization are handled by the same core service.
+</div>
+
+<h2>Hermes is not a second memory core</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Hermes</div><div class="nd">Python Agent lifecycle</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">memory_tencentdb provider</div><div class="nd">provider key must use underscores</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">local Gateway</div><div class="nd">HTTP sidecar on 127.0.0.1:8420</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">StandaloneHostAdapter</div><div class="nd">isolates host differences</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">TdaiCore</div><div class="nd">capture / recall / search / pipeline</div></div>
+</div>
+
+<p>
+In <span class="inline">hermes-plugin/memory/memory_tencentdb/README.md</span>, the provider is described as a thin HTTP client plus process supervisor.
+It plugs into the Hermes lifecycle, starts or probes the Gateway, maps <span class="inline">prefetch</span> to <span class="inline">POST /recall</span>, maps <span class="inline">sync_turn</span> to <span class="inline">POST /capture</span>, and advertises search tool schemas.
+The real capture, extraction, storage, recall, and pipeline scheduling remain in the Node.js Gateway and core modules.
+</p>
+
+<h2>Two install routes: fresh Docker or existing Hermes</h2>
+<div class="cols">
+  <div class="col"><h4>Fresh Docker deployment</h4><p>The Hermes section in <span class="inline">README_CN.md</span> positions Docker as the route for starting a memory-enabled Hermes from scratch. The image bundles <span class="inline">hermes-agent</span> and the <span class="inline">memory_tencentdb</span> provider, with the Gateway exposed on port <span class="inline">8420</span>. This is best when you want one container path to validate the complete loop.</p></div>
+  <div class="col"><h4>Install provider into existing Hermes</h4><p>If Hermes is already installed, link or copy the provider into Hermes's memory provider directory and set <span class="inline">memory.provider: memory_tencentdb</span> in <span class="inline">~/.hermes/config.yaml</span>. The directory name must be exactly <span class="inline">memory_tencentdb</span> because Hermes uses it as the provider key.</p></div>
+</div>
+
+<p>
+Whether you enter through Docker or an existing Hermes install, the checkpoints are the same: Hermes discovers the provider, the provider reaches the local Gateway, and the Gateway HTTP routes reach <span class="inline">TdaiCore</span>.
+That is why the guide does not treat Hermes as a separate memory system: it changes host integration and process boundaries, not the L0-L3, Recall/Search, or pipeline core.
+</p>
+
+<h2>Pseudocode</h2>
+<pre class="code">memory:
+  provider: memory_tencentdb
+
+MEMORY_TENCENTDB_GATEWAY_HOST="127.0.0.1"
+MEMORY_TENCENTDB_GATEWAY_PORT="8420"
+
+curl http://127.0.0.1:8420/health</pre>
+
+<p>
+The example uses placeholders and a loopback address only. Real LLM credentials, Gateway API keys, cloud database passwords, and private team endpoints do not belong in guide examples, screenshots, or commits.
+If authentication is enabled, the Gateway side uses <span class="inline">TDAI_GATEWAY_API_KEY</span> or <span class="inline">server.apiKey</span>; the Hermes provider, as the client, can use <span class="inline">MEMORY_TENCENTDB_GATEWAY_API_KEY</span>. They must match, but this lesson never shows a real value.
+</p>
+
+<h2>What the Gateway exposes</h2>
+<p>
+<span class="inline">src/gateway/server.ts</span> marks the Gateway as the HTTP server for the Hermes sidecar: <span class="inline">GET /health</span> is the health check, <span class="inline">POST /recall</span> performs memory recall before the model turn, <span class="inline">POST /capture</span> captures a conversation turn, <span class="inline">POST /search/memories</span> searches L1 structured memories, and <span class="inline">POST /search/conversations</span> searches L0 raw conversations.
+<span class="inline">src/gateway/config.ts</span> also exposes optional knobs such as <span class="inline">server.apiKey</span> / <span class="inline">TDAI_GATEWAY_API_KEY</span> and <span class="inline">server.corsOrigins</span> / <span class="inline">TDAI_CORS_ORIGINS</span>. The default learning path is a local sidecar; auth and CORS become critical when you expose it beyond loopback.
+</p>
+
+<h2>Verification order</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Start with health check</h4><p>Use <span class="inline">curl http://127.0.0.1:8420/health</span> to confirm the Gateway is up; the docs allow <span class="inline">ok</span> or <span class="inline">degraded</span>.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Configure the provider</h4><p>Confirm the Hermes provider directory name, <span class="inline">plugin.yaml::name</span>, and <span class="inline">memory.provider</span> all align on <span class="inline">memory_tencentdb</span>.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Auto-start on first conversation or start manually</h4><p>In the existing-Hermes route, the provider can auto-discover and <span class="inline">Popen()</span> the Gateway on the first conversation, or you can run the Gateway before launching Hermes.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Verify with recall/search</h4><p>State a reusable preference or project fact, then use a later question, memory search, or conversation search to confirm it was captured, indexed, and recalled.</p></div></div>
+</div>
+
+<div class="card detail">
+  <div class="tag">🔬 Source map</div>
+  <ul>
+    <li><span class="inline">README_CN.md</span>: Hermes install section, Docker route, existing-Hermes route, and Gateway security configuration.</li>
+    <li><span class="inline">hermes-plugin/memory/memory_tencentdb/README.md</span>: provider key, supervisor, HTTP mapping, auto-discovery, and reliability guards.</li>
+    <li><span class="inline">src/gateway/server.ts</span>: <span class="inline">/health</span>, <span class="inline">/recall</span>, <span class="inline">/capture</span>, and <span class="inline">/search/*</span> routes.</li>
+    <li><span class="inline">src/gateway/config.ts</span>: host, port, API key, CORS, Gateway data directory, and LLM config sources.</li>
+    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>: adapts a standalone Gateway host into the HostAdapter shape required by the core.</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>: host-neutral facade for recall, capture, search, and pipeline management.</li>
+  </ul>
+</div>
+
+<div class="card warn">
+  <div class="tag">🔒 Security boundary</div>
+  This lesson uses placeholders and loopback addresses only. <span class="inline">GET /health</span> is intentionally token-free for Docker health checks or orchestrator liveness probes; authentication for other routes is controlled by Gateway-side config. If you bind beyond loopback, plan the API key, CORS allow-list, and network boundary first.
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Hermes is an alternate host path, not another memory engine. Once the path <span class="inline">Hermes → memory_tencentdb provider → local Gateway → StandaloneHostAdapter → TdaiCore</span> works, the L0/L1/L2/L3, Recall, Capture, and Search mental model converges with OpenClaw on the same core.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. In the Hermes path, why must the directory name be <code>memory_tencentdb</code>?</div>
+  <ol class="opts">
+    <li>Node.js does not support hyphenated directories</li>
+    <li>It is the OpenClaw hook name</li>
+    <li>SQLite can only read underscored directories</li>
+    <li>Hermes uses it as the provider key</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. The README states Hermes uses the directory name as the provider key; the hyphenated package name cannot replace the underscored provider name.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Hermes and OpenClaw enter through different paths, so why does the guide say they reuse the same core?</li>
   </ul>
 </div>
 </div>

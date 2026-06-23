@@ -144,6 +144,24 @@ QUIZZES = {
             {"zh": "你会用哪三个现象判断 OpenClaw 记忆插件真的工作了？", "en": "Which three observations would you use to decide whether the OpenClaw memory plugin is really working?"}
         ],
     },
+    "05-hermes-gateway-path.html": {
+        "mcq": [
+            {
+                "q": {"zh": "Hermes 路径里，为什么目录名必须是 <code>memory_tencentdb</code>？", "en": "In the Hermes path, why must the directory name be <code>memory_tencentdb</code>?"},
+                "opts": [
+                    {"zh": "Hermes 用它作为 provider key", "en": "Hermes uses it as the provider key"},
+                    {"zh": "Node.js 不支持连字符目录", "en": "Node.js does not support hyphenated directories"},
+                    {"zh": "SQLite 只能读取下划线目录", "en": "SQLite can only read underscored directories"},
+                    {"zh": "这是 OpenClaw 的 hook 名称", "en": "It is the OpenClaw hook name"},
+                ],
+                "answer": 0,
+                "why": {"zh": "README 明确说明 Hermes 用目录名作为 provider key，连字符包名不能替代下划线 provider 名。", "en": "The README states Hermes uses the directory name as the provider key; the hyphenated package name cannot replace the underscored provider name."},
+            }
+        ],
+        "open": [
+            {"zh": "Hermes 和 OpenClaw 的入口不同，但为什么教程说它们复用同一个核心？", "en": "Hermes and OpenClaw enter through different paths, so why does the guide say they reuse the same core?"}
+        ],
+    },
 }
 
 
