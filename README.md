@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 7 lessons.
+The guide currently contains 8 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -17,6 +17,7 @@ The guide currently contains 7 lessons.
 | 05 | Hermes and Gateway path |
 | 06 | Runtime files and data products |
 | 07 | Configuration levels and safe defaults |
+| 08 | index.ts: the OpenClaw plugin shell |
 
 ## How to view locally
 
