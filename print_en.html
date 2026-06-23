@@ -899,7 +899,7 @@ The long-term memory directory usually also contains <span class="inline">vector
 
 <h2>Long-term memory vs Offload directories</h2>
 <div class="cols">
-  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p>Under <span class="inline">memory-tdai/</span>, <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -> L2 -> L1 -> L0.</p></div>
+  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p><span class="inline">memory-tdai/</span> lives under the resolved OpenClaw state dir, commonly <span class="inline">~/.openclaw/state/memory-tdai/</span>; standalone or fallback paths may differ. Its <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -&gt; L2 -&gt; L1 -&gt; L0.</p></div>
   <div class="col"><h4>Context Offload: current-task compression</h4><p>Under <span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span>, expect <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;session&gt;.jsonl</span>, <span class="inline">state.json</span>, and <span class="inline">sessions-registry.json</span>. It answers how the current long task moved large evidence out of context while keeping it recoverable. See <span class="inline">src/offload/storage.ts</span>.</p></div>
 </div>
 
@@ -923,10 +923,10 @@ Offload <span class="inline">refs/</span> keep large source text or referenced m
 
 <h2>Drill-down debugging: structure first, evidence second</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -> Scene</h4><p>If the user says "the persona is wrong", open <span class="inline">persona.md</span> for the specific claim, then find the related <span class="inline">scene_blocks/</span>.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -> Atom</h4><p>A scene keeps structure and narrative, not final proof. Continue to <span class="inline">records/</span> and inspect the L1 atom extraction.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -> Conversation</h4><p>If the atom is suspicious, return to <span class="inline">conversations/</span> L0 JSONL and verify the raw user words, time, and context.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -> offload JSONL -> refs</h4><p>If a long-task node is wrong, inspect the <span class="inline">mmds/</span> node, then <span class="inline">offload-&lt;session&gt;.jsonl</span>, then the raw material in <span class="inline">refs/</span>.</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -&gt; Scene</h4><p>If the user says "the persona is wrong", open <span class="inline">persona.md</span> for the specific claim, then find the related <span class="inline">scene_blocks/</span>.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -&gt; Atom</h4><p>A scene keeps structure and narrative, not final proof. Continue to <span class="inline">records/</span> and inspect the L1 atom extraction.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -&gt; Conversation</h4><p>If the atom is suspicious, return to <span class="inline">conversations/</span> L0 JSONL and verify the raw user words, time, and context.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -&gt; offload JSONL -&gt; refs</h4><p>If a long-task node is wrong, inspect the <span class="inline">mmds/</span> node, then <span class="inline">offload-&lt;session&gt;.jsonl</span>, then the raw material in <span class="inline">refs/</span>.</p></div></div>
 </div>
 
 <div class="card detail">
@@ -945,7 +945,7 @@ Offload <span class="inline">refs/</span> keep large source text or referenced m
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Runtime artifacts are debugging entry points: long-term memory drills down Persona -> Scene -> L1 Atom -> L0 Conversation, while Offload drills down MMD node -> offload JSONL -> refs. Upper layers locate structure; lower layers provide verifiable evidence.
+  Runtime artifacts are debugging entry points: long-term memory drills down Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation, while Offload drills down MMD node -&gt; offload JSONL -&gt; refs. Upper layers locate structure; lower layers provide verifiable evidence.
 </div>
 
 <div class="selftest">
@@ -953,10 +953,10 @@ Offload <span class="inline">refs/</span> keep large source text or referenced m
 <div class="quiz">
   <div class="qn">1. To verify raw evidence behind a persona claim, which drill-down direction is correct?</div>
   <ol class="opts">
-    <li>Offload MMD -> npm install</li>
-    <li>L0 -> delete records -> restart</li>
-    <li>Persona -> Scene -> L1 Atom -> L0 Conversation</li>
-    <li>vectors.db -> README -> package.json</li>
+    <li>Offload MMD -&gt; npm install</li>
+    <li>L0 -&gt; delete records -&gt; restart</li>
+    <li>Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation</li>
+    <li>vectors.db -&gt; README -&gt; package.json</li>
   </ol>
   <details class="accordion" open>
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>

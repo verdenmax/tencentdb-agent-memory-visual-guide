@@ -167,10 +167,10 @@ QUIZZES = {
             {
                 "q": {"zh": "如果想核对一条用户画像背后的原始证据，正确的下钻方向是什么？", "en": "To verify raw evidence behind a persona claim, which drill-down direction is correct?"},
                 "opts": [
-                    {"zh": "Persona -> Scene -> L1 Atom -> L0 Conversation", "en": "Persona -> Scene -> L1 Atom -> L0 Conversation"},
-                    {"zh": "vectors.db -> README -> package.json", "en": "vectors.db -> README -> package.json"},
-                    {"zh": "L0 -> 删除 records -> 重新启动", "en": "L0 -> delete records -> restart"},
-                    {"zh": "Offload MMD -> npm install", "en": "Offload MMD -> npm install"},
+                    {"zh": "Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation", "en": "Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation"},
+                    {"zh": "vectors.db -&gt; README -&gt; package.json", "en": "vectors.db -&gt; README -&gt; package.json"},
+                    {"zh": "L0 -&gt; 删除 records -&gt; 重新启动", "en": "L0 -&gt; delete records -&gt; restart"},
+                    {"zh": "Offload MMD -&gt; npm install", "en": "Offload MMD -&gt; npm install"},
                 ],
                 "answer": 0,
                 "why": {"zh": "本项目的核心是高层保结构、低层保证据；画像要通过场景、原子记忆回到原始对话。", "en": "The project keeps structure in upper layers and evidence in lower layers; a persona claim drills down through scenes and atoms to raw conversation."},
