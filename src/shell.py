@@ -64,6 +64,8 @@ PAGES = [
      "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
     ("09-tdai-core-facade.html", "TdaiCore：宿主无关核心门面", "TdaiCore: host-neutral facade",
      "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
+    ("10-host-adapter-boundaries.html", "HostAdapter 与 LLMRunner 边界", "HostAdapter and LLMRunner boundaries",
+     "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
 ]
 
 def bi(zh, en):
@@ -515,6 +517,8 @@ SUBTITLES = {
                                      "register(api), CLI metadata, config parsing, hooks/tools entry point"),
     "09-tdai-core-facade.html": ("handleBeforeRecall、handleTurnCommitted、search、scheduler 生命周期",
                                  "handleBeforeRecall, handleTurnCommitted, search, scheduler lifecycle"),
+    "10-host-adapter-boundaries.html": ("宿主上下文、日志、LLM 执行、数据目录都通过 adapter 隔离",
+                                       "host context, logging, LLM execution, and data dirs are isolated by adapters"),
 }
 
 def index_page(lesson_prefix="lessons/"):

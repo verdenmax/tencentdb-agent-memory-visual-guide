@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 9 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">9 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 10 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">10 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -341,6 +341,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></li>
   <li><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></li>
   <li><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></li>
+  <li><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1332,6 +1333,117 @@ Gateway 场景中，多个 HTTP 请求可能同时进入 <span class="inline">ha
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>为什么 Gateway 并发请求需要 scheduler 启动 promise gate？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+<span class="inline">HostAdapter</span> 是宿主与 core 之间的缝合线：宿主上下文、日志、数据目录和 LLM 执行方式都从这里进入，
+<span class="inline">TdaiCore</span> 只依赖统一接口，不直接依赖 OpenClaw、Gateway 或 Hermes 的实现细节。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  同一个电器可以在不同国家使用，是因为有电源适配器。Core 像电器本体；OpenClaw 与 Gateway/Hermes 像不同插座；
+  <span class="inline">HostAdapter</span> 与 <span class="inline">LLMRunner</span> 把电压、插头形状和供电方式转换成 core 能稳定使用的接口。
+</div>
+
+<h2>Adapter 是宿主与 core 的边界</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw plugin API、Gateway HTTP handler、Hermes provider：负责生命周期、请求来源和宿主能力。</div></div>
+  <div class="layer l-part"><div class="lt">HostAdapter</div><div class="ld">统一暴露 logger、runtime context、dataDir 与 LLMRunnerFactory。</div></div>
+  <div class="layer l-main"><div class="lt">Core</div><div class="ld">TdaiCore、recall、capture、pipeline、persona/offload prompt：只看接口，不看宿主。</div></div>
+</div>
+
+<p>
+在 <span class="inline">src/core/types.ts</span> 中，<span class="inline">HostAdapter</span> 回答三个问题：
+“怎么记录日志？”、“当前用户/会话/数据目录是谁？”、“怎么创建 LLM runner？”。
+这条边界让 core 可以把 <span class="inline">RuntimeContext</span> 当成唯一的身份与路径来源，把 LLM 调用当成可替换能力。
+新增宿主时，优先补齐这三个接口，而不是把宿主 SDK 调用散落到 core 里。
+</p>
+
+<h2>两种 adapter 路径对比</h2>
+<div class="cols">
+  <div class="col"><h4>OpenClaw adapter</h4><p><span class="inline">src/adapters/openclaw/host-adapter.ts</span> 持有 <span class="inline">OpenClawPluginApi</span>、插件数据目录和 OpenClaw 配置。它从 <span class="inline">api.logger</span> 取日志，从 hook session 构造上下文，并把 <span class="inline">api.runtime.agent</span> 交给 <span class="inline">OpenClawLLMRunnerFactory</span>。</p></div>
+  <div class="col"><h4>Standalone / Gateway adapter</h4><p><span class="inline">src/adapters/standalone/host-adapter.ts</span> 不依赖 OpenClaw。它直接接收 <span class="inline">dataDir</span>、logger、默认用户和 OpenAI-compatible LLM 配置；Gateway 每个请求再覆盖 user/session。</p></div>
+</div>
+
+<h2>LLMRunnerFactory 把模型调用藏在接口后</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw 或 Gateway/Hermes</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Core prompts</div><div class="nd">L1 extraction / L2 scene / L3 persona</div></div>
+</div>
+
+<p>
+<span class="inline">LLMRunner</span> 的边界很关键：L1 抽取、L1 去重、L2 场景和 L3 画像提示词只调用
+<span class="inline">runner.run({prompt, systemPrompt, taskId})</span>。OpenClaw 路径背后可以继续用
+<span class="inline">CleanContextRunner</span> 与内嵌 agent runtime；Standalone 路径则通过 OpenAI-compatible HTTP 和可选文件工具执行。
+Prompt 本身因此不需要知道宿主具体怎么发起模型调用。Context Offload 也遵循“提示词不碰宿主 SDK”的目标，
+但它目前走并行的 <span class="inline">BackendClient</span> / <span class="inline">LocalLlmClient</span> 抽象，而不是这个 core runner factory。
+</p>
+
+<h2>伪代码</h2>
+<pre class="code">interface HostAdapter:
+    getLogger()
+    getRuntimeContext()
+    getLLMRunnerFactory()
+
+core = TdaiCore({
+    hostAdapter,
+    config
+})</pre>
+
+<h2>为什么这对测试和 Hermes 很重要</h2>
+<p>
+测试时，可以给 core 一个小型 fake adapter：固定 logger、临时 dataDir、可预测的 fake runner，就能验证 recall/capture/pipeline 逻辑，
+不用启动 OpenClaw 或真实 Gateway。Hermes 支持也因此更清晰：Hermes/Gateway 只需要实现 standalone adapter 与 runner 配置，
+无需复制 OpenClaw hooks 内的记忆算法。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/types.ts</span>：<span class="inline">HostAdapter</span>、<span class="inline">LLMRunner</span>、<span class="inline">LLMRunnerFactory</span></li>
+    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>：<span class="inline">OpenClawHostAdapter</span> 包装 OpenClaw API、logger、plugin data dir</li>
+    <li><span class="inline">src/adapters/openclaw/llm-runner.ts</span>：<span class="inline">OpenClawLLMRunnerFactory</span> 包装 CleanContextRunner / runtime agent</li>
+    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>：<span class="inline">StandaloneHostAdapter</span> 使用直接配置与请求上下文</li>
+    <li><span class="inline">src/adapters/standalone/llm-runner.ts</span>：<span class="inline">StandaloneLLMRunnerFactory</span> 使用 OpenAI-compatible 配置和可选工具沙箱</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  <span class="inline">HostAdapter</span> 隔离宿主运行时差异；<span class="inline">LLMRunner</span> 隔离模型执行差异。
+  这让 core、prompt 与测试都围绕稳定接口组织，也让 Gateway/Hermes 成为 OpenClaw 之外的另一条干净接入路径。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. HostAdapter 隔离的是什么？</div>
+  <ol class="opts">
+    <li>HTML 颜色变量</li>
+    <li>用户浏览器语言</li>
+    <li>宿主运行时差异，例如日志、数据目录、LLM runner</li>
+    <li>Git commit 消息</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。Adapter 让 core 不依赖 OpenClaw 或 Gateway 细节。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>如果要新增第三个宿主，应优先实现哪些 adapter 能力？</li>
   </ul>
 </div>
 </div>

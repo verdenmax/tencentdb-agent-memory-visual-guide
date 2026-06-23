@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>10 · HostAdapter 与 LLMRunner 边界 / HostAdapter and LLMRunner boundaries - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜HostAdapter 与 LLMRunner 边界 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="10 · HostAdapter 与 LLMRunner 边界 / HostAdapter and LLMRunner boundaries - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜HostAdapter 与 LLMRunner 边界 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="10 · HostAdapter 与 LLMRunner 边界 / HostAdapter and LLMRunner boundaries - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜HostAdapter 与 LLMRunner 边界 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,209 +317,230 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></span>
-    <span class="pill">06 / 10</span>
+    <span class="pill"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></span>
+    <span class="pill">10 / 10</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:60%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></div>
-    <h1><span class="lang-zh">运行后会出现哪些文件</span><span class="lang-en">Runtime files and data products</span></h1>
+    <div class="part"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></div>
+    <h1><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-运行后的文件不是隐藏实现细节，而是一张调试地图：当召回、画像、场景或长任务摘要看起来不对时，先看高层产物理解系统“相信了什么”，再一路下钻到低层证据确认它为什么这么相信。
+<span class="inline">HostAdapter</span> 是宿主与 core 之间的缝合线：宿主上下文、日志、数据目录和 LLM 执行方式都从这里进入，
+<span class="inline">TdaiCore</span> 只依赖统一接口，不直接依赖 OpenClaw、Gateway 或 Hermes 的实现细节。
 </p>
 
 <div class="card analogy">
-  <div class="tag">🗺️ 生活类比</div>
-  这些目录像侦探案卷：画像和场景是案情摘要，L1 原子记忆是证词卡片，L0 对话是原始录音；Offload 的 MMD 是任务白板，JSONL 和 refs 是白板背后的材料袋。
+  <div class="tag">🧩 生活类比</div>
+  同一个电器可以在不同国家使用，是因为有电源适配器。Core 像电器本体；OpenClaw 与 Gateway/Hermes 像不同插座；
+  <span class="inline">HostAdapter</span> 与 <span class="inline">LLMRunner</span> 把电压、插头形状和供电方式转换成 core 能稳定使用的接口。
 </div>
 
-<h2>L0-L3 分层会落到哪些文件</h2>
+<h2>Adapter 是宿主与 core 的边界</h2>
 <div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> 保存原始对话 JSONL，由 <span class="inline">src/core/conversation/l0-recorder.ts</span> 写入，负责保留最底层证据。</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> 保存结构化记忆 JSONL，由 <span class="inline">src/core/record/l1-writer.ts</span> 写入，便于搜索和召回。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> 保存 Markdown 场景块，由 <span class="inline">src/core/scene/scene-extractor.ts</span> 聚合多条 L1 证据。</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> 保存长期画像，由 <span class="inline">src/core/persona/persona-generator.ts</span> 从场景中生成稳定偏好和用户特征。</div></div>
+  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw plugin API、Gateway HTTP handler、Hermes provider：负责生命周期、请求来源和宿主能力。</div></div>
+  <div class="layer l-part"><div class="lt">HostAdapter</div><div class="ld">统一暴露 logger、runtime context、dataDir 与 LLMRunnerFactory。</div></div>
+  <div class="layer l-main"><div class="lt">Core</div><div class="ld">TdaiCore、recall、capture、pipeline、persona/offload prompt：只看接口，不看宿主。</div></div>
 </div>
 
 <p>
-本地长期记忆目录通常还会看到 <span class="inline">vectors.db</span>：它是本地 SQLite 向量/全文检索存储，入口可从 <span class="inline">src/core/store/factory.ts</span> 看存储后端如何创建。
-<span class="inline">.metadata/</span> 放 manifest、索引状态和检查点线索，对应 <span class="inline">src/utils/manifest.ts</span> 与 <span class="inline">src/utils/checkpoint.ts</span>；<span class="inline">.backup/</span> 用于备份，方便升级或调试前回滚。
-所以调试时不要只盯一个数据库文件：目录、JSONL、Markdown、metadata 和 backup 一起构成“可解释的记忆状态”。
+在 <span class="inline">src/core/types.ts</span> 中，<span class="inline">HostAdapter</span> 回答三个问题：
+“怎么记录日志？”、“当前用户/会话/数据目录是谁？”、“怎么创建 LLM runner？”。
+这条边界让 core 可以把 <span class="inline">RuntimeContext</span> 当成唯一的身份与路径来源，把 LLM 调用当成可替换能力。
+新增宿主时，优先补齐这三个接口，而不是把宿主 SDK 调用散落到 core 里。
 </p>
 
-<h2>长期记忆目录 vs Offload 目录</h2>
+<h2>两种 adapter 路径对比</h2>
 <div class="cols">
-  <div class="col"><h4>长期记忆：跨会话复用</h4><p><span class="inline">memory-tdai/</span> 位于解析后的 OpenClaw state dir 下，常见完整路径是 <span class="inline">~/.openclaw/state/memory-tdai/</span>；standalone 或 fallback 路径可能不同。里面的 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">persona.md</span>、<span class="inline">vectors.db</span>、<span class="inline">.metadata/</span>、<span class="inline">.backup/</span> 关注“未来会话还能不能记得、搜到、解释清楚”。它的证据链是 L3 -&gt; L2 -&gt; L1 -&gt; L0。</p></div>
-  <div class="col"><h4>Context Offload：当前任务压缩</h4><p><span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span> 下会有 <span class="inline">refs/</span>、<span class="inline">mmds/</span>、<span class="inline">offload-&lt;session&gt;.jsonl</span>、<span class="inline">state.json</span>、<span class="inline">sessions-registry.json</span>。它关注“当前长任务如何把大块材料移出上下文，但仍能找回证据”。实现入口看 <span class="inline">src/offload/storage.ts</span>。</p></div>
+  <div class="col"><h4>OpenClaw adapter</h4><p><span class="inline">src/adapters/openclaw/host-adapter.ts</span> 持有 <span class="inline">OpenClawPluginApi</span>、插件数据目录和 OpenClaw 配置。它从 <span class="inline">api.logger</span> 取日志，从 hook session 构造上下文，并把 <span class="inline">api.runtime.agent</span> 交给 <span class="inline">OpenClawLLMRunnerFactory</span>。</p></div>
+  <div class="col"><h4>Standalone / Gateway adapter</h4><p><span class="inline">src/adapters/standalone/host-adapter.ts</span> 不依赖 OpenClaw。它直接接收 <span class="inline">dataDir</span>、logger、默认用户和 OpenAI-compatible LLM 配置；Gateway 每个请求再覆盖 user/session。</p></div>
 </div>
 
-<h2>最小文件形状</h2>
-<pre class="code">memory-tdai/
-  conversations/     # L0 raw messages
-  records/           # L1 atoms
-  scene_blocks/      # L2 scenes
-  persona.md         # L3 persona
-  vectors.db         # local search index
-
-context-offload/
-  &lt;agent&gt;/refs/
-  &lt;agent&gt;/mmds/
-  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+<h2>LLMRunnerFactory 把模型调用藏在接口后</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw 或 Gateway/Hermes</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Core prompts</div><div class="nd">L1 extraction / L2 scene / L3 persona</div></div>
+</div>
 
 <p>
-Offload 的 <span class="inline">refs/</span> 保存被卸载的大块原文或引用材料，<span class="inline">mmds/</span> 保存 Mermaid/MMD 任务图，<span class="inline">offload-&lt;session&gt;.jsonl</span> 记录会话内的卸载事件。
-<span class="inline">state.json</span> 维护当前状态，<span class="inline">sessions-registry.json</span> 则帮助按会话找到对应产物。MMD 适合先看全局任务结构，但如果节点描述和真实材料冲突，最终仍要回到 JSONL 与 refs。
+<span class="inline">LLMRunner</span> 的边界很关键：L1 抽取、L1 去重、L2 场景和 L3 画像提示词只调用
+<span class="inline">runner.run({prompt, systemPrompt, taskId})</span>。OpenClaw 路径背后可以继续用
+<span class="inline">CleanContextRunner</span> 与内嵌 agent runtime；Standalone 路径则通过 OpenAI-compatible HTTP 和可选文件工具执行。
+Prompt 本身因此不需要知道宿主具体怎么发起模型调用。Context Offload 也遵循“提示词不碰宿主 SDK”的目标，
+但它目前走并行的 <span class="inline">BackendClient</span> / <span class="inline">LocalLlmClient</span> 抽象，而不是这个 core runner factory。
 </p>
 
-<h2>下钻调试：先看结构，再找证据</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -&gt; Scene</h4><p>如果用户说“画像不对”，先打开 <span class="inline">persona.md</span> 看具体 claim，再找它来自哪些 <span class="inline">scene_blocks/</span>。</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -&gt; Atom</h4><p>场景块只保结构和叙述，不是最终证据。继续到 <span class="inline">records/</span> 找 L1 Atom，核对事实、偏好、约束的抽取是否合理。</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -&gt; Conversation</h4><p>如果 L1 本身可疑，回到 <span class="inline">conversations/</span> 的 L0 JSONL，核对原始用户话语、时间和上下文。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -&gt; offload JSONL -&gt; refs</h4><p>如果长任务摘要或节点错了，先看 <span class="inline">mmds/</span> 的节点，再查 <span class="inline">offload-&lt;session&gt;.jsonl</span>，最后打开 <span class="inline">refs/</span> 里的原文材料。</p></div></div>
-</div>
+<h2>伪代码</h2>
+<pre class="code">interface HostAdapter:
+    getLogger()
+    getRuntimeContext()
+    getLLMRunnerFactory()
+
+core = TdaiCore({
+    hostAdapter,
+    config
+})</pre>
+
+<h2>为什么这对测试和 Hermes 很重要</h2>
+<p>
+测试时，可以给 core 一个小型 fake adapter：固定 logger、临时 dataDir、可预测的 fake runner，就能验证 recall/capture/pipeline 逻辑，
+不用启动 OpenClaw 或真实 Gateway。Hermes 支持也因此更清晰：Hermes/Gateway 只需要实现 standalone adapter 与 runner 配置，
+无需复制 OpenClaw hooks 内的记忆算法。
+</p>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：L0 对话 JSONL 写入。</li>
-    <li><span class="inline">src/core/record/l1-writer.ts</span>：L1 结构化记录写入。</li>
-    <li><span class="inline">src/core/scene/scene-extractor.ts</span>：L2 场景块抽取。</li>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>：L3 persona 生成。</li>
-    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite/搜索存储创建。</li>
-    <li><span class="inline">src/offload/storage.ts</span>：context-offload 目录、refs、MMD、JSONL 和会话状态。</li>
-    <li><span class="inline">src/utils/manifest.ts</span>：manifest 元数据。</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>：checkpoint 读写。</li>
+    <li><span class="inline">src/core/types.ts</span>：<span class="inline">HostAdapter</span>、<span class="inline">LLMRunner</span>、<span class="inline">LLMRunnerFactory</span></li>
+    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>：<span class="inline">OpenClawHostAdapter</span> 包装 OpenClaw API、logger、plugin data dir</li>
+    <li><span class="inline">src/adapters/openclaw/llm-runner.ts</span>：<span class="inline">OpenClawLLMRunnerFactory</span> 包装 CleanContextRunner / runtime agent</li>
+    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>：<span class="inline">StandaloneHostAdapter</span> 使用直接配置与请求上下文</li>
+    <li><span class="inline">src/adapters/standalone/llm-runner.ts</span>：<span class="inline">StandaloneLLMRunnerFactory</span> 使用 OpenAI-compatible 配置和可选工具沙箱</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  运行产物是调试入口：长期记忆按 Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation 下钻，Offload 按 MMD node -&gt; offload JSONL -&gt; refs 下钻。高层帮你快速定位结构，低层负责给出可核对证据。
+  <span class="inline">HostAdapter</span> 隔离宿主运行时差异；<span class="inline">LLMRunner</span> 隔离模型执行差异。
+  这让 core、prompt 与测试都围绕稳定接口组织，也让 Gateway/Hermes 成为 OpenClaw 之外的另一条干净接入路径。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. 如果想核对一条用户画像背后的原始证据，正确的下钻方向是什么？</div>
+  <div class="qn">1. HostAdapter 隔离的是什么？</div>
   <ol class="opts">
-    <li>Offload MMD -&gt; npm install</li>
-    <li>L0 -&gt; 删除 records -&gt; 重新启动</li>
-    <li>Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation</li>
-    <li>vectors.db -&gt; README -&gt; package.json</li>
+    <li>HTML 颜色变量</li>
+    <li>用户浏览器语言</li>
+    <li>宿主运行时差异，例如日志、数据目录、LLM runner</li>
+    <li>Git commit 消息</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。本项目的核心是高层保结构、低层保证据；画像要通过场景、原子记忆回到原始对话。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。Adapter 让 core 不依赖 OpenClaw 或 Gateway 细节。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>如果用户说“召回错了”，你会先打开哪个文件或目录？为什么？</li>
+    <li>如果要新增第三个宿主，应优先实现哪些 adapter 能力？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Runtime files are not hidden implementation details. They are a debugging map: when recall, persona, scenes, or long-task summaries look wrong, start with the high-level artifact to see what the system believes, then drill down to the evidence.
+<span class="inline">HostAdapter</span> is the seam between the host and the core: host context, logging, data directories, and LLM execution enter through it.
+<span class="inline">TdaiCore</span> depends on the unified interface instead of OpenClaw, Gateway, or Hermes implementation details.
 </p>
 
 <div class="card analogy">
-  <div class="tag">🗺️ Analogy</div>
-  Think of the files as a detective case folder: persona and scenes are summaries, L1 atoms are evidence cards, L0 conversations are recordings; Offload MMDs are task boards, with JSONL and refs as the source bags behind them.
+  <div class="tag">🧩 Analogy</div>
+  The same appliance can work in different countries because a power adapter normalizes the socket. The core is the appliance; OpenClaw and Gateway/Hermes are different sockets;
+  <span class="inline">HostAdapter</span> and <span class="inline">LLMRunner</span> translate voltage, plug shape, and power delivery into stable interfaces the core can use.
 </div>
 
-<h2>Where L0-L3 land on disk</h2>
+<h2>The adapter is the host/core boundary</h2>
 <div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> stores raw conversation JSONL, written by <span class="inline">src/core/conversation/l0-recorder.ts</span>, and preserves bottom-level evidence.</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> stores structured memory JSONL, written by <span class="inline">src/core/record/l1-writer.ts</span>, for search and recall.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> stores Markdown scene blocks, produced by <span class="inline">src/core/scene/scene-extractor.ts</span> from multiple L1 records.</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> stores long-term persona, generated by <span class="inline">src/core/persona/persona-generator.ts</span> from scenes.</div></div>
+  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
+  <div class="layer l-part"><div class="lt">HostAdapter</div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
+  <div class="layer l-main"><div class="lt">Core</div><div class="ld">TdaiCore, recall, capture, pipeline, persona/offload prompts: interface-only, host-free.</div></div>
 </div>
 
 <p>
-The long-term memory directory usually also contains <span class="inline">vectors.db</span>, the local SQLite vector/full-text search store; use <span class="inline">src/core/store/factory.ts</span> to see how storage is created.
-<span class="inline">.metadata/</span> keeps manifest and checkpoint clues, connected to <span class="inline">src/utils/manifest.ts</span> and <span class="inline">src/utils/checkpoint.ts</span>; <span class="inline">.backup/</span> keeps backups for rollback before upgrades or debugging.
+In <span class="inline">src/core/types.ts</span>, <span class="inline">HostAdapter</span> answers three questions:
+“Where do I log?”, “Who is the current user/session/data directory?”, and “How do I create an LLM runner?”.
+That boundary lets the core treat <span class="inline">RuntimeContext</span> as the single source for identity and paths, and LLM execution as a replaceable capability.
 </p>
 
-<h2>Long-term memory vs Offload directories</h2>
+<h2>Two adapter paths</h2>
 <div class="cols">
-  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p><span class="inline">memory-tdai/</span> lives under the resolved OpenClaw state dir, commonly <span class="inline">~/.openclaw/state/memory-tdai/</span>; standalone or fallback paths may differ. Its <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -&gt; L2 -&gt; L1 -&gt; L0.</p></div>
-  <div class="col"><h4>Context Offload: current-task compression</h4><p>Under <span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span>, expect <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;session&gt;.jsonl</span>, <span class="inline">state.json</span>, and <span class="inline">sessions-registry.json</span>. It answers how the current long task moved large evidence out of context while keeping it recoverable. See <span class="inline">src/offload/storage.ts</span>.</p></div>
+  <div class="col"><h4>OpenClaw adapter</h4><p><span class="inline">src/adapters/openclaw/host-adapter.ts</span> holds <span class="inline">OpenClawPluginApi</span>, the plugin data directory, and OpenClaw config. It uses <span class="inline">api.logger</span>, builds context from hook sessions, and passes <span class="inline">api.runtime.agent</span> into <span class="inline">OpenClawLLMRunnerFactory</span>.</p></div>
+  <div class="col"><h4>Standalone / Gateway adapter</h4><p><span class="inline">src/adapters/standalone/host-adapter.ts</span> does not depend on OpenClaw. It receives <span class="inline">dataDir</span>, logger, default user, and OpenAI-compatible LLM config directly; each Gateway request can override user/session.</p></div>
 </div>
 
-<h2>Minimal file shape</h2>
-<pre class="code">memory-tdai/
-  conversations/     # L0 raw messages
-  records/           # L1 atoms
-  scene_blocks/      # L2 scenes
-  persona.md         # L3 persona
-  vectors.db         # local search index
-
-context-offload/
-  &lt;agent&gt;/refs/
-  &lt;agent&gt;/mmds/
-  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+<h2>LLMRunnerFactory hides model execution behind an interface</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw or Gateway/Hermes</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Core prompts</div><div class="nd">L1 extraction / L2 scene / L3 persona</div></div>
+</div>
 
 <p>
-Offload <span class="inline">refs/</span> keep large source text or referenced material; <span class="inline">mmds/</span> keep Mermaid/MMD task diagrams; <span class="inline">offload-&lt;session&gt;.jsonl</span> records offload events for the session.
-<span class="inline">state.json</span> tracks current state, and <span class="inline">sessions-registry.json</span> helps find artifacts by session.
+The <span class="inline">LLMRunner</span> boundary matters: L1 extraction, L1 dedup, L2 scene generation, and L3 persona generation prompts only call
+<span class="inline">runner.run({prompt, systemPrompt, taskId})</span>. The OpenClaw path can keep using
+<span class="inline">CleanContextRunner</span> and the embedded agent runtime; the standalone path can call OpenAI-compatible HTTP with optional file tools.
+The prompt code does not need to know how the host launches the model. Context Offload follows the same goal of keeping prompts away from host SDKs,
+but today it uses a parallel <span class="inline">BackendClient</span> / <span class="inline">LocalLlmClient</span> abstraction rather than this core runner factory.
 </p>
 
-<h2>Drill-down debugging: structure first, evidence second</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -&gt; Scene</h4><p>If the user says "the persona is wrong", open <span class="inline">persona.md</span> for the specific claim, then find the related <span class="inline">scene_blocks/</span>.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -&gt; Atom</h4><p>A scene keeps structure and narrative, not final proof. Continue to <span class="inline">records/</span> and inspect the L1 atom extraction.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -&gt; Conversation</h4><p>If the atom is suspicious, return to <span class="inline">conversations/</span> L0 JSONL and verify the raw user words, time, and context.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -&gt; offload JSONL -&gt; refs</h4><p>If a long-task node is wrong, inspect the <span class="inline">mmds/</span> node, then <span class="inline">offload-&lt;session&gt;.jsonl</span>, then the raw material in <span class="inline">refs/</span>.</p></div></div>
-</div>
+<h2>Pseudocode</h2>
+<pre class="code">interface HostAdapter:
+    getLogger()
+    getRuntimeContext()
+    getLLMRunnerFactory()
+
+core = TdaiCore({
+    hostAdapter,
+    config
+})</pre>
+
+<h2>Why this matters for testing and Hermes</h2>
+<p>
+Tests can give the core a tiny fake adapter: fixed logger, controlled dataDir, and predictable fake runner. That verifies recall/capture/pipeline behavior without starting OpenClaw or a real Gateway.
+Hermes support is also cleaner: Hermes/Gateway only implements the standalone adapter and runner configuration, without copying the memory algorithms from OpenClaw hooks.
+</p>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: L0 conversation JSONL.</li>
-    <li><span class="inline">src/core/record/l1-writer.ts</span>: L1 structured records.</li>
-    <li><span class="inline">src/core/scene/scene-extractor.ts</span>: L2 scene extraction.</li>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>: L3 persona generation.</li>
-    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite/search store creation.</li>
-    <li><span class="inline">src/offload/storage.ts</span>: context-offload directory, refs, MMDs, JSONL, and session state.</li>
-    <li><span class="inline">src/utils/manifest.ts</span>: manifest metadata.</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: checkpoint reads and writes.</li>
+    <li><span class="inline">src/core/types.ts</span>: <span class="inline">HostAdapter</span>, <span class="inline">LLMRunner</span>, <span class="inline">LLMRunnerFactory</span></li>
+    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>: <span class="inline">OpenClawHostAdapter</span> wraps OpenClaw API, logger, plugin data dir</li>
+    <li><span class="inline">src/adapters/openclaw/llm-runner.ts</span>: <span class="inline">OpenClawLLMRunnerFactory</span> wraps CleanContextRunner / runtime agent</li>
+    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>: <span class="inline">StandaloneHostAdapter</span> uses direct config and request context</li>
+    <li><span class="inline">src/adapters/standalone/llm-runner.ts</span>: <span class="inline">StandaloneLLMRunnerFactory</span> uses OpenAI-compatible config and an optional tool sandbox</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Runtime artifacts are debugging entry points: long-term memory drills down Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation, while Offload drills down MMD node -&gt; offload JSONL -&gt; refs. Upper layers locate structure; lower layers provide verifiable evidence.
+  <span class="inline">HostAdapter</span> isolates host runtime differences; <span class="inline">LLMRunner</span> isolates model execution differences.
+  That keeps the core, prompts, and tests organized around stable interfaces, and gives Gateway/Hermes a clean path alongside OpenClaw.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. To verify raw evidence behind a persona claim, which drill-down direction is correct?</div>
+  <div class="qn">1. What does HostAdapter isolate?</div>
   <ol class="opts">
-    <li>Offload MMD -&gt; npm install</li>
-    <li>L0 -&gt; delete records -&gt; restart</li>
-    <li>Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation</li>
-    <li>vectors.db -&gt; README -&gt; package.json</li>
+    <li>HTML color variables</li>
+    <li>The browser language</li>
+    <li>Host runtime differences such as logging, data dirs, and LLM runner</li>
+    <li>Git commit messages</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. The project keeps structure in upper layers and evidence in lower layers; a persona claim drills down through scenes and atoms to raw conversation.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. The adapter keeps core independent of OpenClaw or Gateway details.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>If a user says recall is wrong, which file or directory would you open first, and why?</li>
+    <li>If adding a third host, which adapter capabilities would you implement first?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="05-hermes-gateway-path.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></div></a><a class="next" href="07-config-levels.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></div></a></div>
+  <div class="footnav"><a class="prev" href="09-tdai-core-facade.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

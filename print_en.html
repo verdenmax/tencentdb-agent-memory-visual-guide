@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 9 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">9 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 10 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">10 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -341,6 +341,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></li>
   <li><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></li>
   <li><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></li>
+  <li><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1319,6 +1320,115 @@ When <span class="inline">scheduler.start(restoredStates)</span> finally runs, r
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>Why does the Gateway path need a promise gate for scheduler startup?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+<span class="inline">HostAdapter</span> is the seam between the host and the core: host context, logging, data directories, and LLM execution enter through it.
+<span class="inline">TdaiCore</span> depends on the unified interface instead of OpenClaw, Gateway, or Hermes implementation details.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  The same appliance can work in different countries because a power adapter normalizes the socket. The core is the appliance; OpenClaw and Gateway/Hermes are different sockets;
+  <span class="inline">HostAdapter</span> and <span class="inline">LLMRunner</span> translate voltage, plug shape, and power delivery into stable interfaces the core can use.
+</div>
+
+<h2>The adapter is the host/core boundary</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
+  <div class="layer l-part"><div class="lt">HostAdapter</div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
+  <div class="layer l-main"><div class="lt">Core</div><div class="ld">TdaiCore, recall, capture, pipeline, persona/offload prompts: interface-only, host-free.</div></div>
+</div>
+
+<p>
+In <span class="inline">src/core/types.ts</span>, <span class="inline">HostAdapter</span> answers three questions:
+“Where do I log?”, “Who is the current user/session/data directory?”, and “How do I create an LLM runner?”.
+That boundary lets the core treat <span class="inline">RuntimeContext</span> as the single source for identity and paths, and LLM execution as a replaceable capability.
+</p>
+
+<h2>Two adapter paths</h2>
+<div class="cols">
+  <div class="col"><h4>OpenClaw adapter</h4><p><span class="inline">src/adapters/openclaw/host-adapter.ts</span> holds <span class="inline">OpenClawPluginApi</span>, the plugin data directory, and OpenClaw config. It uses <span class="inline">api.logger</span>, builds context from hook sessions, and passes <span class="inline">api.runtime.agent</span> into <span class="inline">OpenClawLLMRunnerFactory</span>.</p></div>
+  <div class="col"><h4>Standalone / Gateway adapter</h4><p><span class="inline">src/adapters/standalone/host-adapter.ts</span> does not depend on OpenClaw. It receives <span class="inline">dataDir</span>, logger, default user, and OpenAI-compatible LLM config directly; each Gateway request can override user/session.</p></div>
+</div>
+
+<h2>LLMRunnerFactory hides model execution behind an interface</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw or Gateway/Hermes</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Core prompts</div><div class="nd">L1 extraction / L2 scene / L3 persona</div></div>
+</div>
+
+<p>
+The <span class="inline">LLMRunner</span> boundary matters: L1 extraction, L1 dedup, L2 scene generation, and L3 persona generation prompts only call
+<span class="inline">runner.run({prompt, systemPrompt, taskId})</span>. The OpenClaw path can keep using
+<span class="inline">CleanContextRunner</span> and the embedded agent runtime; the standalone path can call OpenAI-compatible HTTP with optional file tools.
+The prompt code does not need to know how the host launches the model. Context Offload follows the same goal of keeping prompts away from host SDKs,
+but today it uses a parallel <span class="inline">BackendClient</span> / <span class="inline">LocalLlmClient</span> abstraction rather than this core runner factory.
+</p>
+
+<h2>Pseudocode</h2>
+<pre class="code">interface HostAdapter:
+    getLogger()
+    getRuntimeContext()
+    getLLMRunnerFactory()
+
+core = TdaiCore({
+    hostAdapter,
+    config
+})</pre>
+
+<h2>Why this matters for testing and Hermes</h2>
+<p>
+Tests can give the core a tiny fake adapter: fixed logger, controlled dataDir, and predictable fake runner. That verifies recall/capture/pipeline behavior without starting OpenClaw or a real Gateway.
+Hermes support is also cleaner: Hermes/Gateway only implements the standalone adapter and runner configuration, without copying the memory algorithms from OpenClaw hooks.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/types.ts</span>: <span class="inline">HostAdapter</span>, <span class="inline">LLMRunner</span>, <span class="inline">LLMRunnerFactory</span></li>
+    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>: <span class="inline">OpenClawHostAdapter</span> wraps OpenClaw API, logger, plugin data dir</li>
+    <li><span class="inline">src/adapters/openclaw/llm-runner.ts</span>: <span class="inline">OpenClawLLMRunnerFactory</span> wraps CleanContextRunner / runtime agent</li>
+    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>: <span class="inline">StandaloneHostAdapter</span> uses direct config and request context</li>
+    <li><span class="inline">src/adapters/standalone/llm-runner.ts</span>: <span class="inline">StandaloneLLMRunnerFactory</span> uses OpenAI-compatible config and an optional tool sandbox</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  <span class="inline">HostAdapter</span> isolates host runtime differences; <span class="inline">LLMRunner</span> isolates model execution differences.
+  That keeps the core, prompts, and tests organized around stable interfaces, and gives Gateway/Hermes a clean path alongside OpenClaw.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. What does HostAdapter isolate?</div>
+  <ol class="opts">
+    <li>HTML color variables</li>
+    <li>The browser language</li>
+    <li>Host runtime differences such as logging, data dirs, and LLM runner</li>
+    <li>Git commit messages</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. The adapter keeps core independent of OpenClaw or Gateway details.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>If adding a third host, which adapter capabilities would you implement first?</li>
   </ul>
 </div>
 </div>

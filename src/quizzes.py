@@ -226,6 +226,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "为什么 Gateway 并发请求需要 scheduler 启动 promise gate？", "en": "Why does the Gateway path need a promise gate for scheduler startup?"}],
     },
+    "10-host-adapter-boundaries.html": {
+        "mcq": [{
+            "q": {"zh": "HostAdapter 隔离的是什么？", "en": "What does HostAdapter isolate?"},
+            "opts": [
+                {"zh": "宿主运行时差异，例如日志、数据目录、LLM runner", "en": "Host runtime differences such as logging, data dirs, and LLM runner"},
+                {"zh": "HTML 颜色变量", "en": "HTML color variables"},
+                {"zh": "用户浏览器语言", "en": "The browser language"},
+                {"zh": "Git commit 消息", "en": "Git commit messages"},
+            ],
+            "answer": 0,
+            "why": {"zh": "Adapter 让 core 不依赖 OpenClaw 或 Gateway 细节。", "en": "The adapter keeps core independent of OpenClaw or Gateway details."},
+        }],
+        "open": [{"zh": "如果要新增第三个宿主，应优先实现哪些 adapter 能力？", "en": "If adding a third host, which adapter capabilities would you implement first?"}],
+    },
 }
 
 

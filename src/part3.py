@@ -347,3 +347,176 @@ When <span class="inline">scheduler.start(restoredStates)</span> finally runs, r
 </div>
 """,
 }
+
+LESSON_10 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+<span class="inline">HostAdapter</span> 是宿主与 core 之间的缝合线：宿主上下文、日志、数据目录和 LLM 执行方式都从这里进入，
+<span class="inline">TdaiCore</span> 只依赖统一接口，不直接依赖 OpenClaw、Gateway 或 Hermes 的实现细节。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  同一个电器可以在不同国家使用，是因为有电源适配器。Core 像电器本体；OpenClaw 与 Gateway/Hermes 像不同插座；
+  <span class="inline">HostAdapter</span> 与 <span class="inline">LLMRunner</span> 把电压、插头形状和供电方式转换成 core 能稳定使用的接口。
+</div>
+
+<h2>Adapter 是宿主与 core 的边界</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw plugin API、Gateway HTTP handler、Hermes provider：负责生命周期、请求来源和宿主能力。</div></div>
+  <div class="layer l-part"><div class="lt">HostAdapter</div><div class="ld">统一暴露 logger、runtime context、dataDir 与 LLMRunnerFactory。</div></div>
+  <div class="layer l-main"><div class="lt">Core</div><div class="ld">TdaiCore、recall、capture、pipeline、persona/offload prompt：只看接口，不看宿主。</div></div>
+</div>
+
+<p>
+在 <span class="inline">src/core/types.ts</span> 中，<span class="inline">HostAdapter</span> 回答三个问题：
+“怎么记录日志？”、“当前用户/会话/数据目录是谁？”、“怎么创建 LLM runner？”。
+这条边界让 core 可以把 <span class="inline">RuntimeContext</span> 当成唯一的身份与路径来源，把 LLM 调用当成可替换能力。
+新增宿主时，优先补齐这三个接口，而不是把宿主 SDK 调用散落到 core 里。
+</p>
+
+<h2>两种 adapter 路径对比</h2>
+<div class="cols">
+  <div class="col"><h4>OpenClaw adapter</h4><p><span class="inline">src/adapters/openclaw/host-adapter.ts</span> 持有 <span class="inline">OpenClawPluginApi</span>、插件数据目录和 OpenClaw 配置。它从 <span class="inline">api.logger</span> 取日志，从 hook session 构造上下文，并把 <span class="inline">api.runtime.agent</span> 交给 <span class="inline">OpenClawLLMRunnerFactory</span>。</p></div>
+  <div class="col"><h4>Standalone / Gateway adapter</h4><p><span class="inline">src/adapters/standalone/host-adapter.ts</span> 不依赖 OpenClaw。它直接接收 <span class="inline">dataDir</span>、logger、默认用户和 OpenAI-compatible LLM 配置；Gateway 每个请求再覆盖 user/session。</p></div>
+</div>
+
+<h2>LLMRunnerFactory 把模型调用藏在接口后</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw 或 Gateway/Hermes</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Core prompts</div><div class="nd">L1 extraction / L2 scene / L3 persona</div></div>
+</div>
+
+<p>
+<span class="inline">LLMRunner</span> 的边界很关键：L1 抽取、L1 去重、L2 场景和 L3 画像提示词只调用
+<span class="inline">runner.run({prompt, systemPrompt, taskId})</span>。OpenClaw 路径背后可以继续用
+<span class="inline">CleanContextRunner</span> 与内嵌 agent runtime；Standalone 路径则通过 OpenAI-compatible HTTP 和可选文件工具执行。
+Prompt 本身因此不需要知道宿主具体怎么发起模型调用。Context Offload 也遵循“提示词不碰宿主 SDK”的目标，
+但它目前走并行的 <span class="inline">BackendClient</span> / <span class="inline">LocalLlmClient</span> 抽象，而不是这个 core runner factory。
+</p>
+
+<h2>伪代码</h2>
+<pre class="code">interface HostAdapter:
+    getLogger()
+    getRuntimeContext()
+    getLLMRunnerFactory()
+
+core = TdaiCore({
+    hostAdapter,
+    config
+})</pre>
+
+<h2>为什么这对测试和 Hermes 很重要</h2>
+<p>
+测试时，可以给 core 一个小型 fake adapter：固定 logger、临时 dataDir、可预测的 fake runner，就能验证 recall/capture/pipeline 逻辑，
+不用启动 OpenClaw 或真实 Gateway。Hermes 支持也因此更清晰：Hermes/Gateway 只需要实现 standalone adapter 与 runner 配置，
+无需复制 OpenClaw hooks 内的记忆算法。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/types.ts</span>：<span class="inline">HostAdapter</span>、<span class="inline">LLMRunner</span>、<span class="inline">LLMRunnerFactory</span></li>
+    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>：<span class="inline">OpenClawHostAdapter</span> 包装 OpenClaw API、logger、plugin data dir</li>
+    <li><span class="inline">src/adapters/openclaw/llm-runner.ts</span>：<span class="inline">OpenClawLLMRunnerFactory</span> 包装 CleanContextRunner / runtime agent</li>
+    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>：<span class="inline">StandaloneHostAdapter</span> 使用直接配置与请求上下文</li>
+    <li><span class="inline">src/adapters/standalone/llm-runner.ts</span>：<span class="inline">StandaloneLLMRunnerFactory</span> 使用 OpenAI-compatible 配置和可选工具沙箱</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  <span class="inline">HostAdapter</span> 隔离宿主运行时差异；<span class="inline">LLMRunner</span> 隔离模型执行差异。
+  这让 core、prompt 与测试都围绕稳定接口组织，也让 Gateway/Hermes 成为 OpenClaw 之外的另一条干净接入路径。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+<span class="inline">HostAdapter</span> is the seam between the host and the core: host context, logging, data directories, and LLM execution enter through it.
+<span class="inline">TdaiCore</span> depends on the unified interface instead of OpenClaw, Gateway, or Hermes implementation details.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  The same appliance can work in different countries because a power adapter normalizes the socket. The core is the appliance; OpenClaw and Gateway/Hermes are different sockets;
+  <span class="inline">HostAdapter</span> and <span class="inline">LLMRunner</span> translate voltage, plug shape, and power delivery into stable interfaces the core can use.
+</div>
+
+<h2>The adapter is the host/core boundary</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
+  <div class="layer l-part"><div class="lt">HostAdapter</div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
+  <div class="layer l-main"><div class="lt">Core</div><div class="ld">TdaiCore, recall, capture, pipeline, persona/offload prompts: interface-only, host-free.</div></div>
+</div>
+
+<p>
+In <span class="inline">src/core/types.ts</span>, <span class="inline">HostAdapter</span> answers three questions:
+“Where do I log?”, “Who is the current user/session/data directory?”, and “How do I create an LLM runner?”.
+That boundary lets the core treat <span class="inline">RuntimeContext</span> as the single source for identity and paths, and LLM execution as a replaceable capability.
+</p>
+
+<h2>Two adapter paths</h2>
+<div class="cols">
+  <div class="col"><h4>OpenClaw adapter</h4><p><span class="inline">src/adapters/openclaw/host-adapter.ts</span> holds <span class="inline">OpenClawPluginApi</span>, the plugin data directory, and OpenClaw config. It uses <span class="inline">api.logger</span>, builds context from hook sessions, and passes <span class="inline">api.runtime.agent</span> into <span class="inline">OpenClawLLMRunnerFactory</span>.</p></div>
+  <div class="col"><h4>Standalone / Gateway adapter</h4><p><span class="inline">src/adapters/standalone/host-adapter.ts</span> does not depend on OpenClaw. It receives <span class="inline">dataDir</span>, logger, default user, and OpenAI-compatible LLM config directly; each Gateway request can override user/session.</p></div>
+</div>
+
+<h2>LLMRunnerFactory hides model execution behind an interface</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw or Gateway/Hermes</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Core prompts</div><div class="nd">L1 extraction / L2 scene / L3 persona</div></div>
+</div>
+
+<p>
+The <span class="inline">LLMRunner</span> boundary matters: L1 extraction, L1 dedup, L2 scene generation, and L3 persona generation prompts only call
+<span class="inline">runner.run({prompt, systemPrompt, taskId})</span>. The OpenClaw path can keep using
+<span class="inline">CleanContextRunner</span> and the embedded agent runtime; the standalone path can call OpenAI-compatible HTTP with optional file tools.
+The prompt code does not need to know how the host launches the model. Context Offload follows the same goal of keeping prompts away from host SDKs,
+but today it uses a parallel <span class="inline">BackendClient</span> / <span class="inline">LocalLlmClient</span> abstraction rather than this core runner factory.
+</p>
+
+<h2>Pseudocode</h2>
+<pre class="code">interface HostAdapter:
+    getLogger()
+    getRuntimeContext()
+    getLLMRunnerFactory()
+
+core = TdaiCore({
+    hostAdapter,
+    config
+})</pre>
+
+<h2>Why this matters for testing and Hermes</h2>
+<p>
+Tests can give the core a tiny fake adapter: fixed logger, controlled dataDir, and predictable fake runner. That verifies recall/capture/pipeline behavior without starting OpenClaw or a real Gateway.
+Hermes support is also cleaner: Hermes/Gateway only implements the standalone adapter and runner configuration, without copying the memory algorithms from OpenClaw hooks.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/types.ts</span>: <span class="inline">HostAdapter</span>, <span class="inline">LLMRunner</span>, <span class="inline">LLMRunnerFactory</span></li>
+    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>: <span class="inline">OpenClawHostAdapter</span> wraps OpenClaw API, logger, plugin data dir</li>
+    <li><span class="inline">src/adapters/openclaw/llm-runner.ts</span>: <span class="inline">OpenClawLLMRunnerFactory</span> wraps CleanContextRunner / runtime agent</li>
+    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>: <span class="inline">StandaloneHostAdapter</span> uses direct config and request context</li>
+    <li><span class="inline">src/adapters/standalone/llm-runner.ts</span>: <span class="inline">StandaloneLLMRunnerFactory</span> uses OpenAI-compatible config and an optional tool sandbox</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  <span class="inline">HostAdapter</span> isolates host runtime differences; <span class="inline">LLMRunner</span> isolates model execution differences.
+  That keeps the core, prompts, and tests organized around stable interfaces, and gives Gateway/Hermes a clean path alongside OpenClaw.
+</div>
+""",
+}
