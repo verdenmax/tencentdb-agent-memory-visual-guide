@@ -18,10 +18,13 @@ import shell  # noqa: E402
 import quizzes  # noqa: E402
 from registry import CONTENT  # noqa: E402
 
-TITLE = {"zh": "llama.cpp 图解学习指南 - 打印版", "en": "llama.cpp Visual Guide - Print Edition"}
+TITLE = {
+    "zh": "TencentDB Agent Memory 图解学习指南 - 打印版",
+    "en": "TencentDB Agent Memory Visual Guide - Print Edition",
+}
 INTRO = {
-    "zh": "全 40 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。",
-    "en": "All 40 lessons - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.",
+    "zh": "M0 包含 2 课样板 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。",
+    "en": "M0 contains 2 representative lessons - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.",
 }
 TOC = {"zh": "目录", "en": "Contents"}
 

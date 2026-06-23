@@ -20,8 +20,8 @@ HREF_RE = re.compile(r'href="([^"]+)"')
 SKIP_PREFIXES = ("http://", "https://", "#", "mailto:", "data:")
 # Generated at deploy time (M9); not present in a plain source checkout.
 ALLOW_MISSING = {
-    "llama-cpp-visual-guide-zh.pdf",
-    "llama-cpp-visual-guide-en.pdf",
+    "tencentdb-agent-memory-visual-guide-zh.pdf",
+    "tencentdb-agent-memory-visual-guide-en.pdf",
 }
 
 

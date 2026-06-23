@@ -32,16 +32,16 @@ from registry import CONTENT  # noqa: E402
 PAGES = shell.PAGES
 ORDER = [p[0] for p in PAGES]
 TOTAL = len(PAGES)
-MAX_LESSON = 40  # planned final lesson count; cross-refs may point forward
-MIN_CONTENT = 80  # min chars of zh/en source content per lesson (catch empty translations)
+MAX_LESSON = 34  # planned final lesson count; cross-refs may point forward
+MIN_CONTENT = 80  # min chars of zh/en source content per lesson
 
 PRE_INLINE = ("span", "strong", "b", "em", "u", "a")
-SOFT_EXEMPT = {"40-glossary.html"}
+SOFT_EXEMPT = set()
 
 # Visual-block density (soft): containers that count as a "diagram/table".
 DIAGRAM_CLASSES = ("layers", "vflow", "flow", "cols", "cellgroup", "timeline", "trace")
-MIN_DIAGRAMS = 6  # per lesson, counting BOTH languages (>= 3 per language)
-MIN_CJK = 3000  # per-lesson zh CJK chars (soft floor; authoring target ~4000+)
+MIN_DIAGRAMS = 6  # per lesson, counting BOTH languages
+MIN_CJK = 500  # M0 soft floor; content milestones can raise this after full lessons are written
 
 issues = []
 
