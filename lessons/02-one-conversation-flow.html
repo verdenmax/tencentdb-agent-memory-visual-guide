@@ -348,6 +348,14 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <div class="step"><b>5. pipeline</b><span>调度 L1 抽取、L2 场景、L3 Persona。</span></div>
 </div>
 
+<p>
+按时间线看，只有 recall/search 属于模型回答前的准备阶段：它把已经沉淀的 Persona、Scene 导航和相关 L1 记忆放到本轮上下文里，
+帮助模型带着“该记得的东西”开始回答。模型回答之后，capture 才能拿到完整的新消息并写入 L0；随后 pipeline 再异步或按触发条件抽取 L1、
+合并 L2、更新 L3。这样设计避免了把尚未完成的回答提前写成事实，也让每一轮都遵循“先召回旧证据，再沉淀新证据”的节奏。
+如果排查召回问题，也应按这个顺序定位：先看回答前是否查到了合适记忆，再看回答后是否成功捕获并进入管线。
+前后阶段分清后，日志、文件和代码入口才不会混在一起。
+</p>
+
 <h2>核心模块关系</h2>
 <div class="flow">
   <div class="node"><div class="nt">index.ts</div><div class="nd">OpenClaw 插件壳</div></div>

@@ -6,6 +6,8 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
+The guide currently contains 7 lessons.
+
 | Lesson | Topic |
 | --- | --- |
 | 01 | Why Agent Memory |
