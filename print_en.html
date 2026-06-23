@@ -1231,9 +1231,9 @@ Adapters absorb host differences; the core exposes stable methods for auto recal
 
 <h2>Three boundaries: host, adapter, core</h2>
 <div class="layers">
-  <div class="layer"><div class="lt">Host</div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
-  <div class="layer"><div class="lt">Adapters</div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
-  <div class="layer hl"><div class="lt">TdaiCore</div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
+  <div class="layer l-app"><div class="lt">Host</div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
+  <div class="layer l-part"><div class="lt">Adapters</div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
+  <div class="layer l-main"><div class="lt">TdaiCore</div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
 </div>
 
 <p>
