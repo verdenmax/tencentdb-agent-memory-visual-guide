@@ -18,7 +18,7 @@ ROOT = os.path.abspath(os.path.join(HERE, ".."))
 
 HREF_RE = re.compile(r'href="([^"]+)"')
 SKIP_PREFIXES = ("http://", "https://", "#", "mailto:", "data:")
-# Generated at deploy time (M9); not present in a plain source checkout.
+# Generated at final publish/deploy time; not present in a plain source checkout.
 ALLOW_MISSING = {
     "tencentdb-agent-memory-visual-guide-zh.pdf",
     "tencentdb-agent-memory-visual-guide-en.pdf",
