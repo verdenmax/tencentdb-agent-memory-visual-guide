@@ -60,6 +60,8 @@ PAGES = [
      "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
     ("07-config-levels.html", "配置层级与安全默认值", "Configuration levels and safe defaults",
      "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
+    ("08-openclaw-plugin-shell.html", "index.ts：OpenClaw 插件壳", "index.ts: the OpenClaw plugin shell",
+     "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
 ]
 
 def bi(zh, en):
@@ -507,6 +509,8 @@ SUBTITLES = {
                               "conversations, records, scene_blocks, persona, vectors.db, context-offload"),
     "07-config-levels.html": ("capture、pipeline、recall、embedding、tcvdb、offload 的渐进式调参",
                               "progressive tuning for capture, pipeline, recall, embedding, tcvdb, offload"),
+    "08-openclaw-plugin-shell.html": ("register(api)、CLI metadata、配置解析、hooks/tools 注册的入口",
+                                     "register(api), CLI metadata, config parsing, hooks/tools entry point"),
 }
 
 def index_page(lesson_prefix="lessons/"):

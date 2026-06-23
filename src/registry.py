@@ -1,6 +1,7 @@
 """Single source of truth: ordered map of output filename -> bilingual content."""
 import part1
 import part2
+import part3
 
 CONTENT = {
     "01-why-agent-memory.html": part1.LESSON_01,
@@ -10,4 +11,5 @@ CONTENT = {
     "05-hermes-gateway-path.html": part2.LESSON_05,
     "06-runtime-files.html": part2.LESSON_06,
     "07-config-levels.html": part2.LESSON_07,
+    "08-openclaw-plugin-shell.html": part3.LESSON_08,
 }

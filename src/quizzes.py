@@ -198,6 +198,20 @@ QUIZZES = {
             {"zh": "为什么召回 timeout 是用户体验上的安全默认值？", "en": "Why is a recall timeout a safe default for user experience?"}
         ],
     },
+    "08-openclaw-plugin-shell.html": {
+        "mcq": [{
+            "q": {"zh": "为什么说 <code>index.ts</code> 是插件壳而不是记忆算法本体？", "en": "Why is <code>index.ts</code> a plugin shell rather than the memory algorithm itself?"},
+            "opts": [
+                {"zh": "它主要负责宿主注册、配置解析、hooks/tools 接线，核心能力委托给 TdaiCore", "en": "It mainly handles host registration, config parsing, hooks/tools wiring, and delegates core work to TdaiCore"},
+                {"zh": "它只生成 HTML 页面", "en": "It only generates HTML pages"},
+                {"zh": "它保存所有 L1 记忆", "en": "It stores all L1 memories"},
+                {"zh": "它是 Hermes provider 目录名", "en": "It is the Hermes provider directory name"},
+            ],
+            "answer": 0,
+            "why": {"zh": "宿主相关入口在 index.ts，真正的 recall/capture/search/pipeline 能力收在 TdaiCore 与 core 模块中。", "en": "Host-specific entry lives in index.ts; recall/capture/search/pipeline live in TdaiCore and core modules."},
+        }],
+        "open": [{"zh": "如果要定位 hook 注册问题，你会先读 index.ts 的哪几个区域？", "en": "If hook registration is broken, which areas of index.ts would you inspect first?"}],
+    },
 }
 
 

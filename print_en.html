@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 7 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">7 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 8 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">8 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -339,6 +339,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></li>
   <li><span class="lang-zh">运行后会出现哪些文件</span><span class="lang-en">Runtime files and data products</span></li>
   <li><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></li>
+  <li><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1096,6 +1097,116 @@ The point is not to recommend a service; it is to show the required remote embed
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>Why is a recall timeout a safe default for user experience?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Part 3 starts by following the OpenClaw host entry into the core facade. <span class="inline">index.ts</span> matters, but it is not the memory algorithm itself.
+It is the plugin shell that detects registration mode, parses config, creates the adapter and <span class="inline">TdaiCore</span>, then wires tools, hooks, and optional offload into OpenClaw.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  <span class="inline">index.ts</span> is like an appliance plug and control panel: it knows which OpenClaw socket to use, how buttons are named, and which config to read at startup.
+  The compressor that actually cools or heats is elsewhere; in this memory system, the core capability lives in <span class="inline">TdaiCore</span> and core modules.
+</div>
+
+<h2>register(api) separates two modes first</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>CLI metadata mode</h4><p>When <span class="inline">api.registrationMode</span> is <span class="inline">cli-metadata</span>, the entry registers plugin information needed by the CLI and returns immediately.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Full / discovery runtime mode</h4><p>At runtime it continues with <span class="inline">api.pluginConfig</span>, time, reporter, data dirs, adapter, core, tools, and hooks.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Attach Offload by config</h4><p>Only when offload is enabled does it call <span class="inline">registerOffload</span> to attach short-term context compression to the same host.</p></div></div>
+</div>
+
+<p>
+This branch explains why you should not read every line of <span class="inline">index.ts</span> as “the memory algorithm”.
+Some code only helps the OpenClaw CLI discover the plugin, show tool descriptions, or expose metadata; the rest enters the full runtime path.
+</p>
+
+<h2>From OpenClaw API to the core facade</h2>
+<div class="flow">
+  <div class="node"><div class="nt">OpenClaw API</div><div class="nd">pluginConfig, hooks, tools, registrationMode</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">index.ts</div><div class="nd">register(api) plugin shell</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">OpenClawHostAdapter</div><div class="nd">isolates host calls, logging, paths</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">TdaiCore</div><div class="nd">recall / capture / search / pipeline</div></div>
+</div>
+
+<p>
+In full mode, the entry first uses <span class="inline">parseConfig</span> from <span class="inline">src/config.ts</span> to merge defaults and user config.
+It then initializes time, reporter, and data dirs, constructs <span class="inline">OpenClawHostAdapter</span> from <span class="inline">src/adapters/openclaw/host-adapter.ts</span>,
+and passes the adapter plus config to <span class="inline">TdaiCore</span> in <span class="inline">src/core/tdai-core.ts</span>.
+Tools and hooks then forward OpenClaw lifecycle events to the core.
+</p>
+
+<h2>Shell responsibilities vs core responsibilities</h2>
+<div class="cols">
+  <div class="col"><h4>index.ts plugin shell</h4><p>Understands OpenClaw <span class="inline">register(api)</span>, CLI metadata, <span class="inline">api.pluginConfig</span>, hook/tool registration, data-dir initialization, and whether to call <span class="inline">registerOffload</span> from <span class="inline">src/offload/index.ts</span>.</p></div>
+  <div class="col"><h4>TdaiCore and core modules</h4><p>Stay host-neutral and own recall, capture, search, pipeline, L0-L3 layering, and metrics. They do not need to know whether the caller is OpenClaw, Hermes, or a future host.</p></div>
+</div>
+
+<h2>Pseudocode</h2>
+<pre class="code">register(api):
+    if api.registrationMode == "cli-metadata":
+        register_memory_tdai_cli()
+        return
+
+    cfg = parseConfig(api.pluginConfig)
+    adapter = OpenClawHostAdapter(api, cfg)
+    core = TdaiCore(adapter, cfg)
+    register_tools_and_hooks(core)
+    if cfg.offload.enabled:
+        registerOffload(api, cfg.offload)</pre>
+
+<h2>Why pending caches exist</h2>
+<p>
+OpenClaw before/after hooks run on different sides of the model response. To capture the original user prompt cleanly and report recall metrics,
+<span class="inline">index.ts</span> uses caches such as <span class="inline">pendingOriginalPrompts</span> and <span class="inline">pendingRecallCache</span>.
+The before hook stores the raw prompt and recall result; the after hook combines them with the final answer into one capture or metrics record.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">index.ts</span>: <span class="inline">register(api)</span>, <span class="inline">pendingOriginalPrompts</span>, <span class="inline">pendingRecallCache</span></li>
+    <li><span class="inline">src/config.ts</span>: <span class="inline">parseConfig</span></li>
+    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>: <span class="inline">OpenClawHostAdapter</span></li>
+    <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">TdaiCore</span></li>
+    <li><span class="inline">src/offload/index.ts</span>: <span class="inline">registerOffload</span></li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Keeping host-specific logic in <span class="inline">index.ts</span> lets <span class="inline">TdaiCore</span> remain host-neutral:
+  the OpenClaw entry wires the system, and the core owns memory behavior. This is the basis for understanding hooks, adapters, and Gateway/Hermes core reuse.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Why is <code>index.ts</code> a plugin shell rather than the memory algorithm itself?</div>
+  <ol class="opts">
+    <li>It mainly handles host registration, config parsing, hooks/tools wiring, and delegates core work to TdaiCore</li>
+    <li>It stores all L1 memories</li>
+    <li>It is the Hermes provider directory name</li>
+    <li>It only generates HTML pages</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Host-specific entry lives in index.ts; recall/capture/search/pipeline live in TdaiCore and core modules.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>If hook registration is broken, which areas of index.ts would you inspect first?</li>
   </ul>
 </div>
 </div>
