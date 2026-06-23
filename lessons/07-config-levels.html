@@ -351,7 +351,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 如果一开始就同时改 embedding、TCVDB、清理策略和 LLM，很难判断问题来自网络、凭据、维度、后端还是业务触发条件。
 </p>
 
-<h2>配置组各管什么</h2>
+<h2>关键配置组</h2>
 <ul>
   <li><strong>capture：</strong>控制对话是否进入 L0/L1 流程，以及 <span class="inline">l0l1RetentionDays</span> 这类保留策略；值为 <span class="inline">0</span> 表示关闭清理，不会自动删 L0/L1。</li>
   <li><strong>extraction：</strong>影响从原始对话抽取结构化记忆的方式，适合在确认捕获稳定后再调。</li>
@@ -359,7 +359,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <li><strong>recall：</strong><span class="inline">RecallConfig</span> 管理策略、最大条数和 <span class="inline">timeoutMs</span>；超时是安全默认值，防止召回卡住用户请求。</li>
   <li><strong>embedding：</strong><span class="inline">EmbeddingConfig</span> 决定本地或远程向量能力；远程 provider 必须给出 <span class="inline">apiKey</span>、<span class="inline">baseUrl</span>、<span class="inline">model</span>、<span class="inline">dimensions</span>。</li>
   <li><strong>bm25：</strong>关键词检索补足纯向量召回的盲区，适合术语、文件名、错误码和专有名词。</li>
-  <li><strong>tcvdb：</strong>远程 Tencent Cloud VectorDB 后端配置，和 <span class="inline">src/core/store/factory.ts</span> 的后端选择一起理解。</li>
+  <li><strong>tcvdb：</strong>远程 Tencent Cloud VectorDB 后端配置；只有同时设置顶层 <span class="inline">storeBackend: "tcvdb"</span>，后端才会切到 TCVDB。</li>
   <li><strong>offload：</strong><span class="inline">OffloadConfig</span> 管理长任务材料外置、refs、MMD 和会话状态，服务当前任务压缩。</li>
   <li><strong>llm：</strong>控制抽取、总结或网关相关模型调用；真实密钥必须留在安全本地配置或环境变量中。</li>
   <li><strong>report：</strong>面向调试和可读产物，帮助人查看发生了什么，而不是替代底层证据链。</li>
@@ -368,12 +368,26 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <h2>本地默认与 TCVDB 后端</h2>
 <div class="cols">
   <div class="col"><h4>SQLite default</h4><p>零配置预期可运行：默认本地 SQLite / sqlite-vec 路径适合课程、离线试用和个人 smoke test。它降低启动门槛，也让新手先验证 capture、pipeline、recall 的闭环。清理策略默认保守：<span class="inline">capture.l0l1RetentionDays = 0</span> 表示禁用清理；任何激进清理都应显式 opt-in。</p></div>
-  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。后端选择要回到 <span class="inline">src/core/store/factory.ts</span> 看创建逻辑：配置不是写给好看，而是决定 store bundle 会落到本地还是远程。</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。不要只填 <span class="inline">tcvdb</span> 字段：还必须在 <span class="inline">memory-tencentdb.config</span> 的顶层设置 <span class="inline">storeBackend: "tcvdb"</span>，store bundle 才会走远程后端。</p></div>
 </div>
+
+<p>TCVDB 路径需要两个部分同时出现在 <span class="inline">memory-tencentdb.config</span> 中：顶层后端选择和 <span class="inline">tcvdb</span> 连接占位符。示例只使用假 URL 与环境变量名：</p>
+<pre class="code">{
+  "memory-tencentdb": {
+    "config": {
+      "storeBackend": "tcvdb",
+      "tcvdb": {
+        "url": "https://example.invalid",
+        "apiKey": "${TCVDB_API_KEY}",
+        "database": "${TCVDB_DATABASE}"
+      }
+    }
+  }
+}</pre>
 
 <h2>从配置到行为的路径</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>openclaw.plugin.json 暴露入口</h4><p>插件元数据告诉 OpenClaw 这个包有哪些 hooks、tools 和配置面；用户通常从 OpenClaw 配置文件写入 <span class="inline">memory-tencentdb</span>。</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>openclaw.plugin.json 暴露入口</h4><p>插件元数据、activation / config schema 和 tool contracts 告诉 OpenClaw 这个包的入口与配置面；运行时 hook 注册在 <span class="inline">index.ts</span>。</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>src/config.ts 解析默认值</h4><p><span class="inline">parseConfig</span> 合并用户输入与默认值，形成 <span class="inline">CaptureConfig</span>、<span class="inline">PipelineTriggerConfig</span>、<span class="inline">RecallConfig</span>、<span class="inline">EmbeddingConfig</span>、<span class="inline">OffloadConfig</span> 等运行时配置。</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>store bundle 选择后端</h4><p><span class="inline">src/core/store/factory.ts</span> 根据配置创建本地 SQLite 或 TCVDB 相关 store bundle，影响 L0/L1/向量和检索能力的落点。</p></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>hooks / pipeline 改变行为</h4><p>解析后的 capture、recall、pipeline、offload 和 embedding 设置最终影响回答前召回、回答后捕获、后台整理、长任务卸载和报告输出。</p></div></div>
@@ -405,7 +419,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <div class="tag">🔬 源码 / 文档锚点</div>
   <ul>
     <li><span class="inline">src/config.ts</span>：<span class="inline">CaptureConfig</span>、<span class="inline">PipelineTriggerConfig</span>、<span class="inline">RecallConfig</span>、<span class="inline">EmbeddingConfig</span>、<span class="inline">OffloadConfig</span>、<span class="inline">parseConfig</span>。</li>
-    <li><span class="inline">openclaw.plugin.json</span>：插件注册、配置面和 OpenClaw 入口。</li>
+    <li><span class="inline">openclaw.plugin.json</span>：插件元数据、activation / config schema 和 tool contracts；运行时 hook 注册在 <span class="inline">index.ts</span>。</li>
     <li><span class="inline">README_CN.md</span>：可调参数 section，适合先看用户能改什么。</li>
     <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite 与 TCVDB 等后端选择。</li>
   </ul>
@@ -463,7 +477,7 @@ More configuration does not mean a better setup. The safe mental model is progre
 The levels are a learning order, not a permission model. <span class="inline">parseConfig</span> combines user settings with defaults into runtime config, so documentation should encourage small, explainable, reversible changes.
 </p>
 
-<h2>What each config group controls</h2>
+<h2>Key config groups</h2>
 <ul>
   <li><strong>capture:</strong> whether conversations enter L0/L1, plus retention such as <span class="inline">l0l1RetentionDays</span>; <span class="inline">0</span> means cleanup is disabled.</li>
   <li><strong>extraction:</strong> how raw conversations become structured memories after capture is proven stable.</li>
@@ -471,7 +485,7 @@ The levels are a learning order, not a permission model. <span class="inline">pa
   <li><strong>recall:</strong> <span class="inline">RecallConfig</span> manages strategy, result count, and <span class="inline">timeoutMs</span>; the timeout avoids blocking the user.</li>
   <li><strong>embedding:</strong> <span class="inline">EmbeddingConfig</span> selects local or remote vector behavior; remote providers require <span class="inline">apiKey</span>, <span class="inline">baseUrl</span>, <span class="inline">model</span>, and <span class="inline">dimensions</span>.</li>
   <li><strong>bm25:</strong> keyword retrieval for terms, file names, error codes, and project-specific names.</li>
-  <li><strong>tcvdb:</strong> Tencent Cloud VectorDB backend settings, understood together with <span class="inline">src/core/store/factory.ts</span>.</li>
+  <li><strong>tcvdb:</strong> Tencent Cloud VectorDB backend settings; the backend switches to TCVDB only when top-level <span class="inline">storeBackend: "tcvdb"</span> is also set.</li>
   <li><strong>offload:</strong> <span class="inline">OffloadConfig</span> controls current-task compression, refs, MMDs, and session state.</li>
   <li><strong>llm:</strong> model calls for extraction, summarization, or gateway behavior; real secrets stay in secure local config or environment variables.</li>
   <li><strong>report:</strong> human-readable diagnostics and artifacts, not a replacement for lower-level evidence.</li>
@@ -480,12 +494,26 @@ The levels are a learning order, not a permission model. <span class="inline">pa
 <h2>SQLite default vs TCVDB backend</h2>
 <div class="cols">
   <div class="col"><h4>SQLite default</h4><p>Zero config is intended to run. The default local SQLite / sqlite-vec path is good for courses, offline trials, and personal smoke tests. Cleanup is conservative: <span class="inline">capture.l0l1RetentionDays = 0</span> disables cleanup, and aggressive deletion requires explicit opt-in.</p></div>
-  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Read <span class="inline">src/core/store/factory.ts</span> to see how configuration chooses the local or remote store bundle.</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Do not fill only the <span class="inline">tcvdb</span> object: set <span class="inline">storeBackend: "tcvdb"</span> at the top level of <span class="inline">memory-tencentdb.config</span> so the store bundle uses the remote backend.</p></div>
 </div>
+
+<p>The TCVDB path needs both pieces inside <span class="inline">memory-tencentdb.config</span>: top-level backend selection and placeholder <span class="inline">tcvdb</span> connection fields. Use fake URLs and environment variable names in examples:</p>
+<pre class="code">{
+  "memory-tencentdb": {
+    "config": {
+      "storeBackend": "tcvdb",
+      "tcvdb": {
+        "url": "https://example.invalid",
+        "apiKey": "${TCVDB_API_KEY}",
+        "database": "${TCVDB_DATABASE}"
+      }
+    }
+  }
+}</pre>
 
 <h2>From config to behavior</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>openclaw.plugin.json exposes the entry</h4><p>Plugin metadata tells OpenClaw which hooks, tools, and configuration surface the package provides.</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>openclaw.plugin.json exposes the entry</h4><p>Plugin metadata, activation/config schema, and tool contracts tell OpenClaw the package entry and configuration surface; runtime hook registration lives in <span class="inline">index.ts</span>.</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>src/config.ts parses defaults</h4><p><span class="inline">parseConfig</span> produces runtime <span class="inline">CaptureConfig</span>, <span class="inline">PipelineTriggerConfig</span>, <span class="inline">RecallConfig</span>, <span class="inline">EmbeddingConfig</span>, and <span class="inline">OffloadConfig</span>.</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>Store bundle chooses a backend</h4><p><span class="inline">src/core/store/factory.ts</span> creates the local SQLite or TCVDB-related stores for L0/L1, vector, and search behavior.</p></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>Hooks and pipeline change behavior</h4><p>The parsed capture, recall, pipeline, offload, and embedding settings affect pre-answer recall, post-answer capture, background organization, offload, and reports.</p></div></div>
@@ -517,7 +545,7 @@ The point is not to recommend a service; it is to show the required remote embed
   <div class="tag">🔬 Source anchors</div>
   <ul>
     <li><span class="inline">src/config.ts</span>: <span class="inline">CaptureConfig</span>, <span class="inline">PipelineTriggerConfig</span>, <span class="inline">RecallConfig</span>, <span class="inline">EmbeddingConfig</span>, <span class="inline">OffloadConfig</span>, and <span class="inline">parseConfig</span>.</li>
-    <li><span class="inline">openclaw.plugin.json</span>: plugin registration, configuration surface, and OpenClaw entry point.</li>
+    <li><span class="inline">openclaw.plugin.json</span>: plugin metadata, activation/config schema, and tool contracts; runtime hook registration lives in <span class="inline">index.ts</span>.</li>
     <li><span class="inline">README_CN.md</span>: the adjustable parameters section.</li>
     <li><span class="inline">src/core/store/factory.ts</span>: local SQLite versus TCVDB backend selection.</li>
   </ul>
