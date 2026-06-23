@@ -22,10 +22,6 @@ TITLE = {
     "zh": "TencentDB Agent Memory 图解学习指南 - 打印版",
     "en": "TencentDB Agent Memory Visual Guide - Print Edition",
 }
-INTRO = {
-    "zh": "M0 包含 2 课样板 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。",
-    "en": "M0 contains 2 representative lessons - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.",
-}
 TOC = {"zh": "目录", "en": "Contents"}
 
 PRINT_CSS = """
@@ -58,6 +54,14 @@ def _expand_details(html):
     return html.replace('<details class="accordion">', '<details class="accordion" open>')
 
 
+def intro(lang):
+    n_lessons = len(shell.PAGES)
+    return {
+        "zh": f"当前共 {n_lessons} 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。",
+        "en": f"{n_lessons} lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.",
+    }[lang]
+
+
 def build_lang(lang):
     htmllang = "zh-CN" if lang == "zh" else "en"
     head = (
@@ -71,7 +75,7 @@ def build_lang(lang):
     # language body, while shared shell CSS still expects bilingual markers.
     parts = [
         f'<h1>{shell.bi(TITLE["zh"], TITLE["en"])}</h1>\n'
-        f'<p style="color:var(--muted)">{shell.bi(INTRO["zh"], INTRO["en"])}</p>'
+        f'<p style="color:var(--muted)">{shell.bi(intro("zh"), intro("en"))}</p>'
     ]
     toc = [
         f'<div class="print-toc"><h2>{shell.bi(TOC["zh"], TOC["en"])}</h2>\n<ol>'
