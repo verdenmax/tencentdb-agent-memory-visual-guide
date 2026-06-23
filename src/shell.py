@@ -308,7 +308,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   padding:.22rem .7rem; cursor:pointer; line-height:1.4; white-space:nowrap; }
 .langtoggle:hover { background:var(--accent); color:#fff; }
 
-/* ---- schematic: cell strips (token sequences / quant blocks / KV columns) ---- */
+/* ---- schematic: cell strips (memory and data-flow blocks) ---- */
 .cellgroup { margin: 1.2rem 0; background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 1rem 1.1rem; box-shadow: var(--shadow); }
 .cellgroup .cg-cap { font-size: .82rem; color: var(--muted); margin-bottom: .55rem; }
@@ -325,7 +325,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 .cells .lab { font-size: .76rem; color: var(--faint); padding: 0 .35rem; }
 .cells .sep { color: var(--faint); padding: 0 .1rem; }
 
-/* ---- schematic: timeline lanes (prefill vs decode, step-by-step) ---- */
+/* ---- schematic: timeline lanes (step-by-step data movement) ---- */
 .timeline { margin: 1.2rem 0; display: flex; flex-direction: column; gap: .5rem;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 1rem 1.1rem; box-shadow: var(--shadow); }
