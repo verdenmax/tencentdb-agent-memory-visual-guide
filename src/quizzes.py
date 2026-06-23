@@ -99,6 +99,33 @@ QUIZZES = {
             }
         ],
     },
+    "03-two-memory-spines.html": {
+        "mcq": [
+            {
+                "q": {
+                    "zh": "长期 L0-L3 和短期 Offload 最核心的区别是什么？",
+                    "en": "What is the core difference between long-term L0-L3 and short-term Offload?",
+                },
+                "opts": [
+                    {"zh": "长期记忆服务跨会话复用，Offload 服务当前任务上下文压缩", "en": "Long-term memory serves cross-session reuse; Offload serves current-task context compression"},
+                    {"zh": "长期记忆只能存图片，Offload 只能存文本", "en": "Long-term memory stores only images; Offload stores only text"},
+                    {"zh": "两者完全相同，只是名字不同", "en": "They are identical except for the name"},
+                    {"zh": "Offload 不保留原文证据", "en": "Offload does not preserve raw evidence"},
+                ],
+                "answer": 0,
+                "why": {
+                    "zh": "两条主线都强调可追溯，但优化目标不同：长期记忆面向未来会话，Offload 面向当前长任务。",
+                    "en": "Both preserve traceability, but optimize for different goals: long-term memory for future sessions, Offload for the current long task.",
+                },
+            }
+        ],
+        "open": [
+            {
+                "zh": "举一个信息例子：它应该进入长期记忆还是 Offload？为什么？",
+                "en": "Give one example of information and decide whether it belongs in long-term memory or Offload. Why?",
+            }
+        ],
+    },
 }
 
 

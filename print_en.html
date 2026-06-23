@@ -334,6 +334,7 @@ details[open] > summary { list-style: none; }
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
   <li><span class="lang-zh">一次对话的数据流</span><span class="lang-en">The data flow of one conversation</span></li>
+  <li><span class="lang-zh">两条记忆主线</span><span class="lang-en">Two memory spines</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -514,6 +515,132 @@ Start with the data flow; later lessons will open each source file.
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>Draw a line showing which stages happen before the model responds and which stages happen after the response is committed.</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">两条记忆主线</span><span class="lang-en">Two memory spines</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+TencentDB Agent Memory is not one universal memory pipeline. It has two cooperating spines: long-term L0-L3 preserves reusable
+experience for future sessions, while short-term Offload compresses the current task's tool traces into a navigable, drill-down context map.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🔌 Analogy</div>
+  Long-term memory is like a team knowledge base: stable rules, preferences, scenes, and persona survive into the next project.
+  Offload is like the whiteboard for this meeting: raw outputs are attached behind the board, while the room sees only the structure needed now.
+</div>
+
+<h2>Two spines, two jobs</h2>
+<div class="cols">
+  <div class="col"><h4>Long-term L0-L3</h4><p>Start with raw conversation, extract atoms, aggregate scenes, synthesize persona, then recall before a later turn or future session. It asks: what experience should be reused later?</p></div>
+  <div class="col"><h4>Short-term Offload</h4><p>Start with tool results, write refs markdown and offload JSONL, produce L1/L1.5/L2 Mermaid MMD, inject an L3 task canvas, then drill down by node_id. It asks: how do we reduce current prompt pressure?</p></div>
+</div>
+
+<h2>Long-term spine: evidence to reusable memory</h2>
+<div class="flow">
+  <div class="node"><div class="nt">L0 Raw</div><div class="nd">conversation</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L1 Atom</div><div class="nd">facts/preferences</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L2 Scene</div><div class="nd">context blocks</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L3 Persona</div><div class="nd">stable profile</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">Recall</div><div class="nd">next turn</div></div>
+</div>
+
+<p>
+The source anchors are the capture and recall hooks: <span class="inline">performAutoCapture</span> in
+<span class="inline">src/core/hooks/auto-capture.ts</span> captures committed conversation, while
+<span class="inline">performAutoRecall</span> in <span class="inline">src/core/hooks/auto-recall.ts</span> assembles memory before an answer.
+This spine is for durable preferences, project constraints, repeated scenes, and other information that should remain useful later.
+</p>
+
+<h2>Short-term spine: tool logs to drill-down canvas</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Tool Logs</div><div class="nd">results</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Refs</div><div class="nd">markdown evidence</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">MMD</div><div class="nd">L1/L1.5/L2</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Injection</div><div class="nd">L3 task graph</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">node_id</div><div class="nd">drill-down</div></div>
+</div>
+
+<p>
+Offload is registered in <span class="inline">src/offload/index.ts</span> through <span class="inline">registerOffload</span>, and the
+runtime context is coordinated by <span class="inline">OffloadContextEngine</span>. Storage lives in
+<span class="inline">src/offload/storage.ts</span>: <span class="inline">writeRefMd</span>,
+<span class="inline">appendOffloadEntries</span>, and <span class="inline">createStorageContext</span> preserve evidence and indexes.
+The L2 promotion decision is anchored by <span class="inline">checkL2Trigger</span> in
+<span class="inline">src/offload/pipelines/l2-mermaid.ts</span>. This spine is not learning the user; it is keeping a long current task manageable.
+</p>
+
+<h2>Shared principle: structure above, evidence below</h2>
+<div class="cols">
+  <div class="col"><h4>Upper layers keep structure</h4><p>L3 persona, L2 scenes, and Offload L2/L3 Mermaid should be compact, stable, and navigable. The model sees the map first.</p></div>
+  <div class="col"><h4>Lower layers keep evidence</h4><p>L0 conversations, refs markdown, and offload JSONL preserve raw text, sources, and node_id links so the agent can drill down only when needed.</p></div>
+</div>
+
+<h2>Why not merge them?</h2>
+<p>
+If every Offload trace becomes long-term memory, temporary tool noise pollutes future sessions. If durable preferences live only in Offload,
+they disappear when the current task ends. Long-term L0-L3 optimizes cross-session reuse: is the fact stable enough to help later decisions?
+Offload optimizes current-context pressure: how can huge tool outputs become a compact task graph while still preserving evidence for node_id drill-down?
+They cooperate, but they should not replace each other.
+</p>
+
+<h2>Pseudocode: choose by lifetime, inject by level</h2>
+<pre class="code">if information_should_survive_future_sessions:
+    send_to_long_term_memory()
+else_if information_is_current_task_trace:
+    send_to_context_offload()
+
+when_agent_needs_context():
+    inject_high_level_structure()
+    drill_down_to_evidence_only_when_needed()</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 Source map</div>
+  Long-term: <span class="inline">performAutoCapture</span> in <span class="inline">src/core/hooks/auto-capture.ts</span>,
+  and <span class="inline">performAutoRecall</span> in <span class="inline">src/core/hooks/auto-recall.ts</span>.
+  Short-term: <span class="inline">registerOffload</span> and <span class="inline">OffloadContextEngine</span> in
+  <span class="inline">src/offload/index.ts</span>; <span class="inline">writeRefMd</span>,
+  <span class="inline">appendOffloadEntries</span>, and <span class="inline">createStorageContext</span> in
+  <span class="inline">src/offload/storage.ts</span>; <span class="inline">checkL2Trigger</span> in
+  <span class="inline">src/offload/pipelines/l2-mermaid.ts</span>.
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  First ask about lifetime: future sessions go to long-term L0-L3; current-task traces go to Offload. Then ask about injection level:
+  put high-level structure in the prompt, and keep raw evidence below for search, references, or node_id drill-down.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. What is the core difference between long-term L0-L3 and short-term Offload?</div>
+  <ol class="opts">
+    <li>Long-term memory serves cross-session reuse; Offload serves current-task context compression</li>
+    <li>They are identical except for the name</li>
+    <li>Long-term memory stores only images; Offload stores only text</li>
+    <li>Offload does not preserve raw evidence</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Both preserve traceability, but optimize for different goals: long-term memory for future sessions, Offload for the current long task.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Give one example of information and decide whether it belongs in long-term memory or Offload. Why?</li>
   </ul>
 </div>
 </div>

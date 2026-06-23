@@ -50,6 +50,8 @@ PAGES = [
      "第一部分 · 数据流全景", "Part 1 · Data-flow overview"),
     ("02-one-conversation-flow.html", "一次对话的数据流", "The data flow of one conversation",
      "第一部分 · 数据流全景", "Part 1 · Data-flow overview"),
+    ("03-two-memory-spines.html", "两条记忆主线", "Two memory spines",
+     "第一部分 · 数据流全景", "Part 1 · Data-flow overview"),
 ]
 
 def bi(zh, en):
@@ -487,6 +489,8 @@ SUBTITLES = {
                                  "why not dump all history into context; long-term memory and short-term compression"),
     "02-one-conversation-flow.html": ("Hook -> TdaiCore -> L0/L1/L2/L3 -> Recall 的完整路径",
                                       "Hook -> TdaiCore -> L0/L1/L2/L3 -> Recall end-to-end"),
+    "03-two-memory-spines.html": ("长期 L0-L3 沉淀经验，短期 Offload 压缩当前任务",
+                                  "long-term L0-L3 preserves experience; short-term Offload compresses the current task"),
 }
 
 def index_page(lesson_prefix="lessons/"):

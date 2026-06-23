@@ -274,3 +274,205 @@ Start with the data flow; later lessons will open each source file.
 </div>
 """,
 }
+
+LESSON_03 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+TencentDB Agent Memory 不是一条“万能记忆流水线”，而是两条协作的记忆主线：长期 L0-L3 负责把可复用经验沉淀到未来会话，
+短期 Offload 负责把当前长任务的工具结果压缩成可浏览、可下钻的上下文地图。两条线都保留证据，但优化目标完全不同。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🔌 生活类比</div>
+  长期记忆像团队知识库：把反复有用的规则、偏好、场景和画像整理好，下一次项目还能用。短期 Offload 像这次会议的临时白板：
+  工具输出、报错、文件片段都先贴到白板背后的附件里，桌面只保留结构化索引，讨论结束后不必把每个临时细节都变成长期偏好。
+</div>
+
+<h2>两条主线的分工</h2>
+<div class="cols">
+  <div class="col"><h4>长期记忆 L0-L3</h4><p>从原始对话开始，逐层抽取 Atom、聚合 Scene、生成 Persona，再在下一轮或下一次会话前召回。它回答“哪些经验值得以后继续使用”。</p></div>
+  <div class="col"><h4>短期 Offload</h4><p>从工具结果开始，写入 refs markdown 和 offload JSONL，再生成 L1/L1.5/L2 Mermaid MMD，最后注入 L3 画布，并通过 node_id 下钻原文证据。它回答“当前任务如何少占 prompt”。</p></div>
+</div>
+
+<h2>长期主线：从证据到可召回经验</h2>
+<div class="flow">
+  <div class="node"><div class="nt">L0 Raw</div><div class="nd">原始对话</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L1 Atom</div><div class="nd">事实/偏好</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L2 Scene</div><div class="nd">场景聚合</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L3 Persona</div><div class="nd">稳定画像</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">Recall</div><div class="nd">下一轮注入</div></div>
+</div>
+
+<p>
+这条线的入口和出口分别可以从源码锚点验证：<span class="inline">src/core/hooks/auto-capture.ts</span> 的
+<span class="inline">performAutoCapture</span> 捕获已提交对话；<span class="inline">src/core/hooks/auto-recall.ts</span> 的
+<span class="inline">performAutoRecall</span> 在需要回答前组合可召回内容。它适合存放“用户长期偏好”“项目固定约束”“反复出现的业务场景”等以后仍有价值的信息。
+</p>
+
+<h2>短期主线：从工具日志到可下钻画布</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Tool Logs</div><div class="nd">工具结果</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Refs</div><div class="nd">markdown 证据</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">MMD</div><div class="nd">L1/L1.5/L2</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Injection</div><div class="nd">L3 任务图</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">node_id</div><div class="nd">按需下钻</div></div>
+</div>
+
+<p>
+Offload 的注册和上下文引擎看 <span class="inline">src/offload/index.ts</span> 中的
+<span class="inline">registerOffload</span> 与 <span class="inline">OffloadContextEngine</span>。证据落盘由
+<span class="inline">src/offload/storage.ts</span> 的 <span class="inline">writeRefMd</span>、
+<span class="inline">appendOffloadEntries</span>、<span class="inline">createStorageContext</span> 负责；是否该提升到
+L2 Mermaid 结构，可看 <span class="inline">src/offload/pipelines/l2-mermaid.ts</span> 的
+<span class="inline">checkL2Trigger</span>。这条线不是为了长期学习用户，而是为了让当前任务在工具输出爆炸时仍能保住结构。
+</p>
+
+<h2>共同原则：上层保结构，下层保证据</h2>
+<div class="cols">
+  <div class="col"><h4>上层结构</h4><p>L3 Persona、L2 Scene、Offload 的 L2/L3 Mermaid 都应该短、稳定、可导航，让模型先看到“地图”。</p></div>
+  <div class="col"><h4>下层证据</h4><p>L0 对话、refs markdown、offload JSONL 保存原文、来源和 node_id，让 Agent 只在需要确认细节时下钻。</p></div>
+</div>
+
+<h2>为什么不能合并成一条线</h2>
+<p>
+如果把 Offload 都塞进长期记忆，临时工具日志会污染未来会话；如果把长期偏好只放在 Offload，任务结束后又无法稳定复用。
+长期 L0-L3 优化的是跨会话复用：更关心事实是否长期有效、是否能帮助下一次决策。短期 Offload 优化的是当前上下文压力：
+更关心如何把大量工具输出变成一张轻量任务图，并保留足够证据让模型按 node_id 回看原文。两条主线协作，而不是互相替代。
+</p>
+
+<h2>伪代码：先判断生命周期，再判断注入粒度</h2>
+<pre class="code">if information_should_survive_future_sessions:
+    send_to_long_term_memory()
+else_if information_is_current_task_trace:
+    send_to_context_offload()
+
+when_agent_needs_context():
+    inject_high_level_structure()
+    drill_down_to_evidence_only_when_needed()</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 源码对应</div>
+  长期主线：<span class="inline">src/core/hooks/auto-capture.ts</span> 的 <span class="inline">performAutoCapture</span>，
+  以及 <span class="inline">src/core/hooks/auto-recall.ts</span> 的 <span class="inline">performAutoRecall</span>。
+  短期主线：<span class="inline">src/offload/index.ts</span> 的 <span class="inline">registerOffload</span>、
+  <span class="inline">OffloadContextEngine</span>；<span class="inline">src/offload/storage.ts</span> 的
+  <span class="inline">writeRefMd</span>、<span class="inline">appendOffloadEntries</span>、<span class="inline">createStorageContext</span>；
+  <span class="inline">src/offload/pipelines/l2-mermaid.ts</span> 的 <span class="inline">checkL2Trigger</span>。
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  先问信息生命周期：未来会话还需要吗？需要就走长期 L0-L3；只是当前任务轨迹，就走 Offload。再问注入粒度：
+  prompt 里优先放上层结构，原文证据留在下层，通过搜索、引用或 node_id 按需取回。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+TencentDB Agent Memory is not one universal memory pipeline. It has two cooperating spines: long-term L0-L3 preserves reusable
+experience for future sessions, while short-term Offload compresses the current task's tool traces into a navigable, drill-down context map.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🔌 Analogy</div>
+  Long-term memory is like a team knowledge base: stable rules, preferences, scenes, and persona survive into the next project.
+  Offload is like the whiteboard for this meeting: raw outputs are attached behind the board, while the room sees only the structure needed now.
+</div>
+
+<h2>Two spines, two jobs</h2>
+<div class="cols">
+  <div class="col"><h4>Long-term L0-L3</h4><p>Start with raw conversation, extract atoms, aggregate scenes, synthesize persona, then recall before a later turn or future session. It asks: what experience should be reused later?</p></div>
+  <div class="col"><h4>Short-term Offload</h4><p>Start with tool results, write refs markdown and offload JSONL, produce L1/L1.5/L2 Mermaid MMD, inject an L3 task canvas, then drill down by node_id. It asks: how do we reduce current prompt pressure?</p></div>
+</div>
+
+<h2>Long-term spine: evidence to reusable memory</h2>
+<div class="flow">
+  <div class="node"><div class="nt">L0 Raw</div><div class="nd">conversation</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L1 Atom</div><div class="nd">facts/preferences</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L2 Scene</div><div class="nd">context blocks</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L3 Persona</div><div class="nd">stable profile</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">Recall</div><div class="nd">next turn</div></div>
+</div>
+
+<p>
+The source anchors are the capture and recall hooks: <span class="inline">performAutoCapture</span> in
+<span class="inline">src/core/hooks/auto-capture.ts</span> captures committed conversation, while
+<span class="inline">performAutoRecall</span> in <span class="inline">src/core/hooks/auto-recall.ts</span> assembles memory before an answer.
+This spine is for durable preferences, project constraints, repeated scenes, and other information that should remain useful later.
+</p>
+
+<h2>Short-term spine: tool logs to drill-down canvas</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Tool Logs</div><div class="nd">results</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Refs</div><div class="nd">markdown evidence</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">MMD</div><div class="nd">L1/L1.5/L2</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Injection</div><div class="nd">L3 task graph</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">node_id</div><div class="nd">drill-down</div></div>
+</div>
+
+<p>
+Offload is registered in <span class="inline">src/offload/index.ts</span> through <span class="inline">registerOffload</span>, and the
+runtime context is coordinated by <span class="inline">OffloadContextEngine</span>. Storage lives in
+<span class="inline">src/offload/storage.ts</span>: <span class="inline">writeRefMd</span>,
+<span class="inline">appendOffloadEntries</span>, and <span class="inline">createStorageContext</span> preserve evidence and indexes.
+The L2 promotion decision is anchored by <span class="inline">checkL2Trigger</span> in
+<span class="inline">src/offload/pipelines/l2-mermaid.ts</span>. This spine is not learning the user; it is keeping a long current task manageable.
+</p>
+
+<h2>Shared principle: structure above, evidence below</h2>
+<div class="cols">
+  <div class="col"><h4>Upper layers keep structure</h4><p>L3 persona, L2 scenes, and Offload L2/L3 Mermaid should be compact, stable, and navigable. The model sees the map first.</p></div>
+  <div class="col"><h4>Lower layers keep evidence</h4><p>L0 conversations, refs markdown, and offload JSONL preserve raw text, sources, and node_id links so the agent can drill down only when needed.</p></div>
+</div>
+
+<h2>Why not merge them?</h2>
+<p>
+If every Offload trace becomes long-term memory, temporary tool noise pollutes future sessions. If durable preferences live only in Offload,
+they disappear when the current task ends. Long-term L0-L3 optimizes cross-session reuse: is the fact stable enough to help later decisions?
+Offload optimizes current-context pressure: how can huge tool outputs become a compact task graph while still preserving evidence for node_id drill-down?
+They cooperate, but they should not replace each other.
+</p>
+
+<h2>Pseudocode: choose by lifetime, inject by level</h2>
+<pre class="code">if information_should_survive_future_sessions:
+    send_to_long_term_memory()
+else_if information_is_current_task_trace:
+    send_to_context_offload()
+
+when_agent_needs_context():
+    inject_high_level_structure()
+    drill_down_to_evidence_only_when_needed()</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 Source map</div>
+  Long-term: <span class="inline">performAutoCapture</span> in <span class="inline">src/core/hooks/auto-capture.ts</span>,
+  and <span class="inline">performAutoRecall</span> in <span class="inline">src/core/hooks/auto-recall.ts</span>.
+  Short-term: <span class="inline">registerOffload</span> and <span class="inline">OffloadContextEngine</span> in
+  <span class="inline">src/offload/index.ts</span>; <span class="inline">writeRefMd</span>,
+  <span class="inline">appendOffloadEntries</span>, and <span class="inline">createStorageContext</span> in
+  <span class="inline">src/offload/storage.ts</span>; <span class="inline">checkL2Trigger</span> in
+  <span class="inline">src/offload/pipelines/l2-mermaid.ts</span>.
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  First ask about lifetime: future sessions go to long-term L0-L3; current-task traces go to Offload. Then ask about injection level:
+  put high-level structure in the prompt, and keep raw evidence below for search, references, or node_id drill-down.
+</div>
+""",
+}
