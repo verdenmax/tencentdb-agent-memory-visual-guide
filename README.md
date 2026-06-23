@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 8 lessons.
+The guide currently contains 9 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -18,6 +18,7 @@ The guide currently contains 8 lessons.
 | 06 | Runtime files and data products |
 | 07 | Configuration levels and safe defaults |
 | 08 | index.ts: the OpenClaw plugin shell |
+| 09 | TdaiCore: host-neutral facade |
 
 ## How to view locally
 

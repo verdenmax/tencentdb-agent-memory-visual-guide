@@ -212,6 +212,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果要定位 hook 注册问题，你会先读 index.ts 的哪几个区域？", "en": "If hook registration is broken, which areas of index.ts would you inspect first?"}],
     },
+    "09-tdai-core-facade.html": {
+        "mcq": [{
+            "q": {"zh": "TdaiCore 的核心价值是什么？", "en": "What is the core value of TdaiCore?"},
+            "opts": [
+                {"zh": "让 OpenClaw 与 Gateway/Hermes 复用同一套记忆能力", "en": "It lets OpenClaw and Gateway/Hermes reuse the same memory capabilities"},
+                {"zh": "替代所有 HTML 构建脚本", "en": "It replaces all HTML build scripts"},
+                {"zh": "只负责读取 README", "en": "It only reads README"},
+                {"zh": "只负责 CORS", "en": "It only handles CORS"},
+            ],
+            "answer": 0,
+            "why": {"zh": "宿主差异被 adapter 吸收，TdaiCore 统一 expose recall/capture/search/pipeline。", "en": "Adapters absorb host differences; TdaiCore exposes recall/capture/search/pipeline uniformly."},
+        }],
+        "open": [{"zh": "为什么 Gateway 并发请求需要 scheduler 启动 promise gate？", "en": "Why does the Gateway path need a promise gate for scheduler startup?"}],
+    },
 }
 
 

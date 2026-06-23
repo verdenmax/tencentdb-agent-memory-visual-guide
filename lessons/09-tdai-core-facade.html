@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>TencentDB Agent Memory 图解学习指南 / TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="从一次对话的数据流出发，图解 TencentDB Agent Memory 的 L0-L3 长期记忆、短期 Context Offload、Recall/Search、OpenClaw 与 Hermes 集成。">
+<title>09 · TdaiCore：宿主无关核心门面 / TdaiCore: host-neutral facade - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜TdaiCore：宿主无关核心门面 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
-<meta property="og:type" content="website">
+<meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="TencentDB Agent Memory 图解学习指南 / TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="从一次对话的数据流出发，图解 TencentDB Agent Memory 的 L0-L3 长期记忆、短期 Context Offload、Recall/Search、OpenClaw 与 Hermes 集成。">
+<meta property="og:title" content="09 · TdaiCore：宿主无关核心门面 / TdaiCore: host-neutral facade - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜TdaiCore：宿主无关核心门面 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="TencentDB Agent Memory 图解学习指南 / TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="从一次对话的数据流出发，图解 TencentDB Agent Memory 的 L0-L3 长期记忆、短期 Context Offload、Recall/Search、OpenClaw 与 Hermes 集成。">
+<meta name="twitter:title" content="09 · TdaiCore：宿主无关核心门面 / TdaiCore: host-neutral facade - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜TdaiCore：宿主无关核心门面 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -316,43 +316,227 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 </head><body>
 <div class="topbar">
   <div class="topbar-inner">
-    <span class="home">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></span>
-    <span class="pill"><span class="lang-zh">共 9 课 · 3 个部分</span><span class="lang-en">9 lessons · 3 parts</span></span>
+    <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
+    <span class="pill"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></span>
+    <span class="pill">09 / 09</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
   <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
-  <div class="hero index">
-    <div class="part"><span class="lang-zh">从一次对话开始 · 面向完全新手</span><span class="lang-en">Start from one conversation · for complete beginners</span></div>
-    <h1><span class="lang-zh">用数据流图解 TencentDB Agent Memory</span><span class="lang-en">Understand TencentDB Agent Memory through data flow</span></h1>
-    <p class="lead"><span class="lang-zh">这套教程从<strong>一次用户对话</strong>如何进入系统讲起，逐层解释 <strong>L0/L1/L2/L3 长期记忆</strong>、<strong>Recall/Search</strong>、<strong>Context Offload</strong> 与宿主集成。每课配图、伪代码、源码路径和自测题。</span>
-<span class="lang-en">This guide starts with <strong>one user turn</strong> entering the system, then explains <strong>L0/L1/L2/L3 long-term memory</strong>, <strong>Recall/Search</strong>, <strong>Context Offload</strong>, and host integration with diagrams, pseudocode, source anchors, and quizzes.</span></p>
-    <div class="legend">
-      <span><i style="background:var(--blue)"></i><span class="lang-zh">宏观理解</span><span class="lang-en">Big picture</span></span>
-      <span><i style="background:var(--purple)"></i><span class="lang-zh">细节 / 源码</span><span class="lang-en">Details / source</span></span>
-      <span><i style="background:var(--amber)"></i><span class="lang-zh">生活类比</span><span class="lang-en">Analogy</span></span>
-      <span><i style="background:var(--accent)"></i><span class="lang-zh">关键要点</span><span class="lang-en">Key points</span></span>
-    </div>
-    <p style="margin:.8rem 0 0;color:var(--faint);font-size:.8rem"><span class="lang-zh">📌 对照 TencentDB-Agent-Memory 当前源码核实 · 源码引用以“文件 + 符号名”为主</span><span class="lang-en">📌 Verified against the current TencentDB-Agent-Memory source; references cite file + symbol</span></p>
+  <div class="hero">
+    <div class="part"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></div>
+    <h1><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></h1>
   </div>
-  <div class="toc-search">
-    <input id="q" type="search" placeholder="🔎 搜索课程 / Search lessons" autocomplete="off" aria-label="search">
-    <span class="qcount" id="qcount"></span>
-  </div>
-  <div class="toc"><div class="toc-part"><span class="lang-zh">第一部分 · 数据流全景</span><span class="lang-en">Part 1 · Data-flow overview</span></div>
-<a href="lessons/01-why-agent-memory.html"><span class="n">01</span><span class="tt"><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></span><span class="ts"><span class="lang-zh">为什么不是把历史全塞进上下文 · 长期记忆与短期压缩的两条主线</span><span class="lang-en">why not dump all history into context; long-term memory and short-term compression</span></span></a>
-<a href="lessons/02-one-conversation-flow.html"><span class="n">02</span><span class="tt"><span class="lang-zh">一次对话的数据流</span><span class="lang-en">The data flow of one conversation</span></span><span class="ts"><span class="lang-zh">Hook -&gt; TdaiCore -&gt; L0/L1/L2/L3 -&gt; Recall 的完整路径</span><span class="lang-en">Hook -&gt; TdaiCore -&gt; L0/L1/L2/L3 -&gt; Recall end-to-end</span></span></a>
-<a href="lessons/03-two-memory-spines.html"><span class="n">03</span><span class="tt"><span class="lang-zh">两条记忆主线</span><span class="lang-en">Two memory spines</span></span><span class="ts"><span class="lang-zh">长期 L0-L3 沉淀经验，短期 Offload 压缩当前任务</span><span class="lang-en">long-term L0-L3 preserves experience; short-term Offload compresses the current task</span></span></a>
-<div class="toc-part"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></div>
-<a href="lessons/04-openclaw-zero-config.html"><span class="n">04</span><span class="tt"><span class="lang-zh">OpenClaw 零配置闭环</span><span class="lang-en">OpenClaw zero-config loop</span></span><span class="ts"><span class="lang-zh">安装插件、启用配置、重启 Gateway、先验证 L0/L1 与 Recall</span><span class="lang-en">install plugin, enable config, restart Gateway, verify L0/L1 and Recall first</span></span></a>
-<a href="lessons/05-hermes-gateway-path.html"><span class="n">05</span><span class="tt"><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></span><span class="ts"><span class="lang-zh">Hermes provider 通过本地 Gateway 复用同一个 TdaiCore</span><span class="lang-en">the Hermes provider reuses the same TdaiCore through a local Gateway</span></span></a>
-<a href="lessons/06-runtime-files.html"><span class="n">06</span><span class="tt"><span class="lang-zh">运行后会出现哪些文件</span><span class="lang-en">Runtime files and data products</span></span><span class="ts"><span class="lang-zh">conversations、records、scene_blocks、persona、vectors.db、context-offload</span><span class="lang-en">conversations, records, scene_blocks, persona, vectors.db, context-offload</span></span></a>
-<a href="lessons/07-config-levels.html"><span class="n">07</span><span class="tt"><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></span><span class="ts"><span class="lang-zh">capture、pipeline、recall、embedding、tcvdb、offload 的渐进式调参</span><span class="lang-en">progressive tuning for capture, pipeline, recall, embedding, tcvdb, offload</span></span></a>
-<div class="toc-part"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></div>
-<a href="lessons/08-openclaw-plugin-shell.html"><span class="n">08</span><span class="tt"><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></span><span class="ts"><span class="lang-zh">register(api)、CLI metadata、配置解析、hooks/tools 注册的入口</span><span class="lang-en">register(api), CLI metadata, config parsing, hooks/tools entry point</span></span></a>
-<a href="lessons/09-tdai-core-facade.html"><span class="n">09</span><span class="tt"><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></span><span class="ts"><span class="lang-zh">handleBeforeRecall、handleTurnCommitted、search、scheduler 生命周期</span><span class="lang-en">handleBeforeRecall, handleTurnCommitted, search, scheduler lifecycle</span></span></a></div>
-  <div class="toc-empty" id="tocempty"><span class="lang-zh">没有匹配的课程，换个关键词试试。</span><span class="lang-en">No matching lessons, try another keyword.</span></div>
+  <div class="lang-zh">
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+<span class="inline">TdaiCore</span> 是 OpenClaw 插件路径与 Gateway/Hermes 路径共用的宿主无关核心门面。
+宿主差异由 adapter 吸收；core 对外稳定暴露自动召回、对话提交捕获、记忆搜索、对话搜索与 pipeline scheduler 生命周期。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  如果 OpenClaw 与 Gateway/Hermes 是不同入口大厅，adapter 就是前台翻译，<span class="inline">TdaiCore</span> 是同一个资料室柜台。
+  不管访客从哪个大厅来，最终都向同一个柜台办理“查资料、登记新资料、维护后台整理任务”。
+</div>
+
+<h2>三层边界：宿主、Adapter、Core</h2>
+<div class="layers">
+  <div class="layer"><div class="lt">Host</div><div class="ld">OpenClaw hooks/tools 或 Gateway/Hermes HTTP 调用，负责宿主生命周期与请求形态。</div></div>
+  <div class="layer"><div class="lt">Adapters</div><div class="ld">把日志、路径、LLM runner、运行上下文翻译成 core 可用的统一接口。</div></div>
+  <div class="layer hl"><div class="lt">TdaiCore</div><div class="ld">统一处理 recall、capture、memory search、conversation search 与 scheduler。</div></div>
+</div>
+
+<p>
+这个边界让核心能力可以被复用：OpenClaw 的 before/after hook 不需要复制 Gateway 的记忆逻辑；Gateway/Hermes 也不需要理解
+OpenClaw 的插件注册细节。两条路径都把请求变成 <span class="inline">TdaiCore</span> 能理解的方法调用。
+</p>
+
+<h2>生命周期先于能力调用</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>initialize()</h4><p>创建数据目录，调用 <span class="inline">initStores</span> 准备向量/embedding 存储，并用 <span class="inline">createPipelineManager</span> 构造 scheduler。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>handleBeforeRecall</h4><p>在模型回答前转交给 <span class="inline">performAutoRecall</span>，返回要注入上下文的召回片段。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>handleTurnCommitted</h4><p>对话提交后先确保 scheduler 已启动，再调用 <span class="inline">performAutoCapture</span> 写入 L0 并触发后续 pipeline。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>scheduler / destroy()</h4><p>后台 pipeline 持续整理 L1-L3；关闭时 <span class="inline">destroy()</span> 先排空后台任务，再关闭 store。</p></div></div>
+</div>
+
+<h2>两条宿主路径复用同一个门面</h2>
+<div class="cols">
+  <div class="col"><h4>OpenClaw path</h4><p><span class="inline">index.ts</span> 注册 hooks 和 tools。before hook 调 <span class="inline">handleBeforeRecall</span>；after/agent_end 提交完整 turn 给 <span class="inline">handleTurnCommitted</span>；工具调用转到 search 方法。</p></div>
+  <div class="col"><h4>Gateway / Hermes path</h4><p>Gateway HTTP handler 接收 Hermes provider 的请求，同样调用 <span class="inline">handleBeforeRecall</span>、<span class="inline">handleTurnCommitted</span> 和搜索方法，因此不复制核心算法。</p></div>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">core.initialize():
+    initDataDirectories()
+    storeReady = initStores()
+    scheduler = createPipelineManager()
+
+before_prompt(user_text):
+    return performAutoRecall(user_text)
+
+turn_committed(messages):
+    await ensureSchedulerStarted()
+    return performAutoCapture(messages)</pre>
+
+<h2>为什么 schedulerStartPromise 是并发闸门</h2>
+<p>
+Gateway 场景中，多个 HTTP 请求可能同时进入 <span class="inline">handleTurnCommitted</span>。
+如果只用布尔值标记“scheduler 已启动”，第一个请求可能在异步读取 checkpoint 尚未完成时就把标记改成 true；后续请求会越过启动流程，提前更新 scheduler 状态。
+当真正的 <span class="inline">scheduler.start(restoredStates)</span> 稍后执行时，恢复出的旧状态可能覆盖这些并发更新。
+</p>
+<p>
+<span class="inline">schedulerStartPromise</span> 把“正在启动”本身保存为同一个 promise。所有并发请求都 await 同一段启动过程；启动成功后，已 resolve 的 promise 又成为廉价哨兵，后续调用不会重复 start。
+</p>
+
+<h2>为什么要登记后台任务</h2>
+<p>
+<span class="inline">performAutoCapture</span> 可能为 L0 embedding 发起延迟后台写入。它们是 fire-and-forget，但并不代表可以在关闭时忽略。
+<span class="inline">TdaiCore</span> 用 background task registry 记录这些 in-flight promise；<span class="inline">destroy()</span> 会在关闭 vector store 与 embedding service 前等待它们完成或超时，避免迟到写入打到已关闭数据库连接。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/tdai-core.ts</span>：<span class="inline">TdaiCore</span>、<span class="inline">initialize</span>、<span class="inline">destroy</span>、<span class="inline">handleBeforeRecall</span>、<span class="inline">handleTurnCommitted</span></li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>：<span class="inline">initStores</span>、<span class="inline">createPipelineManager</span></li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：<span class="inline">performAutoRecall</span></li>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>：<span class="inline">performAutoCapture</span></li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  <span class="inline">TdaiCore</span> 的价值不是“又包一层”，而是把 OpenClaw 与 Gateway/Hermes 的宿主差异挡在 adapter 外侧，
+  让 recall、capture、search 与 pipeline lifecycle 只有一套实现、一套资源关闭顺序和一套并发保护。
+</div>
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. TdaiCore 的核心价值是什么？</div>
+  <ol class="opts">
+    <li>让 OpenClaw 与 Gateway/Hermes 复用同一套记忆能力</li>
+    <li>只负责 CORS</li>
+    <li>只负责读取 README</li>
+    <li>替代所有 HTML 构建脚本</li>
+  </ol>
+  <details class="accordion">
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：A</strong>。宿主差异被 adapter 吸收，TdaiCore 统一 expose recall/capture/search/pipeline。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>为什么 Gateway 并发请求需要 scheduler 启动 promise gate？</li>
+  </ul>
+</div>
+</div></div>
+  <div class="lang-en">
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+<span class="inline">TdaiCore</span> is the host-neutral core facade shared by the OpenClaw plugin path and the Gateway/Hermes path.
+Adapters absorb host differences; the core exposes stable methods for auto recall, turn capture, memory search, conversation search, and the pipeline scheduler lifecycle.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  If OpenClaw and Gateway/Hermes are different entrance halls, the adapter is the front-desk translator and <span class="inline">TdaiCore</span> is the same records counter.
+  No matter which hall a visitor uses, they reach one counter for “look up records, register new records, and keep background filing running.”
+</div>
+
+<h2>Three boundaries: host, adapter, core</h2>
+<div class="layers">
+  <div class="layer"><div class="lt">Host</div><div class="ld">OpenClaw hooks/tools or Gateway/Hermes HTTP calls own host lifecycle and request shape.</div></div>
+  <div class="layer"><div class="lt">Adapters</div><div class="ld">Translate logging, paths, LLM runners, and runtime context into one interface the core can use.</div></div>
+  <div class="layer hl"><div class="lt">TdaiCore</div><div class="ld">Handles recall, capture, memory search, conversation search, and the scheduler uniformly.</div></div>
+</div>
+
+<p>
+This boundary is what makes reuse possible: OpenClaw before/after hooks do not copy Gateway memory logic, and Gateway/Hermes do not need to understand OpenClaw plugin registration details.
+Both paths turn host events into method calls that <span class="inline">TdaiCore</span> understands.
+</p>
+
+<h2>Lifecycle comes before capability calls</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>initialize()</h4><p>Create data directories, call <span class="inline">initStores</span> for vector/embedding storage, and build the scheduler with <span class="inline">createPipelineManager</span>.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>handleBeforeRecall</h4><p>Before the model answers, delegate to <span class="inline">performAutoRecall</span> and return snippets that can be injected into context.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>handleTurnCommitted</h4><p>After a turn is committed, ensure the scheduler has started, then call <span class="inline">performAutoCapture</span> to write L0 and trigger later pipeline work.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>scheduler / destroy()</h4><p>The background pipeline keeps organizing L1-L3; shutdown drains background tasks before closing stores.</p></div></div>
+</div>
+
+<h2>Two host paths reuse the same facade</h2>
+<div class="cols">
+  <div class="col"><h4>OpenClaw path</h4><p><span class="inline">index.ts</span> registers hooks and tools. The before hook calls <span class="inline">handleBeforeRecall</span>; after/agent_end submits the full turn to <span class="inline">handleTurnCommitted</span>; tools forward to search methods.</p></div>
+  <div class="col"><h4>Gateway / Hermes path</h4><p>A Gateway HTTP handler receives requests from the Hermes provider and calls the same <span class="inline">handleBeforeRecall</span>, <span class="inline">handleTurnCommitted</span>, and search methods, so core algorithms are not duplicated.</p></div>
+</div>
+
+<h2>Pseudocode</h2>
+<pre class="code">core.initialize():
+    initDataDirectories()
+    storeReady = initStores()
+    scheduler = createPipelineManager()
+
+before_prompt(user_text):
+    return performAutoRecall(user_text)
+
+turn_committed(messages):
+    await ensureSchedulerStarted()
+    return performAutoCapture(messages)</pre>
+
+<h2>Why schedulerStartPromise is a concurrency gate</h2>
+<p>
+In the Gateway path, several HTTP requests can enter <span class="inline">handleTurnCommitted</span> at the same time.
+With only a boolean “scheduler started” flag, the first request could flip the flag before the async checkpoint read finishes; later requests would skip startup and update scheduler state too early.
+When <span class="inline">scheduler.start(restoredStates)</span> finally runs, restored old state could overwrite those concurrent updates.
+</p>
+<p>
+<span class="inline">schedulerStartPromise</span> stores the in-flight startup itself. Every concurrent request awaits the same promise; after startup succeeds, the resolved promise becomes a cheap sentinel so later calls do not start the scheduler again.
+</p>
+
+<h2>Why the background task registry exists</h2>
+<p>
+<span class="inline">performAutoCapture</span> can launch deferred background writes for L0 embeddings. They are fire-and-forget, but shutdown still has to respect them.
+<span class="inline">TdaiCore</span> records those in-flight promises in a background task registry; <span class="inline">destroy()</span> waits for them, or a bounded timeout, before closing the vector store and embedding service. That prevents late writes from hitting a closed database connection.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">TdaiCore</span>, <span class="inline">initialize</span>, <span class="inline">destroy</span>, <span class="inline">handleBeforeRecall</span>, <span class="inline">handleTurnCommitted</span></li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>: <span class="inline">initStores</span>, <span class="inline">createPipelineManager</span></li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">performAutoRecall</span></li>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>: <span class="inline">performAutoCapture</span></li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  The value of <span class="inline">TdaiCore</span> is not “one more wrapper.” It keeps OpenClaw and Gateway/Hermes host differences outside the adapter boundary,
+  so recall, capture, search, and pipeline lifecycle share one implementation, one resource shutdown order, and one concurrency guard.
+</div>
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. What is the core value of TdaiCore?</div>
+  <ol class="opts">
+    <li>It lets OpenClaw and Gateway/Hermes reuse the same memory capabilities</li>
+    <li>It only handles CORS</li>
+    <li>It only reads README</li>
+    <li>It replaces all HTML build scripts</li>
+  </ol>
+  <details class="accordion">
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Adapters absorb host differences; TdaiCore exposes recall/capture/search/pipeline uniformly.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Why does the Gateway path need a promise gate for scheduler startup?</li>
+  </ul>
+</div>
+</div></div>
+  <div class="footnav"><a class="prev" href="08-openclaw-plugin-shell.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){
@@ -364,34 +548,5 @@ function tdamvgSetLang(l){
 function tdamvgToggleLang(){
   tdamvgSetLang(document.documentElement.dataset.lang==='en'?'zh':'en');
 }
-</script>
-<script>
-(function(){
-  var q=document.getElementById('q'); if(!q) return;
-  var toc=document.querySelector('.toc');
-  var empty=document.getElementById('tocempty');
-  var count=document.getElementById('qcount');
-  var links=[].slice.call(toc.querySelectorAll('a'));
-  var heads=[].slice.call(toc.querySelectorAll('.toc-part'));
-  links.forEach(function(a){ a.setAttribute('data-s',(a.textContent||'').toLowerCase()); });
-  function run(){
-    var t=(q.value||'').toLowerCase().trim(), n=0;
-    links.forEach(function(a){
-      var hit=!t||a.getAttribute('data-s').indexOf(t)>=0;
-      a.classList.toggle('hide',!hit); if(hit)n++;
-    });
-    heads.forEach(function(h){
-      var el=h.nextElementSibling, any=false;
-      while(el && !el.classList.contains('toc-part')){
-        if(el.tagName==='A' && !el.classList.contains('hide')){any=true;break;}
-        el=el.nextElementSibling;
-      }
-      h.classList.toggle('hide',!any);
-    });
-    empty.classList.toggle('show', !!t && n===0);
-    count.textContent = t ? String(n) : '';
-  }
-  q.addEventListener('input',run);
-})();
 </script>
 </body></html>

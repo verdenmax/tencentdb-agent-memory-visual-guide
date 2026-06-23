@@ -12,4 +12,5 @@ CONTENT = {
     "06-runtime-files.html": part2.LESSON_06,
     "07-config-levels.html": part2.LESSON_07,
     "08-openclaw-plugin-shell.html": part3.LESSON_08,
+    "09-tdai-core-facade.html": part3.LESSON_09,
 }
