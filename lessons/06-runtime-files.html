@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>05 · Hermes 与 Gateway 路径 / Hermes and Gateway path - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第二部分 · 最小运行闭环｜Hermes 与 Gateway 路径 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="05 · Hermes 与 Gateway 路径 / Hermes and Gateway path - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第二部分 · 最小运行闭环｜Hermes 与 Gateway 路径 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="05 · Hermes 与 Gateway 路径 / Hermes and Gateway path - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第二部分 · 最小运行闭环｜Hermes 与 Gateway 路径 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -318,242 +318,208 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
     <span class="pill"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></span>
-    <span class="pill">05 / 06</span>
+    <span class="pill">06 / 06</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:83%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
     <div class="part"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></div>
-    <h1><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></h1>
+    <h1><span class="lang-zh">运行后会出现哪些文件</span><span class="lang-en">Runtime files and data products</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Hermes 路径看起来和 OpenClaw 不同：一个是 Python Agent 的 memory provider，一个是 OpenClaw 插件和 Gateway 生命周期。
-但它们不是两套记忆引擎。Hermes 只是另一条宿主入口：provider 把 Hermes 的 recall、capture、search 调用转成 HTTP，交给本地 Gateway，Gateway 再通过 StandaloneHostAdapter 调到同一个 <span class="inline">TdaiCore</span>。
+运行后的文件不是隐藏实现细节，而是一张调试地图：当召回、画像、场景或长任务摘要看起来不对时，先看高层产物理解系统“相信了什么”，再一路下钻到低层证据确认它为什么这么相信。
 </p>
 
 <div class="card analogy">
-  <div class="tag">🚪 生活类比</div>
-  OpenClaw 和 Hermes 像从两扇不同的门进入同一座图书馆。门口的登记员不同：OpenClaw 用插件 hooks/tools，Hermes 用 <span class="inline">memory_tencentdb</span> provider。
-  但进入馆内后，借书、归档、检索和整理书架都由同一个核心服务处理，所以学习重点是“入口不同，核心收敛”。
+  <div class="tag">🗺️ 生活类比</div>
+  这些目录像侦探案卷：画像和场景是案情摘要，L1 原子记忆是证词卡片，L0 对话是原始录音；Offload 的 MMD 是任务白板，JSONL 和 refs 是白板背后的材料袋。
 </div>
 
-<h2>Hermes 路径不是另一套记忆核心</h2>
-<div class="flow">
-  <div class="node"><div class="nt">Hermes</div><div class="nd">Python Agent lifecycle</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">memory_tencentdb provider</div><div class="nd">provider key 必须是下划线名</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">local Gateway</div><div class="nd">HTTP sidecar on 127.0.0.1:8420</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">StandaloneHostAdapter</div><div class="nd">隔离宿主差异</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">TdaiCore</div><div class="nd">capture / recall / search / pipeline</div></div>
+<h2>L0-L3 分层会落到哪些文件</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> 保存原始对话 JSONL，由 <span class="inline">src/core/conversation/l0-recorder.ts</span> 写入，负责保留最底层证据。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> 保存结构化记忆 JSONL，由 <span class="inline">src/core/record/l1-writer.ts</span> 写入，便于搜索和召回。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> 保存 Markdown 场景块，由 <span class="inline">src/core/scene/scene-extractor.ts</span> 聚合多条 L1 证据。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> 保存长期画像，由 <span class="inline">src/core/persona/persona-generator.ts</span> 从场景中生成稳定偏好和用户特征。</div></div>
 </div>
 
 <p>
-在 <span class="inline">hermes-plugin/memory/memory_tencentdb/README.md</span> 中，provider 被描述为“薄 HTTP client + process supervisor”：它负责接入 Hermes 生命周期、启动或探测 Gateway、把 <span class="inline">prefetch</span> 映射到 <span class="inline">POST /recall</span>，把 <span class="inline">sync_turn</span> 映射到 <span class="inline">POST /capture</span>，并提供搜索工具 schema。
-真正的捕获、抽取、存储、召回和管线调度仍在 Node.js Gateway 与核心模块中完成。
+本地长期记忆目录通常还会看到 <span class="inline">vectors.db</span>：它是本地 SQLite 向量/全文检索存储，入口可从 <span class="inline">src/core/store/factory.ts</span> 看存储后端如何创建。
+<span class="inline">.metadata/</span> 放 manifest、索引状态和检查点线索，对应 <span class="inline">src/utils/manifest.ts</span> 与 <span class="inline">src/utils/checkpoint.ts</span>；<span class="inline">.backup/</span> 用于备份，方便升级或调试前回滚。
+所以调试时不要只盯一个数据库文件：目录、JSONL、Markdown、metadata 和 backup 一起构成“可解释的记忆状态”。
 </p>
 
-<h2>两种安装路线：从零 Docker，还是挂到已有 Hermes</h2>
+<h2>长期记忆目录 vs Offload 目录</h2>
 <div class="cols">
-  <div class="col"><h4>Docker 全新部署</h4><p><span class="inline">README_CN.md</span> 的 Hermes 章节把 Docker 路线定位为“从零启动一个带记忆能力的 Hermes”。镜像把 <span class="inline">hermes-agent</span> 和 <span class="inline">memory_tencentdb</span> provider 聚合在一起，Gateway 暴露在 <span class="inline">8420</span> 端口。适合想先用一条容器路线验证完整能力的人。</p></div>
-  <div class="col"><h4>已有 Hermes 安装 provider</h4><p>如果机器上已经有 Hermes，就把 provider 链接或复制到 Hermes 的 memory provider 目录，并在 <span class="inline">~/.hermes/config.yaml</span> 中声明 <span class="inline">memory.provider: memory_tencentdb</span>。目录名必须正好是 <span class="inline">memory_tencentdb</span>，因为 Hermes 用目录名作为 provider key。</p></div>
+  <div class="col"><h4>长期记忆：跨会话复用</h4><p><span class="inline">memory-tdai/</span> 下的 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">persona.md</span>、<span class="inline">vectors.db</span>、<span class="inline">.metadata/</span>、<span class="inline">.backup/</span> 关注“未来会话还能不能记得、搜到、解释清楚”。它的证据链是 L3 -> L2 -> L1 -> L0。</p></div>
+  <div class="col"><h4>Context Offload：当前任务压缩</h4><p><span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span> 下会有 <span class="inline">refs/</span>、<span class="inline">mmds/</span>、<span class="inline">offload-&lt;session&gt;.jsonl</span>、<span class="inline">state.json</span>、<span class="inline">sessions-registry.json</span>。它关注“当前长任务如何把大块材料移出上下文，但仍能找回证据”。实现入口看 <span class="inline">src/offload/storage.ts</span>。</p></div>
 </div>
 
+<h2>最小文件形状</h2>
+<pre class="code">memory-tdai/
+  conversations/     # L0 raw messages
+  records/           # L1 atoms
+  scene_blocks/      # L2 scenes
+  persona.md         # L3 persona
+  vectors.db         # local search index
+
+context-offload/
+  &lt;agent&gt;/refs/
+  &lt;agent&gt;/mmds/
+  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+
 <p>
-无论从 Docker 进入，还是把 provider 挂到已有 Hermes，关键检查点都一样：Hermes 能发现 provider，provider 能连到本地 Gateway，Gateway 的 HTTP 路由能到达 <span class="inline">TdaiCore</span>。
-这也是为什么教程不把 Hermes 讲成“另一套内存系统”：它改变的是宿主集成和进程边界，不改变 L0-L3、Recall/Search 与管线核心。
+Offload 的 <span class="inline">refs/</span> 保存被卸载的大块原文或引用材料，<span class="inline">mmds/</span> 保存 Mermaid/MMD 任务图，<span class="inline">offload-&lt;session&gt;.jsonl</span> 记录会话内的卸载事件。
+<span class="inline">state.json</span> 维护当前状态，<span class="inline">sessions-registry.json</span> 则帮助按会话找到对应产物。MMD 适合先看全局任务结构，但如果节点描述和真实材料冲突，最终仍要回到 JSONL 与 refs。
 </p>
 
-<h2>最小伪代码</h2>
-<pre class="code">memory:
-  provider: memory_tencentdb
-
-MEMORY_TENCENTDB_GATEWAY_HOST="127.0.0.1"
-MEMORY_TENCENTDB_GATEWAY_PORT="8420"
-
-curl http://127.0.0.1:8420/health</pre>
-
-<p>
-示例只展示占位配置与本地地址。真实 LLM 凭据、Gateway API key、云数据库密码或团队 endpoint 都不应该出现在教程、截图或提交里。
-如果要启用鉴权，Gateway 端使用 <span class="inline">TDAI_GATEWAY_API_KEY</span> 或配置文件里的 <span class="inline">server.apiKey</span>；Hermes provider 作为客户端可以使用 <span class="inline">MEMORY_TENCENTDB_GATEWAY_API_KEY</span>。两边值要一致，但本课不写真实值。
-</p>
-
-<h2>Gateway 对外暴露什么</h2>
-<p>
-<span class="inline">src/gateway/server.ts</span> 标明 Gateway 是 Hermes sidecar 的 HTTP server：<span class="inline">GET /health</span> 用于健康检查，<span class="inline">POST /recall</span> 做模型回答前的记忆召回，<span class="inline">POST /capture</span> 捕获一轮对话，<span class="inline">POST /search/memories</span> 搜索 L1 结构化记忆，<span class="inline">POST /search/conversations</span> 搜索 L0 原始对话。
-<span class="inline">src/gateway/config.ts</span> 还提供 <span class="inline">server.apiKey</span> / <span class="inline">TDAI_GATEWAY_API_KEY</span> 和 <span class="inline">server.corsOrigins</span> / <span class="inline">TDAI_CORS_ORIGINS</span> 这类可选开关；默认重点是本地 sidecar，跨网络开放前才需要认真收紧鉴权与 CORS。
-</p>
-
-<h2>验证顺序</h2>
+<h2>下钻调试：先看结构，再找证据</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>先看 health check</h4><p>用 <span class="inline">curl http://127.0.0.1:8420/health</span> 确认 Gateway 已启动；文档里允许返回 <span class="inline">ok</span> 或 <span class="inline">degraded</span>。</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>再配置 provider</h4><p>确认 Hermes provider 目录名、<span class="inline">plugin.yaml::name</span> 和 <span class="inline">memory.provider</span> 都对齐到 <span class="inline">memory_tencentdb</span>。</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>第一轮对话启动或手动启动</h4><p>已有 Hermes 路线可以让 provider 在第一条对话时自动发现并 <span class="inline">Popen()</span> Gateway，也可以先手动运行 Gateway 再启动 Hermes。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>用 recall/search 验证闭环</h4><p>说出一个可复用偏好或项目事实，然后通过后续提问、记忆搜索或原始对话搜索确认它被捕获、可检索、能被召回。</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -> Scene</h4><p>如果用户说“画像不对”，先打开 <span class="inline">persona.md</span> 看具体 claim，再找它来自哪些 <span class="inline">scene_blocks/</span>。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -> Atom</h4><p>场景块只保结构和叙述，不是最终证据。继续到 <span class="inline">records/</span> 找 L1 Atom，核对事实、偏好、约束的抽取是否合理。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -> Conversation</h4><p>如果 L1 本身可疑，回到 <span class="inline">conversations/</span> 的 L0 JSONL，核对原始用户话语、时间和上下文。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -> offload JSONL -> refs</h4><p>如果长任务摘要或节点错了，先看 <span class="inline">mmds/</span> 的节点，再查 <span class="inline">offload-&lt;session&gt;.jsonl</span>，最后打开 <span class="inline">refs/</span> 里的原文材料。</p></div></div>
 </div>
 
 <div class="card detail">
-  <div class="tag">🔬 源码 / 文档地图</div>
+  <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">README_CN.md</span>：Hermes 安装章节、Docker 路线、已有 Hermes 路线、Gateway 安全配置。</li>
-    <li><span class="inline">hermes-plugin/memory/memory_tencentdb/README.md</span>：provider key、supervisor、HTTP 映射、自动发现与故障保护。</li>
-    <li><span class="inline">src/gateway/server.ts</span>：<span class="inline">/health</span>、<span class="inline">/recall</span>、<span class="inline">/capture</span>、<span class="inline">/search/*</span> 路由。</li>
-    <li><span class="inline">src/gateway/config.ts</span>：host、port、API key、CORS、Gateway 数据目录和 LLM 配置来源。</li>
-    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>：把 Gateway 这种 standalone 宿主适配成核心需要的 HostAdapter。</li>
-    <li><span class="inline">src/core/tdai-core.ts</span>：宿主无关门面，集中处理 recall、capture、search 与 pipeline。</li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：L0 对话 JSONL 写入。</li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>：L1 结构化记录写入。</li>
+    <li><span class="inline">src/core/scene/scene-extractor.ts</span>：L2 场景块抽取。</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>：L3 persona 生成。</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite/搜索存储创建。</li>
+    <li><span class="inline">src/offload/storage.ts</span>：context-offload 目录、refs、MMD、JSONL 和会话状态。</li>
+    <li><span class="inline">src/utils/manifest.ts</span>：manifest 元数据。</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：checkpoint 读写。</li>
   </ul>
-</div>
-
-<div class="card warn">
-  <div class="tag">🔒 安全边界</div>
-  本课只用占位符和本地回环地址。<span class="inline">GET /health</span> 设计为无需 token，便于 Docker healthcheck 或编排系统探活；其他 route 是否鉴权由 Gateway 端配置决定。若绑定到非 loopback 地址，必须先规划 API key、CORS 白名单和网络访问边界。
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  Hermes 是另一条宿主路径，不是另一套 memory engine。只要路径能从 <span class="inline">Hermes → memory_tencentdb provider → local Gateway → StandaloneHostAdapter → TdaiCore</span> 走通，后面的 L0/L1/L2/L3、Recall、Capture、Search 学习模型就和 OpenClaw 收敛到同一个核心。
+  运行产物是调试入口：长期记忆按 Persona -> Scene -> L1 Atom -> L0 Conversation 下钻，Offload 按 MMD node -> offload JSONL -> refs 下钻。高层帮你快速定位结构，低层负责给出可核对证据。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. Hermes 路径里，为什么目录名必须是 <code>memory_tencentdb</code>？</div>
+  <div class="qn">1. 如果想核对一条用户画像背后的原始证据，正确的下钻方向是什么？</div>
   <ol class="opts">
-    <li>Node.js 不支持连字符目录</li>
-    <li>这是 OpenClaw 的 hook 名称</li>
-    <li>SQLite 只能读取下划线目录</li>
-    <li>Hermes 用它作为 provider key</li>
+    <li>Offload MMD -> npm install</li>
+    <li>L0 -> 删除 records -> 重新启动</li>
+    <li>Persona -> Scene -> L1 Atom -> L0 Conversation</li>
+    <li>vectors.db -> README -> package.json</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。README 明确说明 Hermes 用目录名作为 provider key，连字符包名不能替代下划线 provider 名。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。本项目的核心是高层保结构、低层保证据；画像要通过场景、原子记忆回到原始对话。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>Hermes 和 OpenClaw 的入口不同，但为什么教程说它们复用同一个核心？</li>
+    <li>如果用户说“召回错了”，你会先打开哪个文件或目录？为什么？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-The Hermes path looks different from OpenClaw: one is a Python Agent memory provider, the other is an OpenClaw plugin and Gateway lifecycle.
-But it is not a different memory engine. Hermes is an alternate host entry: the provider translates Hermes recall, capture, and search calls into HTTP, sends them to the local Gateway, and the Gateway reaches the same <span class="inline">TdaiCore</span> through <span class="inline">StandaloneHostAdapter</span>.
+Runtime files are not hidden implementation details. They are a debugging map: when recall, persona, scenes, or long-task summaries look wrong, start with the high-level artifact to see what the system believes, then drill down to the evidence.
 </p>
 
 <div class="card analogy">
-  <div class="tag">🚪 Analogy</div>
-  OpenClaw and Hermes are two doors into the same library. The front desk differs: OpenClaw uses plugin hooks/tools; Hermes uses the <span class="inline">memory_tencentdb</span> provider.
-  Once inside, archiving, searching, recall, and shelf organization are handled by the same core service.
+  <div class="tag">🗺️ Analogy</div>
+  Think of the files as a detective case folder: persona and scenes are summaries, L1 atoms are evidence cards, L0 conversations are recordings; Offload MMDs are task boards, with JSONL and refs as the source bags behind them.
 </div>
 
-<h2>Hermes is not a second memory core</h2>
-<div class="flow">
-  <div class="node"><div class="nt">Hermes</div><div class="nd">Python Agent lifecycle</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">memory_tencentdb provider</div><div class="nd">provider key must use underscores</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">local Gateway</div><div class="nd">HTTP sidecar on 127.0.0.1:8420</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">StandaloneHostAdapter</div><div class="nd">isolates host differences</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">TdaiCore</div><div class="nd">capture / recall / search / pipeline</div></div>
+<h2>Where L0-L3 land on disk</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> stores raw conversation JSONL, written by <span class="inline">src/core/conversation/l0-recorder.ts</span>, and preserves bottom-level evidence.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> stores structured memory JSONL, written by <span class="inline">src/core/record/l1-writer.ts</span>, for search and recall.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> stores Markdown scene blocks, produced by <span class="inline">src/core/scene/scene-extractor.ts</span> from multiple L1 records.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> stores long-term persona, generated by <span class="inline">src/core/persona/persona-generator.ts</span> from scenes.</div></div>
 </div>
 
 <p>
-In <span class="inline">hermes-plugin/memory/memory_tencentdb/README.md</span>, the provider is described as a thin HTTP client plus process supervisor.
-It plugs into the Hermes lifecycle, starts or probes the Gateway, maps <span class="inline">prefetch</span> to <span class="inline">POST /recall</span>, maps <span class="inline">sync_turn</span> to <span class="inline">POST /capture</span>, and advertises search tool schemas.
-The real capture, extraction, storage, recall, and pipeline scheduling remain in the Node.js Gateway and core modules.
+The long-term memory directory usually also contains <span class="inline">vectors.db</span>, the local SQLite vector/full-text search store; use <span class="inline">src/core/store/factory.ts</span> to see how storage is created.
+<span class="inline">.metadata/</span> keeps manifest and checkpoint clues, connected to <span class="inline">src/utils/manifest.ts</span> and <span class="inline">src/utils/checkpoint.ts</span>; <span class="inline">.backup/</span> keeps backups for rollback before upgrades or debugging.
 </p>
 
-<h2>Two install routes: fresh Docker or existing Hermes</h2>
+<h2>Long-term memory vs Offload directories</h2>
 <div class="cols">
-  <div class="col"><h4>Fresh Docker deployment</h4><p>The Hermes section in <span class="inline">README_CN.md</span> positions Docker as the route for starting a memory-enabled Hermes from scratch. The image bundles <span class="inline">hermes-agent</span> and the <span class="inline">memory_tencentdb</span> provider, with the Gateway exposed on port <span class="inline">8420</span>. This is best when you want one container path to validate the complete loop.</p></div>
-  <div class="col"><h4>Install provider into existing Hermes</h4><p>If Hermes is already installed, link or copy the provider into Hermes's memory provider directory and set <span class="inline">memory.provider: memory_tencentdb</span> in <span class="inline">~/.hermes/config.yaml</span>. The directory name must be exactly <span class="inline">memory_tencentdb</span> because Hermes uses it as the provider key.</p></div>
+  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p>Under <span class="inline">memory-tdai/</span>, <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -> L2 -> L1 -> L0.</p></div>
+  <div class="col"><h4>Context Offload: current-task compression</h4><p>Under <span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span>, expect <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;session&gt;.jsonl</span>, <span class="inline">state.json</span>, and <span class="inline">sessions-registry.json</span>. It answers how the current long task moved large evidence out of context while keeping it recoverable. See <span class="inline">src/offload/storage.ts</span>.</p></div>
 </div>
 
+<h2>Minimal file shape</h2>
+<pre class="code">memory-tdai/
+  conversations/     # L0 raw messages
+  records/           # L1 atoms
+  scene_blocks/      # L2 scenes
+  persona.md         # L3 persona
+  vectors.db         # local search index
+
+context-offload/
+  &lt;agent&gt;/refs/
+  &lt;agent&gt;/mmds/
+  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+
 <p>
-Whether you enter through Docker or an existing Hermes install, the checkpoints are the same: Hermes discovers the provider, the provider reaches the local Gateway, and the Gateway HTTP routes reach <span class="inline">TdaiCore</span>.
-That is why the guide does not treat Hermes as a separate memory system: it changes host integration and process boundaries, not the L0-L3, Recall/Search, or pipeline core.
+Offload <span class="inline">refs/</span> keep large source text or referenced material; <span class="inline">mmds/</span> keep Mermaid/MMD task diagrams; <span class="inline">offload-&lt;session&gt;.jsonl</span> records offload events for the session.
+<span class="inline">state.json</span> tracks current state, and <span class="inline">sessions-registry.json</span> helps find artifacts by session.
 </p>
 
-<h2>Pseudocode</h2>
-<pre class="code">memory:
-  provider: memory_tencentdb
-
-MEMORY_TENCENTDB_GATEWAY_HOST="127.0.0.1"
-MEMORY_TENCENTDB_GATEWAY_PORT="8420"
-
-curl http://127.0.0.1:8420/health</pre>
-
-<p>
-The example uses placeholders and a loopback address only. Real LLM credentials, Gateway API keys, cloud database passwords, and private team endpoints do not belong in guide examples, screenshots, or commits.
-If authentication is enabled, the Gateway side uses <span class="inline">TDAI_GATEWAY_API_KEY</span> or <span class="inline">server.apiKey</span>; the Hermes provider, as the client, can use <span class="inline">MEMORY_TENCENTDB_GATEWAY_API_KEY</span>. They must match, but this lesson never shows a real value.
-</p>
-
-<h2>What the Gateway exposes</h2>
-<p>
-<span class="inline">src/gateway/server.ts</span> marks the Gateway as the HTTP server for the Hermes sidecar: <span class="inline">GET /health</span> is the health check, <span class="inline">POST /recall</span> performs memory recall before the model turn, <span class="inline">POST /capture</span> captures a conversation turn, <span class="inline">POST /search/memories</span> searches L1 structured memories, and <span class="inline">POST /search/conversations</span> searches L0 raw conversations.
-<span class="inline">src/gateway/config.ts</span> also exposes optional knobs such as <span class="inline">server.apiKey</span> / <span class="inline">TDAI_GATEWAY_API_KEY</span> and <span class="inline">server.corsOrigins</span> / <span class="inline">TDAI_CORS_ORIGINS</span>. The default learning path is a local sidecar; auth and CORS become critical when you expose it beyond loopback.
-</p>
-
-<h2>Verification order</h2>
+<h2>Drill-down debugging: structure first, evidence second</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Start with health check</h4><p>Use <span class="inline">curl http://127.0.0.1:8420/health</span> to confirm the Gateway is up; the docs allow <span class="inline">ok</span> or <span class="inline">degraded</span>.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Configure the provider</h4><p>Confirm the Hermes provider directory name, <span class="inline">plugin.yaml::name</span>, and <span class="inline">memory.provider</span> all align on <span class="inline">memory_tencentdb</span>.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Auto-start on first conversation or start manually</h4><p>In the existing-Hermes route, the provider can auto-discover and <span class="inline">Popen()</span> the Gateway on the first conversation, or you can run the Gateway before launching Hermes.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>Verify with recall/search</h4><p>State a reusable preference or project fact, then use a later question, memory search, or conversation search to confirm it was captured, indexed, and recalled.</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -> Scene</h4><p>If the user says "the persona is wrong", open <span class="inline">persona.md</span> for the specific claim, then find the related <span class="inline">scene_blocks/</span>.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -> Atom</h4><p>A scene keeps structure and narrative, not final proof. Continue to <span class="inline">records/</span> and inspect the L1 atom extraction.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -> Conversation</h4><p>If the atom is suspicious, return to <span class="inline">conversations/</span> L0 JSONL and verify the raw user words, time, and context.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -> offload JSONL -> refs</h4><p>If a long-task node is wrong, inspect the <span class="inline">mmds/</span> node, then <span class="inline">offload-&lt;session&gt;.jsonl</span>, then the raw material in <span class="inline">refs/</span>.</p></div></div>
 </div>
 
 <div class="card detail">
-  <div class="tag">🔬 Source map</div>
+  <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">README_CN.md</span>: Hermes install section, Docker route, existing-Hermes route, and Gateway security configuration.</li>
-    <li><span class="inline">hermes-plugin/memory/memory_tencentdb/README.md</span>: provider key, supervisor, HTTP mapping, auto-discovery, and reliability guards.</li>
-    <li><span class="inline">src/gateway/server.ts</span>: <span class="inline">/health</span>, <span class="inline">/recall</span>, <span class="inline">/capture</span>, and <span class="inline">/search/*</span> routes.</li>
-    <li><span class="inline">src/gateway/config.ts</span>: host, port, API key, CORS, Gateway data directory, and LLM config sources.</li>
-    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>: adapts a standalone Gateway host into the HostAdapter shape required by the core.</li>
-    <li><span class="inline">src/core/tdai-core.ts</span>: host-neutral facade for recall, capture, search, and pipeline management.</li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: L0 conversation JSONL.</li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>: L1 structured records.</li>
+    <li><span class="inline">src/core/scene/scene-extractor.ts</span>: L2 scene extraction.</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>: L3 persona generation.</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite/search store creation.</li>
+    <li><span class="inline">src/offload/storage.ts</span>: context-offload directory, refs, MMDs, JSONL, and session state.</li>
+    <li><span class="inline">src/utils/manifest.ts</span>: manifest metadata.</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: checkpoint reads and writes.</li>
   </ul>
-</div>
-
-<div class="card warn">
-  <div class="tag">🔒 Security boundary</div>
-  This lesson uses placeholders and loopback addresses only. <span class="inline">GET /health</span> is intentionally token-free for Docker health checks or orchestrator liveness probes; authentication for other routes is controlled by Gateway-side config. If you bind beyond loopback, plan the API key, CORS allow-list, and network boundary first.
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Hermes is an alternate host path, not another memory engine. Once the path <span class="inline">Hermes → memory_tencentdb provider → local Gateway → StandaloneHostAdapter → TdaiCore</span> works, the L0/L1/L2/L3, Recall, Capture, and Search mental model converges with OpenClaw on the same core.
+  Runtime artifacts are debugging entry points: long-term memory drills down Persona -> Scene -> L1 Atom -> L0 Conversation, while Offload drills down MMD node -> offload JSONL -> refs. Upper layers locate structure; lower layers provide verifiable evidence.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. In the Hermes path, why must the directory name be <code>memory_tencentdb</code>?</div>
+  <div class="qn">1. To verify raw evidence behind a persona claim, which drill-down direction is correct?</div>
   <ol class="opts">
-    <li>Node.js does not support hyphenated directories</li>
-    <li>It is the OpenClaw hook name</li>
-    <li>SQLite can only read underscored directories</li>
-    <li>Hermes uses it as the provider key</li>
+    <li>Offload MMD -> npm install</li>
+    <li>L0 -> delete records -> restart</li>
+    <li>Persona -> Scene -> L1 Atom -> L0 Conversation</li>
+    <li>vectors.db -> README -> package.json</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. The README states Hermes uses the directory name as the provider key; the hyphenated package name cannot replace the underscored provider name.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. The project keeps structure in upper layers and evidence in lower layers; a persona claim drills down through scenes and atoms to raw conversation.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>Hermes and OpenClaw enter through different paths, so why does the guide say they reuse the same core?</li>
+    <li>If a user says recall is wrong, which file or directory would you open first, and why?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="04-openclaw-zero-config.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">OpenClaw 零配置闭环</span><span class="lang-en">OpenClaw zero-config loop</span></div></a><a class="next" href="06-runtime-files.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">运行后会出现哪些文件</span><span class="lang-en">Runtime files and data products</span></div></a></div>
+  <div class="footnav"><a class="prev" href="05-hermes-gateway-path.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

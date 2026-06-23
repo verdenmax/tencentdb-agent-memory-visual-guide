@@ -162,6 +162,24 @@ QUIZZES = {
             {"zh": "Hermes 和 OpenClaw 的入口不同，但为什么教程说它们复用同一个核心？", "en": "Hermes and OpenClaw enter through different paths, so why does the guide say they reuse the same core?"}
         ],
     },
+    "06-runtime-files.html": {
+        "mcq": [
+            {
+                "q": {"zh": "如果想核对一条用户画像背后的原始证据，正确的下钻方向是什么？", "en": "To verify raw evidence behind a persona claim, which drill-down direction is correct?"},
+                "opts": [
+                    {"zh": "Persona -> Scene -> L1 Atom -> L0 Conversation", "en": "Persona -> Scene -> L1 Atom -> L0 Conversation"},
+                    {"zh": "vectors.db -> README -> package.json", "en": "vectors.db -> README -> package.json"},
+                    {"zh": "L0 -> 删除 records -> 重新启动", "en": "L0 -> delete records -> restart"},
+                    {"zh": "Offload MMD -> npm install", "en": "Offload MMD -> npm install"},
+                ],
+                "answer": 0,
+                "why": {"zh": "本项目的核心是高层保结构、低层保证据；画像要通过场景、原子记忆回到原始对话。", "en": "The project keeps structure in upper layers and evidence in lower layers; a persona claim drills down through scenes and atoms to raw conversation."},
+            }
+        ],
+        "open": [
+            {"zh": "如果用户说“召回错了”，你会先打开哪个文件或目录？为什么？", "en": "If a user says recall is wrong, which file or directory would you open first, and why?"}
+        ],
+    },
 }
 
 

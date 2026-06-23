@@ -56,6 +56,8 @@ PAGES = [
      "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
     ("05-hermes-gateway-path.html", "Hermes 与 Gateway 路径", "Hermes and Gateway path",
      "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
+    ("06-runtime-files.html", "运行后会出现哪些文件", "Runtime files and data products",
+     "第二部分 · 最小运行闭环", "Part 2 · Minimal working loop"),
 ]
 
 def bi(zh, en):
@@ -499,6 +501,8 @@ SUBTITLES = {
                                     "install plugin, enable config, restart Gateway, verify L0/L1 and Recall first"),
     "05-hermes-gateway-path.html": ("Hermes provider 通过本地 Gateway 复用同一个 TdaiCore",
                                     "the Hermes provider reuses the same TdaiCore through a local Gateway"),
+    "06-runtime-files.html": ("conversations、records、scene_blocks、persona、vectors.db、context-offload",
+                              "conversations, records, scene_blocks, persona, vectors.db, context-offload"),
 }
 
 def index_page(lesson_prefix="lessons/"):

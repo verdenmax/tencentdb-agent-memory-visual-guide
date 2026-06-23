@@ -353,3 +353,154 @@ If authentication is enabled, the Gateway side uses <span class="inline">TDAI_GA
 """,
 }
 
+LESSON_06 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+运行后的文件不是隐藏实现细节，而是一张调试地图：当召回、画像、场景或长任务摘要看起来不对时，先看高层产物理解系统“相信了什么”，再一路下钻到低层证据确认它为什么这么相信。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🗺️ 生活类比</div>
+  这些目录像侦探案卷：画像和场景是案情摘要，L1 原子记忆是证词卡片，L0 对话是原始录音；Offload 的 MMD 是任务白板，JSONL 和 refs 是白板背后的材料袋。
+</div>
+
+<h2>L0-L3 分层会落到哪些文件</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> 保存原始对话 JSONL，由 <span class="inline">src/core/conversation/l0-recorder.ts</span> 写入，负责保留最底层证据。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> 保存结构化记忆 JSONL，由 <span class="inline">src/core/record/l1-writer.ts</span> 写入，便于搜索和召回。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> 保存 Markdown 场景块，由 <span class="inline">src/core/scene/scene-extractor.ts</span> 聚合多条 L1 证据。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> 保存长期画像，由 <span class="inline">src/core/persona/persona-generator.ts</span> 从场景中生成稳定偏好和用户特征。</div></div>
+</div>
+
+<p>
+本地长期记忆目录通常还会看到 <span class="inline">vectors.db</span>：它是本地 SQLite 向量/全文检索存储，入口可从 <span class="inline">src/core/store/factory.ts</span> 看存储后端如何创建。
+<span class="inline">.metadata/</span> 放 manifest、索引状态和检查点线索，对应 <span class="inline">src/utils/manifest.ts</span> 与 <span class="inline">src/utils/checkpoint.ts</span>；<span class="inline">.backup/</span> 用于备份，方便升级或调试前回滚。
+所以调试时不要只盯一个数据库文件：目录、JSONL、Markdown、metadata 和 backup 一起构成“可解释的记忆状态”。
+</p>
+
+<h2>长期记忆目录 vs Offload 目录</h2>
+<div class="cols">
+  <div class="col"><h4>长期记忆：跨会话复用</h4><p><span class="inline">memory-tdai/</span> 下的 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">persona.md</span>、<span class="inline">vectors.db</span>、<span class="inline">.metadata/</span>、<span class="inline">.backup/</span> 关注“未来会话还能不能记得、搜到、解释清楚”。它的证据链是 L3 -> L2 -> L1 -> L0。</p></div>
+  <div class="col"><h4>Context Offload：当前任务压缩</h4><p><span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span> 下会有 <span class="inline">refs/</span>、<span class="inline">mmds/</span>、<span class="inline">offload-&lt;session&gt;.jsonl</span>、<span class="inline">state.json</span>、<span class="inline">sessions-registry.json</span>。它关注“当前长任务如何把大块材料移出上下文，但仍能找回证据”。实现入口看 <span class="inline">src/offload/storage.ts</span>。</p></div>
+</div>
+
+<h2>最小文件形状</h2>
+<pre class="code">memory-tdai/
+  conversations/     # L0 raw messages
+  records/           # L1 atoms
+  scene_blocks/      # L2 scenes
+  persona.md         # L3 persona
+  vectors.db         # local search index
+
+context-offload/
+  &lt;agent&gt;/refs/
+  &lt;agent&gt;/mmds/
+  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+
+<p>
+Offload 的 <span class="inline">refs/</span> 保存被卸载的大块原文或引用材料，<span class="inline">mmds/</span> 保存 Mermaid/MMD 任务图，<span class="inline">offload-&lt;session&gt;.jsonl</span> 记录会话内的卸载事件。
+<span class="inline">state.json</span> 维护当前状态，<span class="inline">sessions-registry.json</span> 则帮助按会话找到对应产物。MMD 适合先看全局任务结构，但如果节点描述和真实材料冲突，最终仍要回到 JSONL 与 refs。
+</p>
+
+<h2>下钻调试：先看结构，再找证据</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -> Scene</h4><p>如果用户说“画像不对”，先打开 <span class="inline">persona.md</span> 看具体 claim，再找它来自哪些 <span class="inline">scene_blocks/</span>。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -> Atom</h4><p>场景块只保结构和叙述，不是最终证据。继续到 <span class="inline">records/</span> 找 L1 Atom，核对事实、偏好、约束的抽取是否合理。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -> Conversation</h4><p>如果 L1 本身可疑，回到 <span class="inline">conversations/</span> 的 L0 JSONL，核对原始用户话语、时间和上下文。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -> offload JSONL -> refs</h4><p>如果长任务摘要或节点错了，先看 <span class="inline">mmds/</span> 的节点，再查 <span class="inline">offload-&lt;session&gt;.jsonl</span>，最后打开 <span class="inline">refs/</span> 里的原文材料。</p></div></div>
+</div>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：L0 对话 JSONL 写入。</li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>：L1 结构化记录写入。</li>
+    <li><span class="inline">src/core/scene/scene-extractor.ts</span>：L2 场景块抽取。</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>：L3 persona 生成。</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite/搜索存储创建。</li>
+    <li><span class="inline">src/offload/storage.ts</span>：context-offload 目录、refs、MMD、JSONL 和会话状态。</li>
+    <li><span class="inline">src/utils/manifest.ts</span>：manifest 元数据。</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：checkpoint 读写。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  运行产物是调试入口：长期记忆按 Persona -> Scene -> L1 Atom -> L0 Conversation 下钻，Offload 按 MMD node -> offload JSONL -> refs 下钻。高层帮你快速定位结构，低层负责给出可核对证据。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Runtime files are not hidden implementation details. They are a debugging map: when recall, persona, scenes, or long-task summaries look wrong, start with the high-level artifact to see what the system believes, then drill down to the evidence.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🗺️ Analogy</div>
+  Think of the files as a detective case folder: persona and scenes are summaries, L1 atoms are evidence cards, L0 conversations are recordings; Offload MMDs are task boards, with JSONL and refs as the source bags behind them.
+</div>
+
+<h2>Where L0-L3 land on disk</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> stores raw conversation JSONL, written by <span class="inline">src/core/conversation/l0-recorder.ts</span>, and preserves bottom-level evidence.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> stores structured memory JSONL, written by <span class="inline">src/core/record/l1-writer.ts</span>, for search and recall.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> stores Markdown scene blocks, produced by <span class="inline">src/core/scene/scene-extractor.ts</span> from multiple L1 records.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> stores long-term persona, generated by <span class="inline">src/core/persona/persona-generator.ts</span> from scenes.</div></div>
+</div>
+
+<p>
+The long-term memory directory usually also contains <span class="inline">vectors.db</span>, the local SQLite vector/full-text search store; use <span class="inline">src/core/store/factory.ts</span> to see how storage is created.
+<span class="inline">.metadata/</span> keeps manifest and checkpoint clues, connected to <span class="inline">src/utils/manifest.ts</span> and <span class="inline">src/utils/checkpoint.ts</span>; <span class="inline">.backup/</span> keeps backups for rollback before upgrades or debugging.
+</p>
+
+<h2>Long-term memory vs Offload directories</h2>
+<div class="cols">
+  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p>Under <span class="inline">memory-tdai/</span>, <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -> L2 -> L1 -> L0.</p></div>
+  <div class="col"><h4>Context Offload: current-task compression</h4><p>Under <span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span>, expect <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;session&gt;.jsonl</span>, <span class="inline">state.json</span>, and <span class="inline">sessions-registry.json</span>. It answers how the current long task moved large evidence out of context while keeping it recoverable. See <span class="inline">src/offload/storage.ts</span>.</p></div>
+</div>
+
+<h2>Minimal file shape</h2>
+<pre class="code">memory-tdai/
+  conversations/     # L0 raw messages
+  records/           # L1 atoms
+  scene_blocks/      # L2 scenes
+  persona.md         # L3 persona
+  vectors.db         # local search index
+
+context-offload/
+  &lt;agent&gt;/refs/
+  &lt;agent&gt;/mmds/
+  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+
+<p>
+Offload <span class="inline">refs/</span> keep large source text or referenced material; <span class="inline">mmds/</span> keep Mermaid/MMD task diagrams; <span class="inline">offload-&lt;session&gt;.jsonl</span> records offload events for the session.
+<span class="inline">state.json</span> tracks current state, and <span class="inline">sessions-registry.json</span> helps find artifacts by session.
+</p>
+
+<h2>Drill-down debugging: structure first, evidence second</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -> Scene</h4><p>If the user says "the persona is wrong", open <span class="inline">persona.md</span> for the specific claim, then find the related <span class="inline">scene_blocks/</span>.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -> Atom</h4><p>A scene keeps structure and narrative, not final proof. Continue to <span class="inline">records/</span> and inspect the L1 atom extraction.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -> Conversation</h4><p>If the atom is suspicious, return to <span class="inline">conversations/</span> L0 JSONL and verify the raw user words, time, and context.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -> offload JSONL -> refs</h4><p>If a long-task node is wrong, inspect the <span class="inline">mmds/</span> node, then <span class="inline">offload-&lt;session&gt;.jsonl</span>, then the raw material in <span class="inline">refs/</span>.</p></div></div>
+</div>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: L0 conversation JSONL.</li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>: L1 structured records.</li>
+    <li><span class="inline">src/core/scene/scene-extractor.ts</span>: L2 scene extraction.</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>: L3 persona generation.</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite/search store creation.</li>
+    <li><span class="inline">src/offload/storage.ts</span>: context-offload directory, refs, MMDs, JSONL, and session state.</li>
+    <li><span class="inline">src/utils/manifest.ts</span>: manifest metadata.</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: checkpoint reads and writes.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Runtime artifacts are debugging entry points: long-term memory drills down Persona -> Scene -> L1 Atom -> L0 Conversation, while Offload drills down MMD node -> offload JSONL -> refs. Upper layers locate structure; lower layers provide verifiable evidence.
+</div>
+""",
+}
