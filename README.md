@@ -1,6 +1,6 @@
 # TencentDB Agent Memory Visual Guide / TencentDB Agent Memory 图解学习指南
 
-A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory). It starts from one conversation's data flow and builds up to L0-L3 long-term memory, recall/search, context offload, and host integration.
+A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory). It starts from one conversation's data flow and is planned to build up to L0-L3 long-term memory, recall/search, context offload, and host integration.
 
 > This is standalone educational material about TencentDB Agent Memory. It explains the project with diagrams, pseudocode, and small cited source references.
 
@@ -47,7 +47,7 @@ lessons/         generated lesson pages
 index.html       generated table of contents
 print_zh.html    generated Chinese print edition
 print_en.html    generated English print edition
-docs/superpowers approved design spec
+docs/superpowers/specs/ approved design spec
 ```
 
 ## License
