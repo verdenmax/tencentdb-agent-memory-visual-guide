@@ -14,4 +14,5 @@ CONTENT = {
     "08-openclaw-plugin-shell.html": part3.LESSON_08,
     "09-tdai-core-facade.html": part3.LESSON_09,
     "10-host-adapter-boundaries.html": part3.LESSON_10,
+    "11-runtime-init-config.html": part3.LESSON_11,
 }

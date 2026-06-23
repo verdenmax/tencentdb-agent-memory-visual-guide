@@ -66,6 +66,8 @@ PAGES = [
      "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
     ("10-host-adapter-boundaries.html", "HostAdapter 与 LLMRunner 边界", "HostAdapter and LLMRunner boundaries",
      "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
+    ("11-runtime-init-config.html", "运行时初始化与配置解析", "Runtime init and config parsing",
+     "第三部分 · Hooks、Adapters 与 TdaiCore", "Part 3 · Hooks, adapters, and TdaiCore"),
 ]
 
 def bi(zh, en):
@@ -519,6 +521,8 @@ SUBTITLES = {
                                  "handleBeforeRecall, handleTurnCommitted, search, scheduler lifecycle"),
     "10-host-adapter-boundaries.html": ("宿主上下文、日志、LLM 执行、数据目录都通过 adapter 隔离",
                                        "host context, logging, LLM execution, and data dirs are isolated by adapters"),
+    "11-runtime-init-config.html": ("parseConfig、默认值、目录初始化、store/backend/offload 接线",
+                                   "parseConfig, defaults, directories, store/backend/offload wiring"),
 }
 
 def index_page(lesson_prefix="lessons/"):

@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>11 · 运行时初始化与配置解析 / Runtime init and config parsing - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜运行时初始化与配置解析 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="11 · 运行时初始化与配置解析 / Runtime init and config parsing - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜运行时初始化与配置解析 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="11 · 运行时初始化与配置解析 / Runtime init and config parsing - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜运行时初始化与配置解析 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,209 +317,213 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></span>
-    <span class="pill">06 / 11</span>
+    <span class="pill"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></span>
+    <span class="pill">11 / 11</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:54%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></div>
-    <h1><span class="lang-zh">运行后会出现哪些文件</span><span class="lang-en">Runtime files and data products</span></h1>
+    <div class="part"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></div>
+    <h1><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-运行后的文件不是隐藏实现细节，而是一张调试地图：当召回、画像、场景或长任务摘要看起来不对时，先看高层产物理解系统“相信了什么”，再一路下钻到低层证据确认它为什么这么相信。
+本课把前几课的“入口壳、adapter、core”串到启动顺序上：OpenClaw 给插件一份原始 <span class="inline">api.pluginConfig</span>，
+<span class="inline">index.ts</span> 每次注册只解析一次，随后用统一的 <span class="inline">cfg</span> 初始化时间、目录、存储和 <span class="inline">TdaiCore</span>。
 </p>
 
 <div class="card analogy">
-  <div class="tag">🗺️ 生活类比</div>
-  这些目录像侦探案卷：画像和场景是案情摘要，L1 原子记忆是证词卡片，L0 对话是原始录音；Offload 的 MMD 是任务白板，JSONL 和 refs 是白板背后的材料袋。
+  <div class="tag">🧩 生活类比</div>
+  开店前先看当天排班表：店长只读一次排班表，把默认岗位补齐，再依次开门、清点库房、接好收银系统，最后才开始接待客人。
+  运行时初始化也是这样：配置先变成稳定对象，目录和存储先准备好，hooks 才能安全处理真实对话。
 </div>
 
-<h2>L0-L3 分层会落到哪些文件</h2>
-<div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> 保存原始对话 JSONL，由 <span class="inline">src/core/conversation/l0-recorder.ts</span> 写入，负责保留最底层证据。</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> 保存结构化记忆 JSONL，由 <span class="inline">src/core/record/l1-writer.ts</span> 写入，便于搜索和召回。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> 保存 Markdown 场景块，由 <span class="inline">src/core/scene/scene-extractor.ts</span> 聚合多条 L1 证据。</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> 保存长期画像，由 <span class="inline">src/core/persona/persona-generator.ts</span> 从场景中生成稳定偏好和用户特征。</div></div>
-</div>
-
-<p>
-本地长期记忆目录通常还会看到 <span class="inline">vectors.db</span>：它是本地 SQLite 向量/全文检索存储，入口可从 <span class="inline">src/core/store/factory.ts</span> 看存储后端如何创建。
-<span class="inline">.metadata/</span> 放 manifest、索引状态和检查点线索，对应 <span class="inline">src/utils/manifest.ts</span> 与 <span class="inline">src/utils/checkpoint.ts</span>；<span class="inline">.backup/</span> 用于备份，方便升级或调试前回滚。
-所以调试时不要只盯一个数据库文件：目录、JSONL、Markdown、metadata 和 backup 一起构成“可解释的记忆状态”。
-</p>
-
-<h2>长期记忆目录 vs Offload 目录</h2>
-<div class="cols">
-  <div class="col"><h4>长期记忆：跨会话复用</h4><p><span class="inline">memory-tdai/</span> 位于解析后的 OpenClaw state dir 下，常见完整路径是 <span class="inline">~/.openclaw/state/memory-tdai/</span>；standalone 或 fallback 路径可能不同。里面的 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">persona.md</span>、<span class="inline">vectors.db</span>、<span class="inline">.metadata/</span>、<span class="inline">.backup/</span> 关注“未来会话还能不能记得、搜到、解释清楚”。它的证据链是 L3 -&gt; L2 -&gt; L1 -&gt; L0。</p></div>
-  <div class="col"><h4>Context Offload：当前任务压缩</h4><p><span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span> 下会有 <span class="inline">refs/</span>、<span class="inline">mmds/</span>、<span class="inline">offload-&lt;session&gt;.jsonl</span>、<span class="inline">state.json</span>、<span class="inline">sessions-registry.json</span>。它关注“当前长任务如何把大块材料移出上下文，但仍能找回证据”。实现入口看 <span class="inline">src/offload/storage.ts</span>。</p></div>
-</div>
-
-<h2>最小文件形状</h2>
-<pre class="code">memory-tdai/
-  conversations/     # L0 raw messages
-  records/           # L1 atoms
-  scene_blocks/      # L2 scenes
-  persona.md         # L3 persona
-  vectors.db         # local search index
-
-context-offload/
-  &lt;agent&gt;/refs/
-  &lt;agent&gt;/mmds/
-  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
-
-<p>
-Offload 的 <span class="inline">refs/</span> 保存被卸载的大块原文或引用材料，<span class="inline">mmds/</span> 保存 Mermaid/MMD 任务图，<span class="inline">offload-&lt;session&gt;.jsonl</span> 记录会话内的卸载事件。
-<span class="inline">state.json</span> 维护当前状态，<span class="inline">sessions-registry.json</span> 则帮助按会话找到对应产物。MMD 适合先看全局任务结构，但如果节点描述和真实材料冲突，最终仍要回到 JSONL 与 refs。
-</p>
-
-<h2>下钻调试：先看结构，再找证据</h2>
+<h2>启动主线：原始配置到 hooks</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -&gt; Scene</h4><p>如果用户说“画像不对”，先打开 <span class="inline">persona.md</span> 看具体 claim，再找它来自哪些 <span class="inline">scene_blocks/</span>。</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -&gt; Atom</h4><p>场景块只保结构和叙述，不是最终证据。继续到 <span class="inline">records/</span> 找 L1 Atom，核对事实、偏好、约束的抽取是否合理。</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -&gt; Conversation</h4><p>如果 L1 本身可疑，回到 <span class="inline">conversations/</span> 的 L0 JSONL，核对原始用户话语、时间和上下文。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -&gt; offload JSONL -&gt; refs</h4><p>如果长任务摘要或节点错了，先看 <span class="inline">mmds/</span> 的节点，再查 <span class="inline">offload-&lt;session&gt;.jsonl</span>，最后打开 <span class="inline">refs/</span> 里的原文材料。</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> 从 <span class="inline">api.pluginConfig</span> 取得原始对象，并记录收到的 key 数量。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> 把用户配置与默认值合并成 <span class="inline">MemoryTdaiConfig</span>，本次 register 后续都复用它。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> 选出 OpenClaw state 目录；<span class="inline">initDataDirectories</span> 创建 conversations、records、scene_blocks、.metadata 和 .backup。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>store bundle</h4><p><span class="inline">initStores</span> 调 <span class="inline">createStoreBundle</span>，并写入或比较 manifest，必要时标记 reindex。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>core / hooks</h4><p>目录和 store 准备后，<span class="inline">TdaiCore</span> 初始化 pipeline manager，OpenClaw hooks/tools 才把请求转给 core。</p></div></div>
 </div>
+
+<p>
+注意“每次注册解析一次”并不等于全进程只解析一次。OpenClaw 可能因为插件扫描、Gateway 启动、channel bootstrap 或配置 reload 多次调用
+<span class="inline">register(api)</span>；每次调用都收到完整配置，所以入口直接解析当前 raw object，避免复用过期配置。
+</p>
+
+<h2>零配置与高级配置的差别</h2>
+<div class="cols">
+  <div class="col"><h4>零配置</h4><p><span class="inline">parseConfig(undefined)</span> 或 <span class="inline">{}</span> 仍会启动：capture、extraction、pipeline、recall 默认启用；SQLite 是默认 store；embedding provider 为 none，因此向量能力禁用但主对话不被阻塞；offload 默认关闭。</p></div>
+  <div class="col"><h4>高级配置</h4><p>用户可以按组覆盖 capture、extraction、pipeline、recall、persona、embedding、offload、store、report、llm、bm25、tcvdb 等行为。远程 embedding 字段不完整时，配置保留错误消息并降级为无 embedding。</p></div>
+</div>
+
+<h2>配置组分别喂给谁</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lh"><span class="badge">Entry</span><span class="name">timezone / report / offload</span></div><div class="ld">入口先用 timezone 初始化时间模块，用 report 控制上报行为，并仅在 offload.enabled 为 true 时注册 Context Offload。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Core</span><span class="name">capture / extraction / pipeline / recall / persona</span></div><div class="ld">这些组决定是否捕获 L0、如何抽取 L1、scheduler 何时跑、召回数量/超时/策略，以及 L2/L3 画像生成节奏。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend 决定 SQLite 还是 TCVDB；SQLite 再按 embedding 配置决定是否创建远程 embedding service；TCVDB 使用服务端 embedding 与可选 BM25。</div></div>
+</div>
+
+<h2>目录、manifest 与 checkpoint 为什么先初始化</h2>
+<p>
+<span class="inline">initDataDirectories(dataDir)</span> 先把运行时目录建好，后续 L0 JSONL、L1 records、scene blocks、metadata 和备份才有稳定落点。
+<span class="inline">initStores</span> 初始化 store 后会维护 manifest：首次写入 store binding，之后比较当前配置是否和已绑定后端不同。
+pipeline 工作时再通过 <span class="inline">CheckpointManager</span> 读取和更新游标，确保抽取、场景和画像任务能从已处理位置继续。
+</p>
+
+<h2>伪代码</h2>
+<pre class="code">raw = api.pluginConfig
+cfg = parseConfig(raw)
+initTimeModule(cfg.timezone)
+initDataDirectories(dataDir)
+store = createStoreBundle(cfg)
+core = new TdaiCore(adapter, cfg)</pre>
+
+<p>
+这段伪代码省略了日志、hook policy、adapter 创建和异步 store cache，但保留了关键顺序：先把 raw config 固化为 cfg，再准备运行目录和 store bundle，
+最后创建 core 并注册 hooks。offload 是旁路能力：只有 <span class="inline">cfg.offload.enabled</span> 为真，入口才调用 <span class="inline">registerOffload(api, cfg.offload)</span>。
+</p>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：L0 对话 JSONL 写入。</li>
-    <li><span class="inline">src/core/record/l1-writer.ts</span>：L1 结构化记录写入。</li>
-    <li><span class="inline">src/core/scene/scene-extractor.ts</span>：L2 场景块抽取。</li>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>：L3 persona 生成。</li>
-    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite/搜索存储创建。</li>
-    <li><span class="inline">src/offload/storage.ts</span>：context-offload 目录、refs、MMD、JSONL 和会话状态。</li>
-    <li><span class="inline">src/utils/manifest.ts</span>：manifest 元数据。</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>：checkpoint 读写。</li>
+    <li><span class="inline">src/config.ts</span>：<span class="inline">parseConfig</span>、配置接口与默认值</li>
+    <li><span class="inline">index.ts</span>：读取 <span class="inline">api.pluginConfig</span>、配置日志、初始化时间和目录、条件注册 offload</li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>：<span class="inline">initDataDirectories</span>、<span class="inline">initStores</span>、<span class="inline">createPipelineManager</span></li>
+    <li><span class="inline">src/core/store/factory.ts</span>：<span class="inline">createStoreBundle</span> 按 storeBackend 与 embedding 配置选后端</li>
+    <li><span class="inline">src/utils/openclaw-state-dir.ts</span>：OpenClaw state 目录解析与 fallback</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  运行产物是调试入口：长期记忆按 Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation 下钻，Offload 按 MMD node -&gt; offload JSONL -&gt; refs 下钻。高层帮你快速定位结构，低层负责给出可核对证据。
+  运行时初始化的核心不是“读很多配置”，而是把配置稳定化、把默认值补齐、把目录与 store 先接好。
+  这样零配置能安全启动，高级配置能精确影响各功能组，offload 和 embedding 不完整时也能降级而不阻塞主对话。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. 如果想核对一条用户画像背后的原始证据，正确的下钻方向是什么？</div>
+  <div class="qn">1. 为什么零配置能启动？</div>
   <ol class="opts">
-    <li>Offload MMD -&gt; npm install</li>
-    <li>L0 -&gt; 删除 records -&gt; 重新启动</li>
-    <li>Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation</li>
-    <li>vectors.db -&gt; README -&gt; package.json</li>
+    <li>因为 offload 总是开启</li>
+    <li>parseConfig 为各功能组填入默认值</li>
+    <li>因为必须连接 TCVDB</li>
+    <li>因为跳过所有配置解析</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。本项目的核心是高层保结构、低层保证据；画像要通过场景、原子记忆回到原始对话。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：B</strong>。默认值让 capture/recall/pipeline 等可按安全默认运行。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>如果用户说“召回错了”，你会先打开哪个文件或目录？为什么？</li>
+    <li>如果 embedding 配置不完整，系统应该如何降级才不阻塞主对话？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Runtime files are not hidden implementation details. They are a debugging map: when recall, persona, scenes, or long-task summaries look wrong, start with the high-level artifact to see what the system believes, then drill down to the evidence.
+This lesson connects the plugin shell, adapter, and core to startup order: OpenClaw gives the plugin raw <span class="inline">api.pluginConfig</span>;
+<span class="inline">index.ts</span> parses it once for that registration, then uses the resulting <span class="inline">cfg</span> to initialize time, directories, stores, and <span class="inline">TdaiCore</span>.
 </p>
 
 <div class="card analogy">
-  <div class="tag">🗺️ Analogy</div>
-  Think of the files as a detective case folder: persona and scenes are summaries, L1 atoms are evidence cards, L0 conversations are recordings; Offload MMDs are task boards, with JSONL and refs as the source bags behind them.
+  <div class="tag">🧩 Analogy</div>
+  Before a shop opens, the manager reads the roster once, fills default roles, unlocks the door, checks inventory, wires the register, and only then serves customers.
+  Runtime initialization is the same: config becomes a stable object first, directories and stores are prepared next, and hooks handle real conversations afterward.
 </div>
 
-<h2>Where L0-L3 land on disk</h2>
-<div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> stores raw conversation JSONL, written by <span class="inline">src/core/conversation/l0-recorder.ts</span>, and preserves bottom-level evidence.</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> stores structured memory JSONL, written by <span class="inline">src/core/record/l1-writer.ts</span>, for search and recall.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> stores Markdown scene blocks, produced by <span class="inline">src/core/scene/scene-extractor.ts</span> from multiple L1 records.</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> stores long-term persona, generated by <span class="inline">src/core/persona/persona-generator.ts</span> from scenes.</div></div>
-</div>
-
-<p>
-The long-term memory directory usually also contains <span class="inline">vectors.db</span>, the local SQLite vector/full-text search store; use <span class="inline">src/core/store/factory.ts</span> to see how storage is created.
-<span class="inline">.metadata/</span> keeps manifest and checkpoint clues, connected to <span class="inline">src/utils/manifest.ts</span> and <span class="inline">src/utils/checkpoint.ts</span>; <span class="inline">.backup/</span> keeps backups for rollback before upgrades or debugging.
-</p>
-
-<h2>Long-term memory vs Offload directories</h2>
-<div class="cols">
-  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p><span class="inline">memory-tdai/</span> lives under the resolved OpenClaw state dir, commonly <span class="inline">~/.openclaw/state/memory-tdai/</span>; standalone or fallback paths may differ. Its <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -&gt; L2 -&gt; L1 -&gt; L0.</p></div>
-  <div class="col"><h4>Context Offload: current-task compression</h4><p>Under <span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span>, expect <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;session&gt;.jsonl</span>, <span class="inline">state.json</span>, and <span class="inline">sessions-registry.json</span>. It answers how the current long task moved large evidence out of context while keeping it recoverable. See <span class="inline">src/offload/storage.ts</span>.</p></div>
-</div>
-
-<h2>Minimal file shape</h2>
-<pre class="code">memory-tdai/
-  conversations/     # L0 raw messages
-  records/           # L1 atoms
-  scene_blocks/      # L2 scenes
-  persona.md         # L3 persona
-  vectors.db         # local search index
-
-context-offload/
-  &lt;agent&gt;/refs/
-  &lt;agent&gt;/mmds/
-  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
-
-<p>
-Offload <span class="inline">refs/</span> keep large source text or referenced material; <span class="inline">mmds/</span> keep Mermaid/MMD task diagrams; <span class="inline">offload-&lt;session&gt;.jsonl</span> records offload events for the session.
-<span class="inline">state.json</span> tracks current state, and <span class="inline">sessions-registry.json</span> helps find artifacts by session.
-</p>
-
-<h2>Drill-down debugging: structure first, evidence second</h2>
+<h2>Startup path: raw config to hooks</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -&gt; Scene</h4><p>If the user says "the persona is wrong", open <span class="inline">persona.md</span> for the specific claim, then find the related <span class="inline">scene_blocks/</span>.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -&gt; Atom</h4><p>A scene keeps structure and narrative, not final proof. Continue to <span class="inline">records/</span> and inspect the L1 atom extraction.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -&gt; Conversation</h4><p>If the atom is suspicious, return to <span class="inline">conversations/</span> L0 JSONL and verify the raw user words, time, and context.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -&gt; offload JSONL -&gt; refs</h4><p>If a long-task node is wrong, inspect the <span class="inline">mmds/</span> node, then <span class="inline">offload-&lt;session&gt;.jsonl</span>, then the raw material in <span class="inline">refs/</span>.</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> reads <span class="inline">api.pluginConfig</span> and logs how many keys arrived.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> merges user config with defaults into <span class="inline">MemoryTdaiConfig</span>; the rest of this register call reuses it.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> chooses the OpenClaw state directory; <span class="inline">initDataDirectories</span> creates conversations, records, scene_blocks, .metadata, and .backup.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>store bundle</h4><p><span class="inline">initStores</span> calls <span class="inline">createStoreBundle</span>, then writes or compares the manifest and marks reindex when needed.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>core / hooks</h4><p>After dirs and stores are ready, <span class="inline">TdaiCore</span> initializes the pipeline manager, and OpenClaw hooks/tools forward requests into core.</p></div></div>
 </div>
+
+<p>
+“Parse once per registration” does not mean “parse once per process.” OpenClaw may call <span class="inline">register(api)</span> during plugin scan, Gateway startup,
+channel bootstrap, or config reload. Each call receives the full config, so the entry parses the current raw object directly instead of reusing stale config.
+</p>
+
+<h2>Zero config vs advanced config</h2>
+<div class="cols">
+  <div class="col"><h4>Zero config</h4><p><span class="inline">parseConfig(undefined)</span> or <span class="inline">{}</span> can still start: capture, extraction, pipeline, and recall default on; SQLite is the default store; embedding provider is none, so vector features are disabled without blocking chat; offload defaults off.</p></div>
+  <div class="col"><h4>Advanced config</h4><p>Users can override capture, extraction, pipeline, recall, persona, embedding, offload, store, report, llm, bm25, and tcvdb behavior by group. If remote embedding fields are incomplete, config keeps an error message and degrades to no embedding.</p></div>
+</div>
+
+<h2>Where config groups feed behavior</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lh"><span class="badge">Entry</span><span class="name">timezone / report / offload</span></div><div class="ld">The entry initializes the time module from timezone, controls reporting with report, and registers Context Offload only when offload.enabled is true.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Core</span><span class="name">capture / extraction / pipeline / recall / persona</span></div><div class="ld">These groups decide whether to capture L0, how to extract L1, when the scheduler runs, recall count/timeout/strategy, and the L2/L3 persona cadence.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend chooses SQLite or TCVDB; SQLite then checks embedding config before creating a remote embedding service; TCVDB uses server-side embedding and optional BM25.</div></div>
+</div>
+
+<h2>Why directories, manifest, and checkpoints come first</h2>
+<p>
+<span class="inline">initDataDirectories(dataDir)</span> creates stable homes for L0 JSONL, L1 records, scene blocks, metadata, and backups before any work writes files.
+After store initialization, <span class="inline">initStores</span> maintains the manifest: first it records the store binding, later it compares the current config against that binding.
+During pipeline work, <span class="inline">CheckpointManager</span> reads and updates cursors so extraction, scene, and persona jobs resume from the processed position.
+</p>
+
+<h2>Pseudocode</h2>
+<pre class="code">raw = api.pluginConfig
+cfg = parseConfig(raw)
+initTimeModule(cfg.timezone)
+initDataDirectories(dataDir)
+store = createStoreBundle(cfg)
+core = new TdaiCore(adapter, cfg)</pre>
+
+<p>
+This pseudocode omits logging, hook policy, adapter construction, and the async store cache, but keeps the important order: freeze raw config into cfg,
+prepare runtime directories and the store bundle, then create core and register hooks. Offload is a side capability: only when
+<span class="inline">cfg.offload.enabled</span> is true does the entry call <span class="inline">registerOffload(api, cfg.offload)</span>.
+</p>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: L0 conversation JSONL.</li>
-    <li><span class="inline">src/core/record/l1-writer.ts</span>: L1 structured records.</li>
-    <li><span class="inline">src/core/scene/scene-extractor.ts</span>: L2 scene extraction.</li>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>: L3 persona generation.</li>
-    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite/search store creation.</li>
-    <li><span class="inline">src/offload/storage.ts</span>: context-offload directory, refs, MMDs, JSONL, and session state.</li>
-    <li><span class="inline">src/utils/manifest.ts</span>: manifest metadata.</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: checkpoint reads and writes.</li>
+    <li><span class="inline">src/config.ts</span>: <span class="inline">parseConfig</span>, interfaces, and defaults</li>
+    <li><span class="inline">index.ts</span>: reads <span class="inline">api.pluginConfig</span>, logs config, initializes time and dirs, conditionally registers offload</li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>: <span class="inline">initDataDirectories</span>, <span class="inline">initStores</span>, <span class="inline">createPipelineManager</span></li>
+    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> selects the backend from storeBackend and embedding config</li>
+    <li><span class="inline">src/utils/openclaw-state-dir.ts</span>: OpenClaw state directory resolution and fallback</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Runtime artifacts are debugging entry points: long-term memory drills down Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation, while Offload drills down MMD node -&gt; offload JSONL -&gt; refs. Upper layers locate structure; lower layers provide verifiable evidence.
+  Runtime initialization is not “reading lots of config”; it stabilizes config, fills defaults, and wires directories and stores before work starts.
+  That lets zero config start safely, lets advanced config steer each functional group, and lets incomplete offload or embedding setup degrade without blocking the main chat.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. To verify raw evidence behind a persona claim, which drill-down direction is correct?</div>
+  <div class="qn">1. Why can zero config start?</div>
   <ol class="opts">
-    <li>Offload MMD -&gt; npm install</li>
-    <li>L0 -&gt; delete records -&gt; restart</li>
-    <li>Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation</li>
-    <li>vectors.db -&gt; README -&gt; package.json</li>
+    <li>Because offload is always enabled</li>
+    <li>parseConfig fills defaults for functional groups</li>
+    <li>Because TCVDB is mandatory</li>
+    <li>Because config parsing is skipped</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. The project keeps structure in upper layers and evidence in lower layers; a persona claim drills down through scenes and atoms to raw conversation.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: B</strong>. Defaults let capture/recall/pipeline run with safe baseline behavior.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>If a user says recall is wrong, which file or directory would you open first, and why?</li>
+    <li>If embedding config is incomplete, how should the system degrade without blocking the main chat?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="05-hermes-gateway-path.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></div></a><a class="next" href="07-config-levels.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></div></a></div>
+  <div class="footnav"><a class="prev" href="10-host-adapter-boundaries.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

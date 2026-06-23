@@ -520,3 +520,159 @@ Hermes support is also cleaner: Hermes/Gateway only implements the standalone ad
 </div>
 """,
 }
+
+LESSON_11 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+本课把前几课的“入口壳、adapter、core”串到启动顺序上：OpenClaw 给插件一份原始 <span class="inline">api.pluginConfig</span>，
+<span class="inline">index.ts</span> 每次注册只解析一次，随后用统一的 <span class="inline">cfg</span> 初始化时间、目录、存储和 <span class="inline">TdaiCore</span>。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  开店前先看当天排班表：店长只读一次排班表，把默认岗位补齐，再依次开门、清点库房、接好收银系统，最后才开始接待客人。
+  运行时初始化也是这样：配置先变成稳定对象，目录和存储先准备好，hooks 才能安全处理真实对话。
+</div>
+
+<h2>启动主线：原始配置到 hooks</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> 从 <span class="inline">api.pluginConfig</span> 取得原始对象，并记录收到的 key 数量。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> 把用户配置与默认值合并成 <span class="inline">MemoryTdaiConfig</span>，本次 register 后续都复用它。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> 选出 OpenClaw state 目录；<span class="inline">initDataDirectories</span> 创建 conversations、records、scene_blocks、.metadata 和 .backup。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>store bundle</h4><p><span class="inline">initStores</span> 调 <span class="inline">createStoreBundle</span>，并写入或比较 manifest，必要时标记 reindex。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>core / hooks</h4><p>目录和 store 准备后，<span class="inline">TdaiCore</span> 初始化 pipeline manager，OpenClaw hooks/tools 才把请求转给 core。</p></div></div>
+</div>
+
+<p>
+注意“每次注册解析一次”并不等于全进程只解析一次。OpenClaw 可能因为插件扫描、Gateway 启动、channel bootstrap 或配置 reload 多次调用
+<span class="inline">register(api)</span>；每次调用都收到完整配置，所以入口直接解析当前 raw object，避免复用过期配置。
+</p>
+
+<h2>零配置与高级配置的差别</h2>
+<div class="cols">
+  <div class="col"><h4>零配置</h4><p><span class="inline">parseConfig(undefined)</span> 或 <span class="inline">{}</span> 仍会启动：capture、extraction、pipeline、recall 默认启用；SQLite 是默认 store；embedding provider 为 none，因此向量能力禁用但主对话不被阻塞；offload 默认关闭。</p></div>
+  <div class="col"><h4>高级配置</h4><p>用户可以按组覆盖 capture、extraction、pipeline、recall、persona、embedding、offload、store、report、llm、bm25、tcvdb 等行为。远程 embedding 字段不完整时，配置保留错误消息并降级为无 embedding。</p></div>
+</div>
+
+<h2>配置组分别喂给谁</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lh"><span class="badge">Entry</span><span class="name">timezone / report / offload</span></div><div class="ld">入口先用 timezone 初始化时间模块，用 report 控制上报行为，并仅在 offload.enabled 为 true 时注册 Context Offload。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Core</span><span class="name">capture / extraction / pipeline / recall / persona</span></div><div class="ld">这些组决定是否捕获 L0、如何抽取 L1、scheduler 何时跑、召回数量/超时/策略，以及 L2/L3 画像生成节奏。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend 决定 SQLite 还是 TCVDB；SQLite 再按 embedding 配置决定是否创建远程 embedding service；TCVDB 使用服务端 embedding 与可选 BM25。</div></div>
+</div>
+
+<h2>目录、manifest 与 checkpoint 为什么先初始化</h2>
+<p>
+<span class="inline">initDataDirectories(dataDir)</span> 先把运行时目录建好，后续 L0 JSONL、L1 records、scene blocks、metadata 和备份才有稳定落点。
+<span class="inline">initStores</span> 初始化 store 后会维护 manifest：首次写入 store binding，之后比较当前配置是否和已绑定后端不同。
+pipeline 工作时再通过 <span class="inline">CheckpointManager</span> 读取和更新游标，确保抽取、场景和画像任务能从已处理位置继续。
+</p>
+
+<h2>伪代码</h2>
+<pre class="code">raw = api.pluginConfig
+cfg = parseConfig(raw)
+initTimeModule(cfg.timezone)
+initDataDirectories(dataDir)
+store = createStoreBundle(cfg)
+core = new TdaiCore(adapter, cfg)</pre>
+
+<p>
+这段伪代码省略了日志、hook policy、adapter 创建和异步 store cache，但保留了关键顺序：先把 raw config 固化为 cfg，再准备运行目录和 store bundle，
+最后创建 core 并注册 hooks。offload 是旁路能力：只有 <span class="inline">cfg.offload.enabled</span> 为真，入口才调用 <span class="inline">registerOffload(api, cfg.offload)</span>。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/config.ts</span>：<span class="inline">parseConfig</span>、配置接口与默认值</li>
+    <li><span class="inline">index.ts</span>：读取 <span class="inline">api.pluginConfig</span>、配置日志、初始化时间和目录、条件注册 offload</li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>：<span class="inline">initDataDirectories</span>、<span class="inline">initStores</span>、<span class="inline">createPipelineManager</span></li>
+    <li><span class="inline">src/core/store/factory.ts</span>：<span class="inline">createStoreBundle</span> 按 storeBackend 与 embedding 配置选后端</li>
+    <li><span class="inline">src/utils/openclaw-state-dir.ts</span>：OpenClaw state 目录解析与 fallback</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  运行时初始化的核心不是“读很多配置”，而是把配置稳定化、把默认值补齐、把目录与 store 先接好。
+  这样零配置能安全启动，高级配置能精确影响各功能组，offload 和 embedding 不完整时也能降级而不阻塞主对话。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+This lesson connects the plugin shell, adapter, and core to startup order: OpenClaw gives the plugin raw <span class="inline">api.pluginConfig</span>;
+<span class="inline">index.ts</span> parses it once for that registration, then uses the resulting <span class="inline">cfg</span> to initialize time, directories, stores, and <span class="inline">TdaiCore</span>.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  Before a shop opens, the manager reads the roster once, fills default roles, unlocks the door, checks inventory, wires the register, and only then serves customers.
+  Runtime initialization is the same: config becomes a stable object first, directories and stores are prepared next, and hooks handle real conversations afterward.
+</div>
+
+<h2>Startup path: raw config to hooks</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> reads <span class="inline">api.pluginConfig</span> and logs how many keys arrived.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> merges user config with defaults into <span class="inline">MemoryTdaiConfig</span>; the rest of this register call reuses it.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> chooses the OpenClaw state directory; <span class="inline">initDataDirectories</span> creates conversations, records, scene_blocks, .metadata, and .backup.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>store bundle</h4><p><span class="inline">initStores</span> calls <span class="inline">createStoreBundle</span>, then writes or compares the manifest and marks reindex when needed.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>core / hooks</h4><p>After dirs and stores are ready, <span class="inline">TdaiCore</span> initializes the pipeline manager, and OpenClaw hooks/tools forward requests into core.</p></div></div>
+</div>
+
+<p>
+“Parse once per registration” does not mean “parse once per process.” OpenClaw may call <span class="inline">register(api)</span> during plugin scan, Gateway startup,
+channel bootstrap, or config reload. Each call receives the full config, so the entry parses the current raw object directly instead of reusing stale config.
+</p>
+
+<h2>Zero config vs advanced config</h2>
+<div class="cols">
+  <div class="col"><h4>Zero config</h4><p><span class="inline">parseConfig(undefined)</span> or <span class="inline">{}</span> can still start: capture, extraction, pipeline, and recall default on; SQLite is the default store; embedding provider is none, so vector features are disabled without blocking chat; offload defaults off.</p></div>
+  <div class="col"><h4>Advanced config</h4><p>Users can override capture, extraction, pipeline, recall, persona, embedding, offload, store, report, llm, bm25, and tcvdb behavior by group. If remote embedding fields are incomplete, config keeps an error message and degrades to no embedding.</p></div>
+</div>
+
+<h2>Where config groups feed behavior</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lh"><span class="badge">Entry</span><span class="name">timezone / report / offload</span></div><div class="ld">The entry initializes the time module from timezone, controls reporting with report, and registers Context Offload only when offload.enabled is true.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Core</span><span class="name">capture / extraction / pipeline / recall / persona</span></div><div class="ld">These groups decide whether to capture L0, how to extract L1, when the scheduler runs, recall count/timeout/strategy, and the L2/L3 persona cadence.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend chooses SQLite or TCVDB; SQLite then checks embedding config before creating a remote embedding service; TCVDB uses server-side embedding and optional BM25.</div></div>
+</div>
+
+<h2>Why directories, manifest, and checkpoints come first</h2>
+<p>
+<span class="inline">initDataDirectories(dataDir)</span> creates stable homes for L0 JSONL, L1 records, scene blocks, metadata, and backups before any work writes files.
+After store initialization, <span class="inline">initStores</span> maintains the manifest: first it records the store binding, later it compares the current config against that binding.
+During pipeline work, <span class="inline">CheckpointManager</span> reads and updates cursors so extraction, scene, and persona jobs resume from the processed position.
+</p>
+
+<h2>Pseudocode</h2>
+<pre class="code">raw = api.pluginConfig
+cfg = parseConfig(raw)
+initTimeModule(cfg.timezone)
+initDataDirectories(dataDir)
+store = createStoreBundle(cfg)
+core = new TdaiCore(adapter, cfg)</pre>
+
+<p>
+This pseudocode omits logging, hook policy, adapter construction, and the async store cache, but keeps the important order: freeze raw config into cfg,
+prepare runtime directories and the store bundle, then create core and register hooks. Offload is a side capability: only when
+<span class="inline">cfg.offload.enabled</span> is true does the entry call <span class="inline">registerOffload(api, cfg.offload)</span>.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/config.ts</span>: <span class="inline">parseConfig</span>, interfaces, and defaults</li>
+    <li><span class="inline">index.ts</span>: reads <span class="inline">api.pluginConfig</span>, logs config, initializes time and dirs, conditionally registers offload</li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>: <span class="inline">initDataDirectories</span>, <span class="inline">initStores</span>, <span class="inline">createPipelineManager</span></li>
+    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> selects the backend from storeBackend and embedding config</li>
+    <li><span class="inline">src/utils/openclaw-state-dir.ts</span>: OpenClaw state directory resolution and fallback</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Runtime initialization is not “reading lots of config”; it stabilizes config, fills defaults, and wires directories and stores before work starts.
+  That lets zero config start safely, lets advanced config steer each functional group, and lets incomplete offload or embedding setup degrade without blocking the main chat.
+</div>
+""",
+}

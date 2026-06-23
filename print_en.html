@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 10 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">10 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 11 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">11 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -342,6 +342,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></li>
   <li><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></li>
   <li><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></li>
+  <li><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1429,6 +1430,108 @@ Hermes support is also cleaner: Hermes/Gateway only implements the standalone ad
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>If adding a third host, which adapter capabilities would you implement first?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+This lesson connects the plugin shell, adapter, and core to startup order: OpenClaw gives the plugin raw <span class="inline">api.pluginConfig</span>;
+<span class="inline">index.ts</span> parses it once for that registration, then uses the resulting <span class="inline">cfg</span> to initialize time, directories, stores, and <span class="inline">TdaiCore</span>.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  Before a shop opens, the manager reads the roster once, fills default roles, unlocks the door, checks inventory, wires the register, and only then serves customers.
+  Runtime initialization is the same: config becomes a stable object first, directories and stores are prepared next, and hooks handle real conversations afterward.
+</div>
+
+<h2>Startup path: raw config to hooks</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> reads <span class="inline">api.pluginConfig</span> and logs how many keys arrived.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> merges user config with defaults into <span class="inline">MemoryTdaiConfig</span>; the rest of this register call reuses it.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> chooses the OpenClaw state directory; <span class="inline">initDataDirectories</span> creates conversations, records, scene_blocks, .metadata, and .backup.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>store bundle</h4><p><span class="inline">initStores</span> calls <span class="inline">createStoreBundle</span>, then writes or compares the manifest and marks reindex when needed.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>core / hooks</h4><p>After dirs and stores are ready, <span class="inline">TdaiCore</span> initializes the pipeline manager, and OpenClaw hooks/tools forward requests into core.</p></div></div>
+</div>
+
+<p>
+“Parse once per registration” does not mean “parse once per process.” OpenClaw may call <span class="inline">register(api)</span> during plugin scan, Gateway startup,
+channel bootstrap, or config reload. Each call receives the full config, so the entry parses the current raw object directly instead of reusing stale config.
+</p>
+
+<h2>Zero config vs advanced config</h2>
+<div class="cols">
+  <div class="col"><h4>Zero config</h4><p><span class="inline">parseConfig(undefined)</span> or <span class="inline">{}</span> can still start: capture, extraction, pipeline, and recall default on; SQLite is the default store; embedding provider is none, so vector features are disabled without blocking chat; offload defaults off.</p></div>
+  <div class="col"><h4>Advanced config</h4><p>Users can override capture, extraction, pipeline, recall, persona, embedding, offload, store, report, llm, bm25, and tcvdb behavior by group. If remote embedding fields are incomplete, config keeps an error message and degrades to no embedding.</p></div>
+</div>
+
+<h2>Where config groups feed behavior</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lh"><span class="badge">Entry</span><span class="name">timezone / report / offload</span></div><div class="ld">The entry initializes the time module from timezone, controls reporting with report, and registers Context Offload only when offload.enabled is true.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Core</span><span class="name">capture / extraction / pipeline / recall / persona</span></div><div class="ld">These groups decide whether to capture L0, how to extract L1, when the scheduler runs, recall count/timeout/strategy, and the L2/L3 persona cadence.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend chooses SQLite or TCVDB; SQLite then checks embedding config before creating a remote embedding service; TCVDB uses server-side embedding and optional BM25.</div></div>
+</div>
+
+<h2>Why directories, manifest, and checkpoints come first</h2>
+<p>
+<span class="inline">initDataDirectories(dataDir)</span> creates stable homes for L0 JSONL, L1 records, scene blocks, metadata, and backups before any work writes files.
+After store initialization, <span class="inline">initStores</span> maintains the manifest: first it records the store binding, later it compares the current config against that binding.
+During pipeline work, <span class="inline">CheckpointManager</span> reads and updates cursors so extraction, scene, and persona jobs resume from the processed position.
+</p>
+
+<h2>Pseudocode</h2>
+<pre class="code">raw = api.pluginConfig
+cfg = parseConfig(raw)
+initTimeModule(cfg.timezone)
+initDataDirectories(dataDir)
+store = createStoreBundle(cfg)
+core = new TdaiCore(adapter, cfg)</pre>
+
+<p>
+This pseudocode omits logging, hook policy, adapter construction, and the async store cache, but keeps the important order: freeze raw config into cfg,
+prepare runtime directories and the store bundle, then create core and register hooks. Offload is a side capability: only when
+<span class="inline">cfg.offload.enabled</span> is true does the entry call <span class="inline">registerOffload(api, cfg.offload)</span>.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/config.ts</span>: <span class="inline">parseConfig</span>, interfaces, and defaults</li>
+    <li><span class="inline">index.ts</span>: reads <span class="inline">api.pluginConfig</span>, logs config, initializes time and dirs, conditionally registers offload</li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>: <span class="inline">initDataDirectories</span>, <span class="inline">initStores</span>, <span class="inline">createPipelineManager</span></li>
+    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> selects the backend from storeBackend and embedding config</li>
+    <li><span class="inline">src/utils/openclaw-state-dir.ts</span>: OpenClaw state directory resolution and fallback</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Runtime initialization is not “reading lots of config”; it stabilizes config, fills defaults, and wires directories and stores before work starts.
+  That lets zero config start safely, lets advanced config steer each functional group, and lets incomplete offload or embedding setup degrade without blocking the main chat.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Why can zero config start?</div>
+  <ol class="opts">
+    <li>Because offload is always enabled</li>
+    <li>parseConfig fills defaults for functional groups</li>
+    <li>Because TCVDB is mandatory</li>
+    <li>Because config parsing is skipped</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: B</strong>. Defaults let capture/recall/pipeline run with safe baseline behavior.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>If embedding config is incomplete, how should the system degrade without blocking the main chat?</li>
   </ul>
 </div>
 </div>

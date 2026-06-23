@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 10 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">10 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 11 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">11 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -342,6 +342,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></li>
   <li><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></li>
   <li><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></li>
+  <li><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1444,6 +1445,107 @@ core = TdaiCore({
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>如果要新增第三个宿主，应优先实现哪些 adapter 能力？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+本课把前几课的“入口壳、adapter、core”串到启动顺序上：OpenClaw 给插件一份原始 <span class="inline">api.pluginConfig</span>，
+<span class="inline">index.ts</span> 每次注册只解析一次，随后用统一的 <span class="inline">cfg</span> 初始化时间、目录、存储和 <span class="inline">TdaiCore</span>。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  开店前先看当天排班表：店长只读一次排班表，把默认岗位补齐，再依次开门、清点库房、接好收银系统，最后才开始接待客人。
+  运行时初始化也是这样：配置先变成稳定对象，目录和存储先准备好，hooks 才能安全处理真实对话。
+</div>
+
+<h2>启动主线：原始配置到 hooks</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> 从 <span class="inline">api.pluginConfig</span> 取得原始对象，并记录收到的 key 数量。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> 把用户配置与默认值合并成 <span class="inline">MemoryTdaiConfig</span>，本次 register 后续都复用它。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> 选出 OpenClaw state 目录；<span class="inline">initDataDirectories</span> 创建 conversations、records、scene_blocks、.metadata 和 .backup。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>store bundle</h4><p><span class="inline">initStores</span> 调 <span class="inline">createStoreBundle</span>，并写入或比较 manifest，必要时标记 reindex。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>core / hooks</h4><p>目录和 store 准备后，<span class="inline">TdaiCore</span> 初始化 pipeline manager，OpenClaw hooks/tools 才把请求转给 core。</p></div></div>
+</div>
+
+<p>
+注意“每次注册解析一次”并不等于全进程只解析一次。OpenClaw 可能因为插件扫描、Gateway 启动、channel bootstrap 或配置 reload 多次调用
+<span class="inline">register(api)</span>；每次调用都收到完整配置，所以入口直接解析当前 raw object，避免复用过期配置。
+</p>
+
+<h2>零配置与高级配置的差别</h2>
+<div class="cols">
+  <div class="col"><h4>零配置</h4><p><span class="inline">parseConfig(undefined)</span> 或 <span class="inline">{}</span> 仍会启动：capture、extraction、pipeline、recall 默认启用；SQLite 是默认 store；embedding provider 为 none，因此向量能力禁用但主对话不被阻塞；offload 默认关闭。</p></div>
+  <div class="col"><h4>高级配置</h4><p>用户可以按组覆盖 capture、extraction、pipeline、recall、persona、embedding、offload、store、report、llm、bm25、tcvdb 等行为。远程 embedding 字段不完整时，配置保留错误消息并降级为无 embedding。</p></div>
+</div>
+
+<h2>配置组分别喂给谁</h2>
+<div class="layers">
+  <div class="layer l-app"><div class="lh"><span class="badge">Entry</span><span class="name">timezone / report / offload</span></div><div class="ld">入口先用 timezone 初始化时间模块，用 report 控制上报行为，并仅在 offload.enabled 为 true 时注册 Context Offload。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Core</span><span class="name">capture / extraction / pipeline / recall / persona</span></div><div class="ld">这些组决定是否捕获 L0、如何抽取 L1、scheduler 何时跑、召回数量/超时/策略，以及 L2/L3 画像生成节奏。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend 决定 SQLite 还是 TCVDB；SQLite 再按 embedding 配置决定是否创建远程 embedding service；TCVDB 使用服务端 embedding 与可选 BM25。</div></div>
+</div>
+
+<h2>目录、manifest 与 checkpoint 为什么先初始化</h2>
+<p>
+<span class="inline">initDataDirectories(dataDir)</span> 先把运行时目录建好，后续 L0 JSONL、L1 records、scene blocks、metadata 和备份才有稳定落点。
+<span class="inline">initStores</span> 初始化 store 后会维护 manifest：首次写入 store binding，之后比较当前配置是否和已绑定后端不同。
+pipeline 工作时再通过 <span class="inline">CheckpointManager</span> 读取和更新游标，确保抽取、场景和画像任务能从已处理位置继续。
+</p>
+
+<h2>伪代码</h2>
+<pre class="code">raw = api.pluginConfig
+cfg = parseConfig(raw)
+initTimeModule(cfg.timezone)
+initDataDirectories(dataDir)
+store = createStoreBundle(cfg)
+core = new TdaiCore(adapter, cfg)</pre>
+
+<p>
+这段伪代码省略了日志、hook policy、adapter 创建和异步 store cache，但保留了关键顺序：先把 raw config 固化为 cfg，再准备运行目录和 store bundle，
+最后创建 core 并注册 hooks。offload 是旁路能力：只有 <span class="inline">cfg.offload.enabled</span> 为真，入口才调用 <span class="inline">registerOffload(api, cfg.offload)</span>。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/config.ts</span>：<span class="inline">parseConfig</span>、配置接口与默认值</li>
+    <li><span class="inline">index.ts</span>：读取 <span class="inline">api.pluginConfig</span>、配置日志、初始化时间和目录、条件注册 offload</li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>：<span class="inline">initDataDirectories</span>、<span class="inline">initStores</span>、<span class="inline">createPipelineManager</span></li>
+    <li><span class="inline">src/core/store/factory.ts</span>：<span class="inline">createStoreBundle</span> 按 storeBackend 与 embedding 配置选后端</li>
+    <li><span class="inline">src/utils/openclaw-state-dir.ts</span>：OpenClaw state 目录解析与 fallback</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  运行时初始化的核心不是“读很多配置”，而是把配置稳定化、把默认值补齐、把目录与 store 先接好。
+  这样零配置能安全启动，高级配置能精确影响各功能组，offload 和 embedding 不完整时也能降级而不阻塞主对话。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. 为什么零配置能启动？</div>
+  <ol class="opts">
+    <li>因为 offload 总是开启</li>
+    <li>parseConfig 为各功能组填入默认值</li>
+    <li>因为必须连接 TCVDB</li>
+    <li>因为跳过所有配置解析</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：B</strong>。默认值让 capture/recall/pipeline 等可按安全默认运行。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>如果 embedding 配置不完整，系统应该如何降级才不阻塞主对话？</li>
   </ul>
 </div>
 </div>

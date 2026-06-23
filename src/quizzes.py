@@ -240,6 +240,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果要新增第三个宿主，应优先实现哪些 adapter 能力？", "en": "If adding a third host, which adapter capabilities would you implement first?"}],
     },
+    "11-runtime-init-config.html": {
+        "mcq": [{
+            "q": {"zh": "为什么零配置能启动？", "en": "Why can zero config start?"},
+            "opts": [
+                {"zh": "parseConfig 为各功能组填入默认值", "en": "parseConfig fills defaults for functional groups"},
+                {"zh": "因为跳过所有配置解析", "en": "Because config parsing is skipped"},
+                {"zh": "因为必须连接 TCVDB", "en": "Because TCVDB is mandatory"},
+                {"zh": "因为 offload 总是开启", "en": "Because offload is always enabled"},
+            ],
+            "answer": 0,
+            "why": {"zh": "默认值让 capture/recall/pipeline 等可按安全默认运行。", "en": "Defaults let capture/recall/pipeline run with safe baseline behavior."},
+        }],
+        "open": [{"zh": "如果 embedding 配置不完整，系统应该如何降级才不阻塞主对话？", "en": "If embedding config is incomplete, how should the system degrade without blocking the main chat?"}],
+    },
 }
 
 
