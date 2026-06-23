@@ -181,7 +181,7 @@ LESSON_02 = {
   <div class="col"><h4>Hermes / Gateway</h4><p>Gateway 通过 HTTP 接收 capture/search/recall 请求，再使用 standalone adapter 进入同一个 <span class="inline">TdaiCore</span>。</p></div>
 </div>
 
-<h2>伪代码：TdaiCore 是统一入口</h2>
+<h2>伪代码：TdaiCore 是统一入口（概念示意）</h2>
 <pre><code>class TdaiCore:
     async handleBeforeRecall(user_text, session_key):
         return perform_auto_recall(user_text, session_key)
@@ -245,7 +245,7 @@ Start with the data flow; later lessons will open each source file.
   <div class="col"><h4>Hermes / Gateway</h4><p>The Gateway receives capture/search/recall over HTTP, then enters the same <span class="inline">TdaiCore</span> through the standalone adapter.</p></div>
 </div>
 
-<h2>Pseudocode: TdaiCore is the unified entry point</h2>
+<h2>Pseudocode: TdaiCore is the unified entry point (conceptual)</h2>
 <pre><code>class TdaiCore:
     async handleBeforeRecall(user_text, session_key):
         return perform_auto_recall(user_text, session_key)
