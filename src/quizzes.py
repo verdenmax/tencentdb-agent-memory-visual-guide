@@ -450,6 +450,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "为什么 embedding provider 变化后可能需要 reindex？", "en": "Why might changing the embedding provider require reindexing?"}],
     },
+    "26-tencent-vectordb-embedding.html": {
+        "mcq": [{
+            "q": {"zh": "TCVDB native hybridSearch 相比本地 SQLite RRF 的关键差异是什么？", "en": "What is the key difference between TCVDB native hybridSearch and local SQLite RRF?"},
+            "opts": [
+                {"zh": "TCVDB 可在服务端把 dense embedding、sparse vector 与 RRF rerank 合成一次查询", "en": "TCVDB can combine dense embedding, sparse vector, and RRF rerank server-side in one query"},
+                {"zh": "TCVDB 只能保存 README", "en": "TCVDB can only store README"},
+                {"zh": "TCVDB 禁止 filter index", "en": "TCVDB forbids filter indexes"},
+                {"zh": "TCVDB 会删除 L0", "en": "TCVDB deletes L0"},
+            ],
+            "answer": 0,
+            "why": {"zh": "远程后端把向量、稀疏向量和重排能力下沉到 VectorDB，减少客户端合并工作。", "en": "The remote backend pushes vector, sparse-vector, and reranking work into VectorDB, reducing client-side merging."},
+        }],
+        "open": [{"zh": "如果 TCVDB 初始化降级，哪些本地证据路径仍应保留？", "en": "If TCVDB initialization degrades, which local evidence paths should still remain?"}],
+    },
 }
 
 

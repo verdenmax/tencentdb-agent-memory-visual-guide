@@ -32,4 +32,5 @@ CONTENT = {
     "23-l1-search-recall-budget.html": part6.LESSON_23,
     "24-l2-navigation-l3-persona-injection.html": part6.LESSON_24,
     "25-sqlite-vec-fts-bm25-hybrid.html": part6.LESSON_25,
+    "26-tencent-vectordb-embedding.html": part6.LESSON_26,
 }

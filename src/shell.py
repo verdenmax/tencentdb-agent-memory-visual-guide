@@ -96,6 +96,8 @@ PAGES = [
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
     ("25-sqlite-vec-fts-bm25-hybrid.html", "SQLite、sqlite-vec、FTS、BM25 与混合搜索", "SQLite, sqlite-vec, FTS, BM25, and hybrid search",
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
+    ("26-tencent-vectordb-embedding.html", "腾讯云 VectorDB 后端与 Embedding 服务", "Tencent Cloud VectorDB backend and embedding services",
+     "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
 ]
 
 def bi(zh, en):
@@ -579,6 +581,8 @@ SUBTITLES = {
                                                "stable context goes to the system tail; dynamic L1 goes to the user prefix for prompt-cache friendliness"),
     "25-sqlite-vec-fts-bm25-hybrid.html": ("本地 l1_records/l0_conversations 元数据表 + vec0 向量表 + FTS5 BM25 排序",
                                            "local l1_records/l0_conversations metadata tables + vec0 vector tables + FTS5 BM25 ranking"),
+    "26-tencent-vectordb-embedding.html": ("TCVDB 集合、服务端 dense embedding、客户端 sparse vector、native hybridSearch 与降级策略",
+                                      "TCVDB collections, server-side dense embedding, client sparse vectors, native hybridSearch, and degradation"),
 }
 
 def index_page(lesson_prefix="lessons/"):
@@ -643,7 +647,7 @@ def index_page(lesson_prefix="lessons/"):
     <p style="margin:.8rem 0 0;color:var(--faint);font-size:.8rem">{bi("📌 对照 TencentDB-Agent-Memory 当前源码核实 · 源码引用以“文件 + 符号名”为主", "📌 Verified against the current TencentDB-Agent-Memory source; references cite file + symbol")}</p>
   </div>
   <div class="toc-search">
-    <input id="q" type="search" placeholder="🔎 搜索课程 / Search lessons" autocomplete="off" aria-label="search">
+    <input id="q" type="search" autocomplete="off" aria-label="搜索课程 / Search lessons" title="搜索课程 / Search lessons">
     <span class="qcount" id="qcount"></span>
   </div>
   <div class="toc">{toc}</div>

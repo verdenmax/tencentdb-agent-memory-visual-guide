@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 25 lessons.
+The guide currently contains 26 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -35,6 +35,7 @@ The guide currently contains 25 lessons.
 | 23 | L1 memory search and recall budgeting |
 | 24 | L2 navigation plus L3 persona injection |
 | 25 | SQLite, sqlite-vec, FTS, BM25, and hybrid search |
+| 26 | Tencent Cloud VectorDB backend and embedding services |
 
 ## How to view locally
 

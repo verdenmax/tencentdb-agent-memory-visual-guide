@@ -317,7 +317,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <span class="home">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></span>
-    <span class="pill"><span class="lang-zh">共 25 课 · 6 个部分</span><span class="lang-en">25 lessons · 6 parts</span></span>
+    <span class="pill"><span class="lang-zh">共 26 课 · 6 个部分</span><span class="lang-en">26 lessons · 6 parts</span></span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
   <div class="progress"><span style="width:100%"></span></div>
@@ -337,7 +337,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
     <p style="margin:.8rem 0 0;color:var(--faint);font-size:.8rem"><span class="lang-zh">📌 对照 TencentDB-Agent-Memory 当前源码核实 · 源码引用以“文件 + 符号名”为主</span><span class="lang-en">📌 Verified against the current TencentDB-Agent-Memory source; references cite file + symbol</span></p>
   </div>
   <div class="toc-search">
-    <input id="q" type="search" placeholder="🔎 搜索课程 / Search lessons" autocomplete="off" aria-label="search">
+    <input id="q" type="search" autocomplete="off" aria-label="搜索课程 / Search lessons" title="搜索课程 / Search lessons">
     <span class="qcount" id="qcount"></span>
   </div>
   <div class="toc"><div class="toc-part"><span class="lang-zh">第一部分 · 数据流全景</span><span class="lang-en">Part 1 · Data-flow overview</span></div>
@@ -370,7 +370,8 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <a href="lessons/22-auto-recall-before-prompt.html"><span class="n">22</span><span class="tt"><span class="lang-zh">Prompt 构建前的 Auto Recall</span><span class="lang-en">Auto-recall before prompt build</span></span><span class="ts"><span class="lang-zh">before_prompt_build 调 performAutoRecall，超时则跳过注入以保护主对话</span><span class="lang-en">before_prompt_build calls performAutoRecall; timeout skips injection to protect the main chat</span></span></a>
 <a href="lessons/23-l1-search-recall-budget.html"><span class="n">23</span><span class="tt"><span class="lang-zh">L1 记忆搜索与召回预算</span><span class="lang-en">L1 memory search and recall budgeting</span></span><span class="ts"><span class="lang-zh">keyword、embedding、hybrid 策略先找相关 L1，再用 maxResults 与字符预算裁剪</span><span class="lang-en">keyword, embedding, and hybrid strategies find relevant L1, then maxResults and character budgets trim output</span></span></a>
 <a href="lessons/24-l2-navigation-l3-persona-injection.html"><span class="n">24</span><span class="tt"><span class="lang-zh">L2 导航与 L3 Persona 注入</span><span class="lang-en">L2 navigation plus L3 persona injection</span></span><span class="ts"><span class="lang-zh">稳定上下文进 system 末尾，动态 L1 进 user 前缀，保留 prompt cache 友好性</span><span class="lang-en">stable context goes to the system tail; dynamic L1 goes to the user prefix for prompt-cache friendliness</span></span></a>
-<a href="lessons/25-sqlite-vec-fts-bm25-hybrid.html"><span class="n">25</span><span class="tt"><span class="lang-zh">SQLite、sqlite-vec、FTS、BM25 与混合搜索</span><span class="lang-en">SQLite, sqlite-vec, FTS, BM25, and hybrid search</span></span><span class="ts"><span class="lang-zh">本地 l1_records/l0_conversations 元数据表 + vec0 向量表 + FTS5 BM25 排序</span><span class="lang-en">local l1_records/l0_conversations metadata tables + vec0 vector tables + FTS5 BM25 ranking</span></span></a></div>
+<a href="lessons/25-sqlite-vec-fts-bm25-hybrid.html"><span class="n">25</span><span class="tt"><span class="lang-zh">SQLite、sqlite-vec、FTS、BM25 与混合搜索</span><span class="lang-en">SQLite, sqlite-vec, FTS, BM25, and hybrid search</span></span><span class="ts"><span class="lang-zh">本地 l1_records/l0_conversations 元数据表 + vec0 向量表 + FTS5 BM25 排序</span><span class="lang-en">local l1_records/l0_conversations metadata tables + vec0 vector tables + FTS5 BM25 ranking</span></span></a>
+<a href="lessons/26-tencent-vectordb-embedding.html"><span class="n">26</span><span class="tt"><span class="lang-zh">腾讯云 VectorDB 后端与 Embedding 服务</span><span class="lang-en">Tencent Cloud VectorDB backend and embedding services</span></span><span class="ts"><span class="lang-zh">TCVDB 集合、服务端 dense embedding、客户端 sparse vector、native hybridSearch 与降级策略</span><span class="lang-en">TCVDB collections, server-side dense embedding, client sparse vectors, native hybridSearch, and degradation</span></span></a></div>
   <div class="toc-empty" id="tocempty"><span class="lang-zh">没有匹配的课程，换个关键词试试。</span><span class="lang-en">No matching lessons, try another keyword.</span></div>
 </div>
 <script>

@@ -692,3 +692,206 @@ So when <span class="inline">embedding_meta</span> detects provider/model/dimens
 </div>
 """,
 }
+
+
+LESSON_26 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+第 25 课介绍本地 SQLite store；最后一课切到远程后端。<span class="inline">TcvdbMemoryStore</span>
+把 L1、L0 和 profiles 写入带 database 前缀的 Tencent Cloud VectorDB collections：dense embedding 可由服务端字段生成，sparse vector 由客户端 BM25 encoder 生成，
+再用原生 <span class="inline">hybridSearch</span> 与 RRF rerank 合并召回。远程失败时，JSONL 与本地证据路径仍然让记忆系统可追溯、可降级。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  SQLite 像随身资料柜，所有索引都在本机维护；TCVDB 像云端档案馆，登记、向量检索和混合重排都可以在服务端完成。
+  但助理仍会随身带一份原始收据：即使云端一时不可用，本地 JSONL 和 evidence 文件也不会消失。
+</div>
+
+<h2>远程后端的五层结构</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">guide code</span><span class="name">factory + config</span></div><div class="ld"><span class="inline">factory.ts</span> 根据 <span class="inline">storeBackend = "tcvdb"</span> 选择远程 bundle，并保留降级初始化路径。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">store bundle</span><span class="name">TcvdbMemoryStore</span></div><div class="ld">创建 database 前缀 collection，写入 L1、L0 和 profiles，并把 native hybrid capability 暴露给 recall/search。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">TCVDB client</span><span class="name">HTTP API client</span></div><div class="ld"><span class="inline">tcvdb-client.ts</span> 封装请求、超时和错误对象，避免把远程异常扩散成主对话失败。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">VectorDB collections</span><span class="name">database_l1_memories / database_l0_conversations / database_profiles</span></div><div class="ld">集合包含 dense vector 字段、sparse vector 字段和 filter indexes；索引优先尝试 DISK_FLAT，必要时回退 HNSW。</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">embedding services</span><span class="name">remote dense + local sparse</span></div><div class="ld">远程 embedding contract 负责模型、维度、ready 状态；BM25 local encoder 负责客户端 sparse vector。</div></div>
+</div>
+
+<h2>初始化到召回的流向</h2>
+<div class="flow">
+  <div class="node"><div class="nt">config</div><div class="nd">读取安全占位值、database、embedding model、timeout 与 backend。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">create database/collections</div><div class="nd">创建数据库和 L1/L0/profile collections，集合名带 database 前缀。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">upsert L1/L0/profile</div><div class="nd">写元数据、dense text 字段、client sparse vector 与过滤字段。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">hybridSearch</div><div class="nd">服务端 dense embedding + sparse vector + RRF rerank 合成一次查询。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">recall</div><div class="nd">返回 L1/L0/profile 候选，供 Auto Recall 或显式 memory tools 使用。</div></div>
+</div>
+
+<h2>本地 SQLite 与云端 TCVDB 对比</h2>
+<div class="cols">
+  <div class="col"><h4>SQLite local backend</h4><p>元数据、FTS5、sqlite-vec 和 JSONL 都在本地。混合搜索通常由客户端分别查 keyword/vector，再做 RRF-style 合并。优点是零云依赖、便于离线；限制是索引能力和并发能力跟随本机环境。</p></div>
+  <div class="col"><h4>Tencent Cloud VectorDB backend</h4><p>集合、dense embedding 字段、sparse vector、filter indexes 和 native <span class="inline">hybridSearch</span> 下沉到 VectorDB。优点是统一远程检索、服务端 RRF rerank 与迁移/导出路径；要求配置、网络和凭据都可用。</p></div>
+</div>
+
+<h2>安全配置字段</h2>
+<table class="t">
+  <tr><th>字段</th><th>安全示例值</th><th>作用</th></tr>
+  <tr><td class="mono">storeBackend</td><td class="mono">tcvdb</td><td>让 factory 选择 <span class="inline">TcvdbMemoryStore</span>。</td></tr>
+  <tr><td class="mono">tcvdb.url</td><td class="mono">https://tencent-vectordb.example.com</td><td>VectorDB HTTP endpoint，占位域名不能当真实地址。</td></tr>
+  <tr><td class="mono">tcvdb.username</td><td class="mono">TENCENT_VECTORDB_USERNAME</td><td>用户名占位值，文档和示例不能写真实账号。</td></tr>
+  <tr><td class="mono">tcvdb.apiKey</td><td class="mono">TENCENT_VECTORDB_API_KEY</td><td>API key 占位值，只说明从安全配置读取。</td></tr>
+  <tr><td class="mono">tcvdb.database</td><td class="mono">agent_memory_demo</td><td>database 名，也用于 collection 前缀。</td></tr>
+  <tr><td class="mono">embedding.model</td><td class="mono">tencent-embedding-demo</td><td>dense embedding 模型占位名；实际模型必须与维度匹配。</td></tr>
+  <tr><td class="mono">embedding.dimensions</td><td class="mono">1024</td><td>用于校验向量字段维度和 embedding readiness。</td></tr>
+  <tr><td class="mono">recall.timeoutMs</td><td class="mono">5000</td><td>保护主对话；远程慢时 fail open。</td></tr>
+</table>
+
+<h2>核心伪代码</h2>
+<pre class="code">cfg.storeBackend = "tcvdb"
+store = new TcvdbMemoryStore({
+    url, username, apiKey: "TENCENT_VECTORDB_API_KEY",
+    database, embeddingModel, bm25Encoder
+})
+store.init():
+    createDatabase()
+    createCollection(database + "_l1_memories", dense_vector, sparse_vector, filters)
+    createCollection(database + "_l0_conversations", dense_vector, sparse_vector, filters)
+
+recall_hybrid(query):
+    return collection.hybridSearch(dense=query_text, sparse=bm25(query), rerank="RRF")</pre>
+
+<h2>降级、迁移与导出</h2>
+<p>
+远程后端不是主对话的硬依赖。<span class="inline">embedding.ts</span> 用统一 contract 描述 remote/local embedding service、provider info、维度和 readiness；
+如果远程 embedding 未 ready，factory 可以保持本地 fallback 准备度，召回超时也只跳过增强，不阻塞回答。
+<span class="inline">tcvdb-client.ts</span> 把 HTTP 错误、超时和响应解析收敛到客户端边界；<span class="inline">factory.ts</span> 在初始化失败时进入 degraded mode。
+</p>
+<p>
+降级不等于“记忆消失”。L0 JSONL、L1 records、scene blocks、persona 与本地 search/evidence 工具仍应保留，下一轮可以继续写本地证据或等待远程恢复。
+已有本地 SQLite 数据可通过 <span class="inline">scripts/migrate-sqlite-to-tcvdb/sqlite-to-tcvdb.ts</span> 迁移到 TCVDB；远程集合也可通过
+<span class="inline">scripts/export-tencent-vdb/export-tencent-vdb.ts</span> 导出，保证上线和回滚都有可审计路径。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/store/tcvdb.ts</span>：<span class="inline">TcvdbMemoryStore</span>、collection creation、filter indexes、DISK_FLAT-to-HNSW fallback、L1/L0/profile upsert 与 native <span class="inline">hybridSearch</span>。</li>
+    <li><span class="inline">src/core/store/tcvdb-client.ts</span>：HTTP API client、timeout、错误处理和响应解析边界。</li>
+    <li><span class="inline">src/core/store/bm25-local.ts</span>：客户端 sparse vector encoder，为 TCVDB hybrid search 提供稀疏向量。</li>
+    <li><span class="inline">src/core/store/embedding.ts</span>：remote/local embedding service contract、provider info、dimensions 与 readiness。</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：backend selection、store bundle 创建、本地 fallback readiness 与 degraded initialization。</li>
+    <li><span class="inline">scripts/migrate-sqlite-to-tcvdb/sqlite-to-tcvdb.ts</span>：从 SQLite 迁移到 TCVDB 的路径。</li>
+    <li><span class="inline">scripts/export-tencent-vdb/export-tencent-vdb.ts</span>：从 Tencent VectorDB 导出的路径。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  TCVDB 后端把 dense embedding、sparse vector、filter indexes 和 RRF rerank 下沉到远程 VectorDB，客户端主要负责配置、BM25 sparse 编码、写入证据和控制超时。
+  安全配置只使用占位值；远程初始化或查询失败时，系统应降级而不是中断主对话，并继续保留 JSONL、本地 records、scene/persona 与迁移/导出证据路径。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Lesson 25 explained the local SQLite store; the final M3 lesson switches to the remote backend. <span class="inline">TcvdbMemoryStore</span>
+writes L1, L0, and profiles into Tencent Cloud VectorDB collections prefixed by the database name: dense embedding can be generated by server-side fields,
+sparse vectors are generated client-side by the BM25 encoder, and native <span class="inline">hybridSearch</span> with RRF rerank combines recall. If remote access fails, JSONL and local evidence paths still keep memory traceable and degradable.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  SQLite is a portable file cabinet with all indexes maintained locally; TCVDB is a cloud archive where registration, vector retrieval, and hybrid reranking can happen server-side.
+  The assistant still carries raw receipts: even if the cloud archive is temporarily unavailable, local JSONL and evidence files do not disappear.
+</div>
+
+<h2>Five remote backend layers</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">guide code</span><span class="name">factory + config</span></div><div class="ld"><span class="inline">factory.ts</span> selects the remote bundle when <span class="inline">storeBackend = "tcvdb"</span> and keeps degraded initialization available.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">store bundle</span><span class="name">TcvdbMemoryStore</span></div><div class="ld">Creates database-prefixed collections, writes L1, L0, and profiles, and exposes native hybrid capability to recall/search.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">TCVDB client</span><span class="name">HTTP API client</span></div><div class="ld"><span class="inline">tcvdb-client.ts</span> wraps requests, timeouts, and error objects so remote failures do not become main-chat failures.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">VectorDB collections</span><span class="name">database_l1_memories / database_l0_conversations / database_profiles</span></div><div class="ld">Collections contain dense vector fields, sparse vector fields, and filter indexes; indexing tries DISK_FLAT first and falls back to HNSW when needed.</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">embedding services</span><span class="name">remote dense + local sparse</span></div><div class="ld">The remote embedding contract owns model, dimensions, and ready state; the BM25 local encoder owns client-side sparse vectors.</div></div>
+</div>
+
+<h2>Flow from initialization to recall</h2>
+<div class="flow">
+  <div class="node"><div class="nt">config</div><div class="nd">Read safe placeholders, database, embedding model, timeout, and backend.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">create database/collections</div><div class="nd">Create the database and L1/L0/profile collections with database-prefixed names.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">upsert L1/L0/profile</div><div class="nd">Write metadata, dense text fields, client sparse vectors, and filter fields.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">hybridSearch</div><div class="nd">Server-side dense embedding + sparse vector + RRF rerank are composed as one query.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">recall</div><div class="nd">Return L1/L0/profile candidates for Auto Recall or explicit memory tools.</div></div>
+</div>
+
+<h2>Local SQLite versus cloud TCVDB</h2>
+<div class="cols">
+  <div class="col"><h4>SQLite local backend</h4><p>Metadata, FTS5, sqlite-vec, and JSONL are local. Hybrid search usually collects keyword/vector candidates separately and does client-side RRF-style merging. It is cloud-free and offline-friendly; its indexing and concurrency follow the local machine.</p></div>
+  <div class="col"><h4>Tencent Cloud VectorDB backend</h4><p>Collections, dense embedding fields, sparse vectors, filter indexes, and native <span class="inline">hybridSearch</span> move into VectorDB. It provides centralized remote retrieval, server-side RRF rerank, and migration/export paths; it requires valid config, network, and credentials.</p></div>
+</div>
+
+<h2>Safe configuration fields</h2>
+<table class="t">
+  <tr><th>Field</th><th>Safe example value</th><th>Purpose</th></tr>
+  <tr><td class="mono">storeBackend</td><td class="mono">tcvdb</td><td>Lets the factory choose <span class="inline">TcvdbMemoryStore</span>.</td></tr>
+  <tr><td class="mono">tcvdb.url</td><td class="mono">https://tencent-vectordb.example.com</td><td>VectorDB HTTP endpoint; this placeholder domain is not a real address.</td></tr>
+  <tr><td class="mono">tcvdb.username</td><td class="mono">TENCENT_VECTORDB_USERNAME</td><td>Username placeholder; docs and examples must not contain a real account.</td></tr>
+  <tr><td class="mono">tcvdb.apiKey</td><td class="mono">TENCENT_VECTORDB_API_KEY</td><td>API key placeholder, indicating secure config lookup only.</td></tr>
+  <tr><td class="mono">tcvdb.database</td><td class="mono">agent_memory_demo</td><td>Database name, also used as the collection prefix.</td></tr>
+  <tr><td class="mono">embedding.model</td><td class="mono">tencent-embedding-demo</td><td>Dense embedding model placeholder; the real model must match dimensions.</td></tr>
+  <tr><td class="mono">embedding.dimensions</td><td class="mono">1024</td><td>Checks vector field dimensions and embedding readiness.</td></tr>
+  <tr><td class="mono">recall.timeoutMs</td><td class="mono">5000</td><td>Protects the main chat; slow remote recall fails open.</td></tr>
+</table>
+
+<h2>Core pseudocode</h2>
+<pre class="code">cfg.storeBackend = "tcvdb"
+store = new TcvdbMemoryStore({
+    url, username, apiKey: "TENCENT_VECTORDB_API_KEY",
+    database, embeddingModel, bm25Encoder
+})
+store.init():
+    createDatabase()
+    createCollection(database + "_l1_memories", dense_vector, sparse_vector, filters)
+    createCollection(database + "_l0_conversations", dense_vector, sparse_vector, filters)
+
+recall_hybrid(query):
+    return collection.hybridSearch(dense=query_text, sparse=bm25(query), rerank="RRF")</pre>
+
+<h2>Degradation, migration, and export</h2>
+<p>
+The remote backend is not a hard dependency of the main chat. <span class="inline">embedding.ts</span> uses one contract for remote/local embedding services, provider info, dimensions, and readiness.
+If remote embedding is not ready, the factory can keep local fallback readiness, and recall timeouts only skip enhancement instead of blocking the answer.
+<span class="inline">tcvdb-client.ts</span> keeps HTTP errors, timeouts, and response parsing at the client boundary; <span class="inline">factory.ts</span> enters degraded mode when initialization fails.
+</p>
+<p>
+Degradation does not mean memory disappears. L0 JSONL, L1 records, scene blocks, persona, and local search/evidence tools should remain available, so the next turn can keep local evidence or wait for remote recovery.
+Existing SQLite data can be migrated with <span class="inline">scripts/migrate-sqlite-to-tcvdb/sqlite-to-tcvdb.ts</span>; remote collections can be exported with
+<span class="inline">scripts/export-tencent-vdb/export-tencent-vdb.ts</span>, keeping rollout and rollback auditable.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/store/tcvdb.ts</span>: <span class="inline">TcvdbMemoryStore</span>, collection creation, filter indexes, DISK_FLAT-to-HNSW fallback, L1/L0/profile upsert, and native <span class="inline">hybridSearch</span>.</li>
+    <li><span class="inline">src/core/store/tcvdb-client.ts</span>: HTTP API client, timeout, error handling, and response parsing boundary.</li>
+    <li><span class="inline">src/core/store/bm25-local.ts</span>: client-side sparse vector encoder for TCVDB hybrid search.</li>
+    <li><span class="inline">src/core/store/embedding.ts</span>: remote/local embedding service contract, provider info, dimensions, and readiness.</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: backend selection, store bundle creation, local fallback readiness, and degraded initialization.</li>
+    <li><span class="inline">scripts/migrate-sqlite-to-tcvdb/sqlite-to-tcvdb.ts</span>: migration path from SQLite to TCVDB.</li>
+    <li><span class="inline">scripts/export-tencent-vdb/export-tencent-vdb.ts</span>: export path from Tencent VectorDB.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  The TCVDB backend pushes dense embedding, sparse vectors, filter indexes, and RRF rerank into remote VectorDB; the client mainly handles config, BM25 sparse encoding, evidence writes, and timeout control.
+  Safe config uses placeholders only; when remote initialization or query fails, the system should degrade instead of interrupting the main chat and should keep JSONL, local records, scene/persona, and migration/export evidence paths.
+</div>
+""",
+}
+
