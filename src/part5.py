@@ -670,3 +670,188 @@ The boundary matters: <span class="inline">generateLocalPersona()</span> reads c
 </div>
 """,
 }
+
+
+LESSON_21 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+MemoryPipelineManager 不在每条消息后立刻跑完整 L1/L2/L3。它把工作分层调度：L1 用阈值、空闲和 shutdown flush 收集批次；
+L2 在 L1 成功后按 delay/min/max/active-window 触发场景整理；L3 则在 L2 完成后进入全局串行队列，并用 pending 标记合并重复触发。
+</p>
+
+<div class="card analogy">
+  <div class="tag">⏱️ 生活类比</div>
+  L1 像等你“说完一小段”才记笔记：说够阈值就立刻记，没说够就等空闲。L2 像项目复盘：新笔记来了可以把复盘提前，
+  但不能因为你一直聊天而无限推迟。L3 像全公司共享的人物画像，只允许一个编辑一次更新，避免多人同时改同一份 brief。
+</div>
+
+<h2>一次活动如何穿过三层调度</h2>
+<div class="timeline">
+  <div class="lane"><div class="lane-label">conversation</div><div class="tslot">turn 1</div><div class="tslot">turn 2</div><div class="tslot now">turn N</div><div class="tslot span">active session</div></div>
+  <div class="lane"><div class="lane-label">L1</div><div class="tslot">reset idle</div><div class="tslot">reset idle</div><div class="tslot now">threshold/idle</div><div class="tslot">enqueue L1</div></div>
+  <div class="lane"><div class="lane-label">L2</div><div class="tslot">lastL2 + min</div><div class="tslot now">now + delay</div><div class="tslot span">downward-only fire time</div><div class="tslot">enqueue L2</div></div>
+  <div class="lane"><div class="lane-label">L3</div><div class="tslot">L2 success</div><div class="tslot now">global enqueue</div><div class="tslot span">pending dedup while running</div></div>
+</div>
+
+<p>
+入口是 <span class="inline">notifyConversation(sessionKey, messages)</span>。它先把消息追加到 session buffer，
+增加 <span class="inline">conversation_count</span> 并刷新 <span class="inline">last_active_time</span>。
+如果计数达到 warm-up 或稳态阈值，就直接 <span class="inline">enqueueL1</span>；否则重置 L1 idle timer。
+这让活跃对话按批处理，低频对话也能在空闲后被捕获。
+</p>
+
+<h2>L1 resettable timer vs L2 downward-only timer</h2>
+<div class="cols">
+  <div class="col"><h4>L1 resettable idle</h4><p>每次未达到阈值的新对话都会重新 <span class="inline">schedule()</span> idle timer：旧倒计时取消，新倒计时从当前时刻重新开始。它的目标是 debounce：等用户停下来，再把残余 buffer 交给 L1。</p></div>
+  <div class="col"><h4>L2 downward-only</h4><p>L1 成功后计算 <span class="inline">max(now + delay, lastL2 + minInterval)</span>，再用 <span class="inline">tryAdvanceTo()</span>。如果新时间更早，就提前；如果更晚，就保持原计划，避免活跃会话一直把 L2 往后推。</p></div>
+</div>
+
+<p>
+L2 还承担两个保护：成功完成后用 <span class="inline">maxInterval</span> 重新设定下一次巡检，保证活跃 session 即使没有新 L1 也会定期整理；
+周期性的 maxInterval 定时器触发时检查 <span class="inline">sessionActiveWindowHours</span>，冷 session 不再继续轮询，等下一次 L1 成功再重新唤醒。
+因此 downward-only 不是“越快越好”，而是在 delay-after-L1 的响应性、minInterval 的限速和 maxInterval 的兜底之间取平衡。
+</p>
+
+<h2>L3 为什么全局串行</h2>
+<p>
+L2 是按 session 整理场景，L3 persona 却汇总所有场景并写同一个高层画像。多个 session 同时完成 L2 时，如果并发生成 persona，
+它们会读取相近但不同步的 scene/persona 状态，最后写入者可能覆盖先完成者。为避免这种全局写冲突，
+<span class="inline">enqueueL3</span> 使用一个 <span class="inline">SerialQueue("L3")</span>、一个 <span class="inline">l3Running</span>
+和一个 <span class="inline">l3Pending</span>：运行中收到新触发只标 pending，当前 L3 结束后最多再补跑一次。
+</p>
+
+<h2>核心伪代码</h2>
+<pre class="code">notifyConversation(sessionKey, messages):
+    buffer_messages(sessionKey, messages)
+    if conversation_count &gt;= effective_threshold:
+        enqueueL1(sessionKey)
+    else:
+        reset_l1_idle_timer(sessionKey)
+
+on_l1_success(sessionKey):
+    advance_l2_timer_earlier(max(now + delay, lastL2 + minInterval))
+
+on_l2_success():
+    if l3Running:
+        l3Pending = true
+    else:
+        enqueue_global_l3()</pre>
+
+<h2>Shutdown flush 顺序</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>停止接收新工作</h4><p><span class="inline">destroyed</span> 先置为 true，自然 timer 不再发起新调度。</p><div class="mono">destroyed = true</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>flush L1 idle</h4><p>取消 L1 idle timer；如果 session 还有 buffered messages，用 <span class="inline">enqueueL1(..., "flush")</span> 收尾。</p><div class="mono">L1 idle -&gt; enqueue L1</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>等待 L1 drain</h4><p>L1 成功后会照常推进 L2 timer，因此必须先等待 L1 queue 清空。</p><div class="mono">await l1Queue.onIdle()</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>flush L2 timers</h4><p>把 pending 的 L2 schedule timer 立即触发，进入 L2 queue；L2 成功后触发 L3。</p><div class="mono">L2 timer -&gt; enqueue L2 -&gt; enqueue L3</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>等待 L2/L3 并持久化状态</h4><p>等待 L2 与 L3 队列空闲，然后无论 flush 成败都保存 <span class="inline">PipelineSessionState</span>，便于下次启动恢复。</p><div class="mono">await queues -&gt; persist state</div></div></div>
+</div>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/utils/pipeline-manager.ts</span>：<span class="inline">notifyConversation</span>、<span class="inline">enqueueL1</span>、<span class="inline">enqueueL2</span>、<span class="inline">enqueueL3</span> 与 <span class="inline">destroy</span> 串起 L1/L2/L3 调度。</li>
+    <li><span class="inline">src/utils/managed-timer.ts</span>：<span class="inline">schedule()</span> 实现 resettable timer；<span class="inline">tryAdvanceTo()</span> 实现只能提前不能推迟的 downward-only timer。</li>
+    <li><span class="inline">src/utils/serial-queue.ts</span>：L1、L2、L3 都用 concurrency=1 的 FIFO 队列；L3 还在队列外用 <span class="inline">l3Running</span>/<span class="inline">l3Pending</span> 去重。</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：<span class="inline">PipelineSessionState</span> 保存 conversation_count、last_active_time、L2 游标和 warm-up threshold。</li>
+    <li><span class="inline">src/core/persona/persona-trigger.ts</span>：L3 runner 内部再根据显式请求、冷启动、恢复、首次场景和阈值决定是否真正生成 persona。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  L1 的 resettable idle 解决“用户还在说话时先等等”；L2 的 downward-only timer 解决“新 L1 可提前整理，但不能把整理无限推迟”；
+  L3 的全局串行队列解决“所有 session 共享同一份 persona 写入面”。Shutdown 时按 L1 -&gt; L2 -&gt; L3 -&gt; persist state 收口，保证 pending 工作可完成或可恢复。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+MemoryPipelineManager does not run the full L1/L2/L3 stack after every message. It schedules work by layer: L1 batches by threshold, idle, and shutdown flush;
+L2 consolidates scenes after successful L1 with delay/min/max/active-window rules; L3 enters a global serial queue after L2 and deduplicates repeated triggers with a pending flag.
+</p>
+
+<div class="card analogy">
+  <div class="tag">⏱️ Analogy</div>
+  L1 waits until you have "said a small chunk" before taking notes: enough turns trigger immediately, otherwise idle time catches the remainder.
+  L2 is the project review: new notes may pull the review earlier, but continuous chatting must not postpone it forever.
+  L3 is the shared company brief about a person, so only one editor should update it at a time.
+</div>
+
+<h2>How one activity moves through three schedulers</h2>
+<div class="timeline">
+  <div class="lane"><div class="lane-label">conversation</div><div class="tslot">turn 1</div><div class="tslot">turn 2</div><div class="tslot now">turn N</div><div class="tslot span">active session</div></div>
+  <div class="lane"><div class="lane-label">L1</div><div class="tslot">reset idle</div><div class="tslot">reset idle</div><div class="tslot now">threshold/idle</div><div class="tslot">enqueue L1</div></div>
+  <div class="lane"><div class="lane-label">L2</div><div class="tslot">lastL2 + min</div><div class="tslot now">now + delay</div><div class="tslot span">downward-only fire time</div><div class="tslot">enqueue L2</div></div>
+  <div class="lane"><div class="lane-label">L3</div><div class="tslot">L2 success</div><div class="tslot now">global enqueue</div><div class="tslot span">pending dedup while running</div></div>
+</div>
+
+<p>
+The entry point is <span class="inline">notifyConversation(sessionKey, messages)</span>. It appends messages to the session buffer,
+increments <span class="inline">conversation_count</span>, and refreshes <span class="inline">last_active_time</span>.
+If the count reaches the warm-up or steady-state threshold, it calls <span class="inline">enqueueL1</span>; otherwise it resets the L1 idle timer.
+That batches active chats while still capturing low-frequency chats after they go idle.
+</p>
+
+<h2>L1 resettable timer vs L2 downward-only timer</h2>
+<div class="cols">
+  <div class="col"><h4>L1 resettable idle</h4><p>Every below-threshold conversation calls <span class="inline">schedule()</span> again: the old countdown is cancelled and a new countdown starts from now. Its goal is debounce: wait until the user stops, then send the residual buffer to L1.</p></div>
+  <div class="col"><h4>L2 downward-only</h4><p>After L1 succeeds, code computes <span class="inline">max(now + delay, lastL2 + minInterval)</span> and calls <span class="inline">tryAdvanceTo()</span>. If the new time is earlier, it moves earlier; if it is later, the old plan remains, so active sessions cannot keep pushing L2 back.</p></div>
+</div>
+
+<p>
+L2 also has two protections: after a successful L2 run, <span class="inline">maxInterval</span> arms the next poll so active sessions are periodically consolidated even without fresh L1;
+when the periodic maxInterval timer fires, <span class="inline">sessionActiveWindowHours</span> stops polling cold sessions until the next successful L1 wakes them again.
+So downward-only does not mean "always sooner"; it balances delay-after-L1 responsiveness, minInterval rate limiting, and the maxInterval guarantee.
+</p>
+
+<h2>Why L3 is globally serialized</h2>
+<p>
+L2 organizes scenes per session, but L3 persona summarizes all scenes and writes one high-level profile. If several sessions finish L2 and generate persona concurrently,
+they may read nearby but inconsistent scene/persona states, and the last writer can overwrite the earlier result. To avoid this global write conflict,
+<span class="inline">enqueueL3</span> uses one <span class="inline">SerialQueue("L3")</span>, one <span class="inline">l3Running</span>,
+and one <span class="inline">l3Pending</span>: triggers that arrive during a run only mark pending, then the current L3 run is followed by at most one catch-up run.
+</p>
+
+<h2>Core pseudocode</h2>
+<pre class="code">notifyConversation(sessionKey, messages):
+    buffer_messages(sessionKey, messages)
+    if conversation_count &gt;= effective_threshold:
+        enqueueL1(sessionKey)
+    else:
+        reset_l1_idle_timer(sessionKey)
+
+on_l1_success(sessionKey):
+    advance_l2_timer_earlier(max(now + delay, lastL2 + minInterval))
+
+on_l2_success():
+    if l3Running:
+        l3Pending = true
+    else:
+        enqueue_global_l3()</pre>
+
+<h2>Shutdown flush order</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Stop accepting new work</h4><p><span class="inline">destroyed</span> is set to true first, so natural timers no longer start new scheduling.</p><div class="mono">destroyed = true</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Flush L1 idle</h4><p>Cancel L1 idle timers; if a session still has buffered messages, finish it with <span class="inline">enqueueL1(..., "flush")</span>.</p><div class="mono">L1 idle -&gt; enqueue L1</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Wait for L1 to drain</h4><p>Successful L1 still advances the L2 timer, so the L1 queue must drain first.</p><div class="mono">await l1Queue.onIdle()</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Flush L2 timers</h4><p>Pending L2 schedule timers fire immediately into the L2 queue; successful L2 then triggers L3.</p><div class="mono">L2 timer -&gt; enqueue L2 -&gt; enqueue L3</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Wait for L2/L3 and persist state</h4><p>Wait until L2 and L3 queues are idle, then persist <span class="inline">PipelineSessionState</span> whether flush succeeded or failed so startup can recover.</p><div class="mono">await queues -&gt; persist state</div></div></div>
+</div>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/utils/pipeline-manager.ts</span>: <span class="inline">notifyConversation</span>, <span class="inline">enqueueL1</span>, <span class="inline">enqueueL2</span>, <span class="inline">enqueueL3</span>, and <span class="inline">destroy</span> connect L1/L2/L3 scheduling.</li>
+    <li><span class="inline">src/utils/managed-timer.ts</span>: <span class="inline">schedule()</span> implements resettable timers; <span class="inline">tryAdvanceTo()</span> implements the downward-only timer that can move earlier but not later.</li>
+    <li><span class="inline">src/utils/serial-queue.ts</span>: L1, L2, and L3 all use FIFO queues with concurrency=1; L3 also deduplicates outside the queue with <span class="inline">l3Running</span>/<span class="inline">l3Pending</span>.</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">PipelineSessionState</span> stores conversation_count, last_active_time, L2 cursors, and warm-up threshold.</li>
+    <li><span class="inline">src/core/persona/persona-trigger.ts</span>: inside the L3 runner, explicit request, cold start, recovery, first scene, and threshold conditions decide whether persona should actually be generated.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  L1's resettable idle answers "wait while the user is still talking"; L2's downward-only timer answers "fresh L1 may pull consolidation earlier, but not postpone it forever";
+  L3's global serial queue answers "all sessions share one persona write surface." Shutdown closes in L1 -&gt; L2 -&gt; L3 -&gt; persist state order, so pending work either finishes or can be recovered.
+</div>
+""",
+}

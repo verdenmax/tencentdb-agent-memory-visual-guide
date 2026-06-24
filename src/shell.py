@@ -86,6 +86,8 @@ PAGES = [
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
     ("20-persona-generator-incremental.html", "PersonaGenerator 与增量画像更新", "PersonaGenerator and incremental profile updates",
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
+    ("21-l2-l3-scheduling-triggers.html", "L2/L3 调度与触发规则", "L2/L3 scheduling and trigger rules",
+     "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
 ]
 
 def bi(zh, en):
@@ -559,6 +561,8 @@ SUBTITLES = {
                                            "engineering maintains .metadata/scene_index.json and generates read_file-ready Scene Navigation"),
     "20-persona-generator-incremental.html": ("读取变化场景、保留已有 persona、沙箱写 persona.md、再追加场景导航",
                                           "read changed scenes, preserve existing persona, sandbox-write persona.md, then append scene navigation"),
+    "21-l2-l3-scheduling-triggers.html": ("L1 resettable idle、L2 downward-only timer、L3 全局串行队列与 pending 去重",
+                                          "L1 resettable idle, L2 downward-only timer, L3 global serial queue with pending dedup"),
 }
 
 def index_page(lesson_prefix="lessons/"):

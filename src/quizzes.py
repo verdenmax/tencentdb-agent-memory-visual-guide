@@ -380,6 +380,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "为什么 persona.md 写完后还要重新追加 Scene Navigation？", "en": "Why append Scene Navigation again after persona.md is written?"}],
     },
+    "21-l2-l3-scheduling-triggers.html": {
+        "mcq": [{
+            "q": {"zh": "L2 为什么使用 downward-only timer？", "en": "Why does L2 use a downward-only timer?"},
+            "opts": [
+                {"zh": "新 L1 可把 L2 提前，但不能无限推迟，兼顾响应性与 maxInterval 保证", "en": "New L1 work can move L2 earlier but not postpone it forever, balancing responsiveness and the maxInterval guarantee"},
+                {"zh": "为了让所有任务并发写 persona", "en": "To let all tasks write persona concurrently"},
+                {"zh": "为了禁用 L1", "en": "To disable L1"},
+                {"zh": "为了每秒重建 HTML", "en": "To rebuild HTML every second"},
+            ],
+            "answer": 0,
+            "why": {"zh": "L2 既要及时吸收新 L1，也要避免活跃会话一直延后整理。", "en": "L2 must absorb fresh L1 promptly without letting active sessions postpone consolidation forever."},
+        }],
+        "open": [{"zh": "为什么 L3 persona 生成需要全局串行，而不是每个 session 并发运行？", "en": "Why should L3 persona generation be globally serialized instead of running concurrently per session?"}],
+    },
 }
 
 

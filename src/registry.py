@@ -26,4 +26,5 @@ CONTENT = {
     "18-scene-extractor-sandbox.html": part5.LESSON_18,
     "19-scene-index-navigation-backups.html": part5.LESSON_19,
     "20-persona-generator-incremental.html": part5.LESSON_20,
+    "21-l2-l3-scheduling-triggers.html": part5.LESSON_21,
 }

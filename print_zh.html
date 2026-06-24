@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 20 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">20 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 21 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">21 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -352,6 +352,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">SceneExtractor 与沙箱文件写入工具</span><span class="lang-en">SceneExtractor and sandboxed file-writing tools</span></li>
   <li><span class="lang-zh">Scene index、导航与备份</span><span class="lang-en">Scene index, navigation, and backups</span></li>
   <li><span class="lang-zh">PersonaGenerator 与增量画像更新</span><span class="lang-en">PersonaGenerator and incremental profile updates</span></li>
+  <li><span class="lang-zh">L2/L3 调度与触发规则</span><span class="lang-en">L2/L3 scheduling and trigger rules</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -2532,6 +2533,121 @@ if decision.should:
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>为什么 persona.md 写完后还要重新追加 Scene Navigation？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">L2/L3 调度与触发规则</span><span class="lang-en">L2/L3 scheduling and trigger rules</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+MemoryPipelineManager 不在每条消息后立刻跑完整 L1/L2/L3。它把工作分层调度：L1 用阈值、空闲和 shutdown flush 收集批次；
+L2 在 L1 成功后按 delay/min/max/active-window 触发场景整理；L3 则在 L2 完成后进入全局串行队列，并用 pending 标记合并重复触发。
+</p>
+
+<div class="card analogy">
+  <div class="tag">⏱️ 生活类比</div>
+  L1 像等你“说完一小段”才记笔记：说够阈值就立刻记，没说够就等空闲。L2 像项目复盘：新笔记来了可以把复盘提前，
+  但不能因为你一直聊天而无限推迟。L3 像全公司共享的人物画像，只允许一个编辑一次更新，避免多人同时改同一份 brief。
+</div>
+
+<h2>一次活动如何穿过三层调度</h2>
+<div class="timeline">
+  <div class="lane"><div class="lane-label">conversation</div><div class="tslot">turn 1</div><div class="tslot">turn 2</div><div class="tslot now">turn N</div><div class="tslot span">active session</div></div>
+  <div class="lane"><div class="lane-label">L1</div><div class="tslot">reset idle</div><div class="tslot">reset idle</div><div class="tslot now">threshold/idle</div><div class="tslot">enqueue L1</div></div>
+  <div class="lane"><div class="lane-label">L2</div><div class="tslot">lastL2 + min</div><div class="tslot now">now + delay</div><div class="tslot span">downward-only fire time</div><div class="tslot">enqueue L2</div></div>
+  <div class="lane"><div class="lane-label">L3</div><div class="tslot">L2 success</div><div class="tslot now">global enqueue</div><div class="tslot span">pending dedup while running</div></div>
+</div>
+
+<p>
+入口是 <span class="inline">notifyConversation(sessionKey, messages)</span>。它先把消息追加到 session buffer，
+增加 <span class="inline">conversation_count</span> 并刷新 <span class="inline">last_active_time</span>。
+如果计数达到 warm-up 或稳态阈值，就直接 <span class="inline">enqueueL1</span>；否则重置 L1 idle timer。
+这让活跃对话按批处理，低频对话也能在空闲后被捕获。
+</p>
+
+<h2>L1 resettable timer vs L2 downward-only timer</h2>
+<div class="cols">
+  <div class="col"><h4>L1 resettable idle</h4><p>每次未达到阈值的新对话都会重新 <span class="inline">schedule()</span> idle timer：旧倒计时取消，新倒计时从当前时刻重新开始。它的目标是 debounce：等用户停下来，再把残余 buffer 交给 L1。</p></div>
+  <div class="col"><h4>L2 downward-only</h4><p>L1 成功后计算 <span class="inline">max(now + delay, lastL2 + minInterval)</span>，再用 <span class="inline">tryAdvanceTo()</span>。如果新时间更早，就提前；如果更晚，就保持原计划，避免活跃会话一直把 L2 往后推。</p></div>
+</div>
+
+<p>
+L2 还承担两个保护：成功完成后用 <span class="inline">maxInterval</span> 重新设定下一次巡检，保证活跃 session 即使没有新 L1 也会定期整理；
+周期性的 maxInterval 定时器触发时检查 <span class="inline">sessionActiveWindowHours</span>，冷 session 不再继续轮询，等下一次 L1 成功再重新唤醒。
+因此 downward-only 不是“越快越好”，而是在 delay-after-L1 的响应性、minInterval 的限速和 maxInterval 的兜底之间取平衡。
+</p>
+
+<h2>L3 为什么全局串行</h2>
+<p>
+L2 是按 session 整理场景，L3 persona 却汇总所有场景并写同一个高层画像。多个 session 同时完成 L2 时，如果并发生成 persona，
+它们会读取相近但不同步的 scene/persona 状态，最后写入者可能覆盖先完成者。为避免这种全局写冲突，
+<span class="inline">enqueueL3</span> 使用一个 <span class="inline">SerialQueue("L3")</span>、一个 <span class="inline">l3Running</span>
+和一个 <span class="inline">l3Pending</span>：运行中收到新触发只标 pending，当前 L3 结束后最多再补跑一次。
+</p>
+
+<h2>核心伪代码</h2>
+<pre class="code">notifyConversation(sessionKey, messages):
+    buffer_messages(sessionKey, messages)
+    if conversation_count &gt;= effective_threshold:
+        enqueueL1(sessionKey)
+    else:
+        reset_l1_idle_timer(sessionKey)
+
+on_l1_success(sessionKey):
+    advance_l2_timer_earlier(max(now + delay, lastL2 + minInterval))
+
+on_l2_success():
+    if l3Running:
+        l3Pending = true
+    else:
+        enqueue_global_l3()</pre>
+
+<h2>Shutdown flush 顺序</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>停止接收新工作</h4><p><span class="inline">destroyed</span> 先置为 true，自然 timer 不再发起新调度。</p><div class="mono">destroyed = true</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>flush L1 idle</h4><p>取消 L1 idle timer；如果 session 还有 buffered messages，用 <span class="inline">enqueueL1(..., "flush")</span> 收尾。</p><div class="mono">L1 idle -&gt; enqueue L1</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>等待 L1 drain</h4><p>L1 成功后会照常推进 L2 timer，因此必须先等待 L1 queue 清空。</p><div class="mono">await l1Queue.onIdle()</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>flush L2 timers</h4><p>把 pending 的 L2 schedule timer 立即触发，进入 L2 queue；L2 成功后触发 L3。</p><div class="mono">L2 timer -&gt; enqueue L2 -&gt; enqueue L3</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>等待 L2/L3 并持久化状态</h4><p>等待 L2 与 L3 队列空闲，然后无论 flush 成败都保存 <span class="inline">PipelineSessionState</span>，便于下次启动恢复。</p><div class="mono">await queues -&gt; persist state</div></div></div>
+</div>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/utils/pipeline-manager.ts</span>：<span class="inline">notifyConversation</span>、<span class="inline">enqueueL1</span>、<span class="inline">enqueueL2</span>、<span class="inline">enqueueL3</span> 与 <span class="inline">destroy</span> 串起 L1/L2/L3 调度。</li>
+    <li><span class="inline">src/utils/managed-timer.ts</span>：<span class="inline">schedule()</span> 实现 resettable timer；<span class="inline">tryAdvanceTo()</span> 实现只能提前不能推迟的 downward-only timer。</li>
+    <li><span class="inline">src/utils/serial-queue.ts</span>：L1、L2、L3 都用 concurrency=1 的 FIFO 队列；L3 还在队列外用 <span class="inline">l3Running</span>/<span class="inline">l3Pending</span> 去重。</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：<span class="inline">PipelineSessionState</span> 保存 conversation_count、last_active_time、L2 游标和 warm-up threshold。</li>
+    <li><span class="inline">src/core/persona/persona-trigger.ts</span>：L3 runner 内部再根据显式请求、冷启动、恢复、首次场景和阈值决定是否真正生成 persona。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  L1 的 resettable idle 解决“用户还在说话时先等等”；L2 的 downward-only timer 解决“新 L1 可提前整理，但不能把整理无限推迟”；
+  L3 的全局串行队列解决“所有 session 共享同一份 persona 写入面”。Shutdown 时按 L1 -&gt; L2 -&gt; L3 -&gt; persist state 收口，保证 pending 工作可完成或可恢复。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. L2 为什么使用 downward-only timer？</div>
+  <ol class="opts">
+    <li>新 L1 可把 L2 提前，但不能无限推迟，兼顾响应性与 maxInterval 保证</li>
+    <li>为了禁用 L1</li>
+    <li>为了让所有任务并发写 persona</li>
+    <li>为了每秒重建 HTML</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：A</strong>。L2 既要及时吸收新 L1，也要避免活跃会话一直延后整理。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>为什么 L3 persona 生成需要全局串行，而不是每个 session 并发运行？</li>
   </ul>
 </div>
 </div>
