@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 32 lessons.
+The guide currently contains 33 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -42,6 +42,7 @@ The guide currently contains 32 lessons.
 | 30 | Mermaid MMD canvas, node_id, and drill-down recovery |
 | 31 | L3 context injection and emergency compression |
 | 32 | Hermes Gateway, HTTP endpoints, and security knobs |
+| 33 | Seed CLI, migration/export/read scripts, and operational workflows |
 
 ## How to view locally
 

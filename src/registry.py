@@ -41,4 +41,5 @@ CONTENT = {
     "30-mermaid-mmd-node-id-drill-down.html": part7.LESSON_30,
     "31-l3-context-injection-emergency-compression.html": part7.LESSON_31,
     "32-hermes-gateway-http-security.html": part8.LESSON_32,
+    "33-seed-cli-migration-export-read.html": part8.LESSON_33,
 }

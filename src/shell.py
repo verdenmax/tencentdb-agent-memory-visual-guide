@@ -110,6 +110,8 @@ PAGES = [
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
     ("32-hermes-gateway-http-security.html", "Hermes Gateway、HTTP 端点与安全开关", "Hermes Gateway, HTTP endpoints, and security knobs",
      "第八部分 · 生态、运维、调试与词汇表", "Part 8 · Ecosystem, operations, debugging, and glossary"),
+    ("33-seed-cli-migration-export-read.html", "Seed CLI、迁移/导出/读取脚本与运维工作流", "Seed CLI, migration/export/read scripts, and operational workflows",
+     "第八部分 · 生态、运维、调试与词汇表", "Part 8 · Ecosystem, operations, debugging, and glossary"),
 ]
 
 def bi(zh, en):
@@ -605,6 +607,8 @@ SUBTITLES = {
                                           "MMD is the task map, and node_id is the index from map back to evidence"),
     "31-l3-context-injection-emergency-compression.html": ("先注入任务地图，再按 token 压力进行温和、激进和紧急压缩",
                                                       "inject the task map first, then apply mild, aggressive, and emergency compression by token pressure"),
+    "33-seed-cli-migration-export-read.html": ("用可回滚脚本完成初始化、迁移、导出、诊断和本地读取",
+                                               "use reversible scripts for seeding, migration, export, diagnostics, and local reads"),
 }
 
 def index_page(lesson_prefix="lessons/"):

@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 32 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">32 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 33 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">33 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -364,6 +364,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">Mermaid MMD 画布、node_id 与下钻恢复</span><span class="lang-en">Mermaid MMD canvas, node_id, and drill-down recovery</span></li>
   <li><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></li>
   <li><span class="lang-zh">Hermes Gateway、HTTP 端点与安全开关</span><span class="lang-en">Hermes Gateway, HTTP endpoints, and security knobs</span></li>
+  <li><span class="lang-zh">Seed CLI、迁移/导出/读取脚本与运维工作流</span><span class="lang-en">Seed CLI, migration/export/read scripts, and operational workflows</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -4017,6 +4018,138 @@ on_request(req):
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>If the Gateway must be exposed beyond the local machine, how would you combine bind address, allowed origins, auth token, reverse-proxy rate limits, and logging policy?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">Seed CLI、迁移/导出/读取脚本与运维工作流</span><span class="lang-en">Seed CLI, migration/export/read scripts, and operational workflows</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+The memory system does more than run inside the live agent loop. Initial seeding, SQLite to Tencent VectorDB migration, remote snapshot export, safe local reads, and diagnostic bundles should be handled by auditable, reversible scripts. This lesson treats the
+<span class="inline">seed</span> CLI, migration scripts, export/read scripts, and <span class="inline">memory-tencentdb-ctl</span> as one operational workflow: read the READMEs and script docs first, then dry run, back up, inspect manifests, apply, and verify.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  A live conversation is like a restaurant during service; you should not move the warehouse while guests are ordering. Seed, migration, export, and read scripts are closing-time inventory: lock the checklist, take backup photos, rehearse once, inspect the inventory report, move the stock, then sample-check that shelves can be found.
+</div>
+
+<h2>Why these actions stay outside the live agent loop</h2>
+<div class="cols">
+  <div class="col"><h4>Initialization is not chat</h4><p><span class="inline">src/cli/commands/seed.ts</span> accepts operator-provided seed input; <span class="inline">src/core/seed/input.ts</span> parses and validates it; <span class="inline">seed-runtime.ts</span> writes only accepted data. This prepares initial memory; it should not pretend to be a user turn.</p></div>
+  <div class="col"><h4>Migration is not realtime recall</h4><p><span class="inline">scripts/migrate-sqlite-to-tcvdb</span> moves local SQLite memory toward Tencent VectorDB. Migration needs config snapshots, manifests, dry runs, backups, and idempotent writes, not a hidden side effect inside one recall timeout.</p></div>
+  <div class="col"><h4>Diagnostics are not secret dumps</h4><p>Export/read scripts create inspectable local or remote snapshots. They should preserve structure, counts, status, and redacted samples without copying real tokens, endpoints, prompts, or sensitive user content into reports.</p></div>
+</div>
+
+<h2>Operational timeline: prove rollback first, then apply</h2>
+<div class="timeline">
+  <div class="lane"><div class="lane-label">prepare</div><div class="tslot">read docs</div><div class="tslot">choose scope</div><div class="tslot">freeze config</div></div>
+  <div class="lane"><div class="lane-label">backup</div><div class="tslot span">copy SQLite / config / existing manifests to BACKUP_DIR_PLACEHOLDER</div></div>
+  <div class="lane"><div class="lane-label">dry run</div><div class="tslot">seed preview if documented</div><div class="tslot">migration --dry-run</div><div class="tslot">read-only export</div></div>
+  <div class="lane"><div class="lane-label">inspect</div><div class="tslot">manifest</div><div class="tslot">counts</div><div class="tslot">warnings</div><div class="tslot">sample reads</div></div>
+  <div class="lane"><div class="lane-label">apply</div><div class="tslot now">run exact reviewed command</div><div class="tslot">write manifest</div></div>
+  <div class="lane"><div class="lane-label">verify</div><div class="tslot">local read</div><div class="tslot">search</div><div class="tslot">recall</div><div class="tslot">rollback plan still valid</div></div>
+</div>
+
+<h2>Seed write path</h2>
+<div class="flow">
+  <div class="node"><div class="nt">seed input</div><div class="nd">JSON/JSONL/fixture path uses placeholders and declared session/user scope.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">input parser</div><div class="nd"><span class="inline">input.ts</span> validates shape, ids, timestamps, and required fields.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">seed runtime</div><div class="nd"><span class="inline">seed-runtime.ts</span> normalizes and plans idempotent writes.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">storage adapter</div><div class="nd">SQLite or Tencent VectorDB backend receives checked records.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">verification read</div><div class="nd">read/search confirms expected records without leaking credentials.</div></div>
+</div>
+
+<h2>When to use each script or command</h2>
+<div class="card warn">
+  <div class="tag">⚠️ Confirm real flags first</div>
+  The command names below express operational semantics; they do not replace each script README. Real flags may be named <span class="inline">--dry-run</span>, <span class="inline">--yes</span>, or may provide only validate-then-write behavior. Before running anything, open the matching README / entry file and confirm whether the command is read-only, a preview, or a write.
+</div>
+<table class="t">
+  <tr><th>Script / command</th><th>When to use</th><th>Inputs</th><th>Outputs</th><th>Safety check</th></tr>
+  <tr><td class="mono">memory-tencentdb seed --input SEED_FILE_PLACEHOLDER</td><td>Validate and write initial memory seed data; if the README documents preview / dry run, rehearse first.</td><td>SEED_FILE_PLACEHOLDER, CONFIG_PATH_PLACEHOLDER.</td><td>Validation result, rejection reasons, write summary.</td><td>Read <span class="inline">src/cli/README.md</span> first; confirm schema, scope, backup, and dedup policy.</td></tr>
+  <tr><td class="mono">migrate-sqlite-to-tcvdb --dry-run</td><td>Assess migration from local SQLite to Tencent VectorDB.</td><td>SQLITE_PATH_PLACEHOLDER, TCVDB_CONFIG_PLACEHOLDER.</td><td>Migration plan, collection checks, manifest draft.</td><td>Back up SQLite first; confirm endpoint / token come only from placeholder config or secure environment.</td></tr>
+  <tr><td class="mono">migrate-sqlite-to-tcvdb --apply</td><td>Apply only after dry run, manifest, and backup pass review.</td><td>The same reviewed config and input snapshot.</td><td>Remote collection writes, final manifest, count summary.</td><td>Check <span class="inline">manifest-write.ts</span> for traceable batches and idempotency keys.</td></tr>
+  <tr><td class="mono">export-tencent-vdb --output SNAPSHOT_PATH_PLACEHOLDER</td><td>Create a remote VectorDB diagnostic snapshot.</td><td>Read-only remote config, collection name, redaction rules.</td><td>Structured snapshot or summary file.</td><td>Do not export real credentials; truncate or redact sample content by policy.</td></tr>
+  <tr><td class="mono">read-local-memory --db SQLITE_PATH_PLACEHOLDER</td><td>Inspect memory state before debugging recall/search.</td><td>SQLite path, query filters, limit.</td><td>Read-only table stats, matching records, source ids.</td><td>Default to read-only and small limits; do not repair the database here.</td></tr>
+  <tr><td class="mono">memory-tencentdb-ctl status --config CONFIG_PATH_PLACEHOLDER</td><td>Wrap common operator actions behind one entry point.</td><td>Config path, action name, dry-run/apply switch.</td><td>Status, diagnostics, backup or export location.</td><td>Read the wrapper README and confirm which scripts it actually calls.</td></tr>
+</table>
+
+<h2>Core pseudocode</h2>
+<pre class="code">operator_reads_docs([
+    "src/cli/README.md",
+    "scripts/migrate-sqlite-to-tcvdb/README.md",
+    "scripts/README.memory-tencentdb-ctl.md",
+])
+
+plan = load_operation_plan(CONFIG_PATH_PLACEHOLDER)
+assert plan.uses_placeholders_or_secure_env()
+backup = create_backup(SQLITE_PATH_PLACEHOLDER, BACKUP_DIR_PLACEHOLDER)
+
+dry_run = run_seed_or_migration(plan, mode="dry-run")
+if dry_run.has_errors:
+    stop_and_fix_input(dry_run.errors)
+
+manifest = write_manifest(dry_run, backup)
+review(manifest.counts, manifest.warnings, manifest.rollback_hint)
+
+if operator_approves_exact_plan:
+    result = run_seed_or_migration(plan, mode="apply", idempotency_key=manifest.id)
+    verify_with_read_script(result.expected_records, readonly=True)
+    verify_with_search_or_recall(SAFE_QUERY_PLACEHOLDER)</pre>
+
+<h2>What to inspect before running scripts</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Entry arguments</h4><p><span class="inline">cli-entry.ts</span>, shell wrappers, and READMEs should say which arguments are read-only, which write data, and which require dry run. If the arguments are unclear, do not run the script.</p><div class="mono">read docs before scripts</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Config writes</h4><p>Scripts such as <span class="inline">config-write.ts</span> may change runtime config. Save a config copy before apply, and allow only safe placeholders such as CONFIG_PATH_PLACEHOLDER in output.</p><div class="mono">backup config before apply</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Manifest writes</h4><p><span class="inline">manifest-write.ts</span> is the rollback and audit trail: record input digests, batch id, counts, warnings, and target collection, not real secrets.</p><div class="mono">manifest proves what changed</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Verification reads</h4><p><span class="inline">read-local-memory.ts</span> and export snapshots confirm results. Default to read-only, narrow scope, and redaction; if something looks wrong, stop instead of chaining apply runs.</p><div class="mono">read before and after apply</div></div></div>
+</div>
+
+<h2>Source anchors</h2>
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li>Approved spec Part 8 operations: this lesson covers seed, migration, export, read, diagnostic, and operator workflows outside the live loop.</li>
+    <li><span class="inline">src/cli/commands/seed.ts</span>, <span class="inline">src/core/seed/seed-runtime.ts</span>, and <span class="inline">src/core/seed/input.ts</span>: seed CLI, input validation, and write runtime.</li>
+    <li><span class="inline">src/cli/README.md</span>: CLI behavior, parameters, and safe usage notes.</li>
+    <li><span class="inline">scripts/migrate-sqlite-to-tcvdb/README.md</span>, <span class="inline">cli-entry.ts</span>, <span class="inline">sqlite-to-tcvdb.ts</span>, <span class="inline">config-write.ts</span>, and <span class="inline">manifest-write.ts</span>: migration entry, data movement, config writes, and manifests.</li>
+    <li><span class="inline">scripts/export-tencent-vdb/export-tencent-vdb.ts</span> and <span class="inline">scripts/read-local-memory/read-local-memory.ts</span>: remote export and local read-only inspection.</li>
+    <li><span class="inline">scripts/export-diagnostic.sh</span>, <span class="inline">scripts/memory-tencentdb-ctl.sh</span>, and <span class="inline">scripts/README.memory-tencentdb-ctl.md</span>: diagnostic bundling and operator wrapper.</li>
+    <li><span class="inline">scripts/install_hermes_memory_tencentdb.sh</span> and <span class="inline">scripts/setup-offload.sh</span>: read them to understand setup/offload side effects; this lesson gives no installation steps and does not treat them as migration shortcuts.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Seed, migration, export, diagnostics, and local reads are operational script workflows, not realtime agent conversation steps. The safe order is: read docs, limit scope, back up, dry run, inspect manifest / export, apply, then verify with read-only scripts plus recall/search.
+  Command examples must use only placeholder paths, placeholder config, and dry-run/apply semantics, with no real endpoints, tokens, or installation instructions.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Before running seed or SQLite to Tencent VectorDB migration, what is the safest default order?</div>
+  <ol class="opts">
+    <li>Migrate inside a live recall timeout to save one command</li>
+    <li>Write real endpoints and tokens into the guide for easy copying</li>
+    <li>Apply directly because scripts automatically know the operator's intent</li>
+    <li>Read docs, back up, dry run, inspect manifest / export, then apply and verify with read-only checks</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. These scripts are operational actions outside the live loop. Dry runs, backups, manifests, placeholder config, and read-only verification turn hidden side effects into auditable, reversible changes.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Design a rehearsal for migrating local SQLite to Tencent VectorDB: which files would you back up, which manifest fields would you record, and how would you verify recall/search after apply?</li>
   </ul>
 </div>
 </div>
