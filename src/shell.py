@@ -108,6 +108,8 @@ PAGES = [
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
     ("31-l3-context-injection-emergency-compression.html", "L3 上下文注入与紧急压缩", "L3 context injection and emergency compression",
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
+    ("32-hermes-gateway-http-security.html", "Hermes Gateway、HTTP 端点与安全开关", "Hermes Gateway, HTTP endpoints, and security knobs",
+     "第八部分 · 生态、运维、调试与词汇表", "Part 8 · Ecosystem, operations, debugging, and glossary"),
 ]
 
 def bi(zh, en):

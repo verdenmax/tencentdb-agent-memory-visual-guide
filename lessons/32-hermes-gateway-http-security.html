@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-lang="zh"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
+<title>32 · Hermes Gateway、HTTP 端点与安全开关 / Hermes Gateway, HTTP endpoints, and security knobs - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第八部分 · 生态、运维、调试与词汇表｜Hermes Gateway、HTTP 端点与安全开关 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
+<meta property="og:title" content="32 · Hermes Gateway、HTTP 端点与安全开关 / Hermes Gateway, HTTP endpoints, and security knobs - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第八部分 · 生态、运维、调试与词汇表｜Hermes Gateway、HTTP 端点与安全开关 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="32 · Hermes Gateway、HTTP 端点与安全开关 / Hermes Gateway, HTTP endpoints, and security knobs - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第八部分 · 生态、运维、调试与词汇表｜Hermes Gateway、HTTP 端点与安全开关 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --ink: #1d2129;
+  --muted: #5b6470; --faint: #8a939f; --line: #e1e5ea;
+  --accent: #0f766e; --accent-soft: #dff7f3; --accent-ink: #115e59;
+  --blue: #2563eb; --blue-soft: #e7efff; --amber: #b4690e; --amber-soft: #fdf1dd;
+  --purple: #7c3aed; --purple-soft: #f0e9ff; --red: #d23f3f; --red-soft: #fbe6e6;
+  --code-bg: #0f172a; --code-ink: #e2e8f0; --code-line: #1e293b;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1116; --panel: #161b22; --panel-2: #1c232c; --ink: #e6edf3;
+    --muted: #9aa6b2; --faint: #6e7a86; --line: #2a323c;
+    --accent: #2dd4bf; --accent-soft: #123b38; --accent-ink: #7dd3c7;
+    --blue: #6ea8fe; --blue-soft: #16243f; --amber: #e0a44a; --amber-soft: #33270f;
+    --purple: #b794f6; --purple-soft: #271a40; --red: #f08080; --red-soft: #3a1a1a;
+    --code-bg: #0a0f1a; --code-ink: #d8e2f0; --code-line: #14202f;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+html { scroll-behavior: smooth; overflow-x: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+    "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  background: var(--bg); color: var(--ink); line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+code, .mono { font-family: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace; overflow-wrap: break-word; }
+
+/* ---- top progress bar ---- */
+.topbar {
+  position: sticky; top: 0; z-index: 50; background: var(--panel);
+  border-bottom: 1px solid var(--line); backdrop-filter: blur(8px);
+}
+.topbar-inner {
+  max-width: 960px; margin: 0 auto; padding: .7rem 1.25rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.topbar .home { font-size: .82rem; color: var(--muted); font-weight: 600; display:flex; gap:.5rem; align-items:center; }
+.topbar .home b { color: var(--accent); }
+.topbar .pill { font-size: .72rem; color: var(--muted); background: var(--panel-2);
+  padding: .2rem .6rem; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.progress { height: 3px; background: var(--panel-2); }
+.progress > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--blue)); }
+
+.wrap { max-width: 820px; margin: 0 auto; padding: 2.4rem 1.25rem 5rem; }
+
+/* ---- hero ---- */
+.hero { margin-bottom: 2rem; }
+.hero .part { font-size: .76rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700; margin-bottom: .55rem; }
+.hero h1 { font-size: 2.05rem; line-height: 1.2; letter-spacing: -.01em; font-weight: 750; }
+.hero .lead { margin-top: .9rem; font-size: 1.06rem; color: var(--muted); }
+
+h2 { font-size: 1.32rem; margin: 2.4rem 0 .9rem; letter-spacing: -.01em;
+  display: flex; align-items: center; gap: .55rem; }
+h2::before { content: ""; width: 4px; height: 1.05em; background: var(--accent); border-radius: 3px; display: inline-block; }
+h3 { font-size: 1.05rem; margin: 1.4rem 0 .5rem; }
+p { margin: .7rem 0; }
+ul, ol { margin: .6rem 0 .6rem 1.3rem; }
+li { margin: .3rem 0; }
+strong { color: var(--ink); font-weight: 680; }
+.inline { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
+  padding: .08em .4em; font-size: .9em; color: var(--accent-ink); }
+
+/* ---- callout cards ---- */
+.card { border-radius: var(--radius); padding: 1.05rem 1.2rem; margin: 1.2rem 0;
+  border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); }
+.card .tag { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: .4rem; margin-bottom: .5rem; }
+.card.macro { border-left: 4px solid var(--blue); }
+.card.macro .tag { color: var(--blue); }
+.card.detail { border-left: 4px solid var(--purple); }
+.card.detail .tag { color: var(--purple); }
+.card.analogy { border-left: 4px solid var(--amber); background: var(--amber-soft); }
+.card.analogy .tag { color: var(--amber); }
+.card.key { border-left: 4px solid var(--accent); background: var(--accent-soft); }
+.card.key .tag { color: var(--accent-ink); }
+.card.warn { border-left: 4px solid var(--red); background: var(--red-soft); }
+.card.warn .tag { color: var(--red); }
+.card.spark { border-left: 4px solid #e0a000;
+  background: linear-gradient(100deg, rgba(224,160,0,.12), transparent 70%); }
+.card.spark .tag { color: #c98a00; }
+@media (prefers-color-scheme: dark) { .card.spark .tag { color: #f0c050; } }
+
+/* ---- code file callout ---- */
+.codefile { margin: 1.2rem 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line);
+  box-shadow: var(--shadow); }
+.codefile .cf-head { display: flex; align-items: center; gap: .55rem; padding: .5rem .85rem;
+  background: var(--panel-2); border-bottom: 1px solid var(--line); font-size: .8rem; }
+.codefile .cf-head .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex-shrink:0; }
+.codefile .cf-head .path { font-family: ui-monospace, monospace; color: var(--ink); font-weight: 600; }
+.codefile .cf-head .ln { margin-left: auto; color: var(--faint); font-size: .72rem; }
+.codefile pre { background: var(--code-bg); color: var(--code-ink); padding: .9rem 1rem;
+  overflow-x: auto; font-size: .82rem; line-height: 1.6; }
+.codefile pre .cm { color: #7d8aa3; }
+.codefile pre .kw { color: #c792ea; }
+.codefile pre .fn { color: #82aaff; }
+.codefile pre .st { color: #c3e88d; }
+.codefile pre .nb { color: #f78c6c; }
+
+pre.code { background: var(--code-bg); color: var(--code-ink); padding: .9rem 1rem; border-radius: 12px;
+  overflow-x: auto; font-size: .83rem; line-height: 1.6; margin: 1.1rem 0; box-shadow: var(--shadow); }
+pre.code .cm { color: #7d8aa3; } pre.code .kw { color: #c792ea; }
+pre.code .fn { color: #82aaff; } pre.code .st { color: #c3e88d; } pre.code .nb { color: #f78c6c; }
+
+/* ---- collapsible accordion (details/summary) ---- */
+.accordion { border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+  margin: .7rem 0; box-shadow: var(--shadow); overflow: hidden; }
+.accordion > summary { cursor: pointer; padding: .85rem 1.1rem; font-weight: 650; font-size: .96rem;
+  list-style: none; display: flex; align-items: center; gap: .6rem; user-select: none; }
+.accordion > summary::-webkit-details-marker { display: none; }
+.accordion > summary::after { content: "▶"; font-size: .68rem; color: var(--accent);
+  margin-left: auto; transition: transform .15s ease; }
+.accordion[open] > summary::after { transform: rotate(90deg); }
+.accordion > summary:hover { background: var(--panel-2); }
+.accordion[open] > summary { border-bottom: 1px solid var(--line); }
+.accordion .badge-num { background: var(--accent-soft); color: var(--accent-ink);
+  width: 1.6rem; height: 1.6rem; border-radius: 7px; display: inline-flex; align-items: center;
+  justify-content: center; font-size: .82rem; font-weight: 700; flex-shrink: 0; }
+.accordion .hint { font-size: .72rem; color: var(--faint); font-weight: 400; }
+.acc-body { padding: .9rem 1.1rem 1.1rem; }
+.acc-intro { color: var(--muted); font-size: .9rem; margin: .2rem 0 .4rem; }
+.qa { margin: 1rem 0; }
+.qa:first-child { margin-top: .3rem; }
+.qa .q { font-weight: 680; font-size: .9rem; display: flex; gap: .45rem; align-items: center; margin-bottom: .3rem; }
+.qa .a { color: var(--muted); font-size: .9rem; }
+.qa .a strong { color: var(--ink); }
+.qa pre.code { margin: .5rem 0 0; font-size: .78rem; }
+
+/* ---- flow diagram ---- */
+.flow { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; margin: 1.3rem 0;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 1.2rem 1rem; box-shadow: var(--shadow); }
+.flow .node { flex: 1 1 0; min-width: 110px; text-align: center; padding: .7rem .5rem;
+  border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
+.flow .node .nt { font-weight: 700; font-size: .92rem; }
+.flow .node .nd { font-size: .76rem; color: var(--muted); margin-top: .2rem; }
+.flow .node.hl { background: var(--accent-soft); border-color: var(--accent); }
+.flow .arrow { align-self: center; color: var(--faint); font-size: 1.3rem; padding: 0 .35rem; }
+
+/* vertical flow */
+.vflow { margin: 1.3rem 0; }
+.vflow .step { display: flex; gap: .9rem; position: relative; padding-bottom: 1.1rem; }
+.vflow .step:not(:last-child)::before { content:""; position:absolute; left: 15px; top: 34px; bottom: -2px;
+  width: 2px; background: var(--line); }
+.vflow .num { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; flex-shrink: 0; z-index:1; }
+.vflow .sc h4 { margin: .25rem 0 .2rem; font-size: 1rem; }
+.vflow .sc p { margin: .15rem 0; font-size: .92rem; color: var(--muted); }
+.vflow .sc .mono { font-size: .8rem; color: var(--accent-ink); }
+
+/* layered architecture */
+.layers { margin: 1.3rem 0; display: flex; flex-direction: column; gap: .55rem; }
+.layer { border-radius: 12px; padding: .85rem 1.1rem; border: 1px solid var(--line); background: var(--panel);
+  box-shadow: var(--shadow); }
+.layer .lh { display: flex; align-items: center; gap: .6rem; }
+.layer .lh .badge { font-size: .7rem; font-weight: 700; padding: .12rem .5rem; border-radius: 999px; }
+.layer .lh .name { font-weight: 700; font-family: ui-monospace, monospace; }
+.layer .ld { font-size: .85rem; color: var(--muted); margin-top: .35rem; }
+.layer.l-core { border-left: 4px solid var(--accent); } .layer.l-core .badge { background: var(--accent-soft); color: var(--accent-ink); }
+.layer.l-main { border-left: 4px solid var(--blue); } .layer.l-main .badge { background: var(--blue-soft); color: var(--blue); }
+.layer.l-part { border-left: 4px solid var(--purple); } .layer.l-part .badge { background: var(--purple-soft); color: var(--purple); }
+.layer.l-app { border-left: 4px solid var(--amber); } .layer.l-app .badge { background: var(--amber-soft); color: var(--amber); }
+
+/* two-column compare */
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.2rem 0; }
+@media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+.col { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; box-shadow: var(--shadow); min-width: 0; }
+.col h4 { margin: 0 0 .4rem; font-size: .95rem; }
+
+table.t { width: 100%; border-collapse: collapse; margin: 1.1rem 0; font-size: .9rem;
+  background: var(--panel); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+table.t th, table.t td { padding: .6rem .8rem; text-align: left; border-bottom: 1px solid var(--line); }
+table.t th { background: var(--panel-2); font-size: .8rem; letter-spacing: .02em; }
+table.t tr:last-child td { border-bottom: none; }
+table.t td.mono, table.t td .mono { font-family: ui-monospace, monospace; font-size: .82rem; color: var(--accent-ink); }
+@media (max-width: 640px) {
+  /* Wide multi-column tables: scroll within their own box instead of
+     forcing page-level horizontal overflow (which clipped right columns). */
+  table.t { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.t th, table.t td { padding: .5rem .6rem; }
+}
+.selftest { margin: 2.2rem 0 0; border-top: 2px dashed var(--line); padding-top: 1.2rem; }
+.selftest > h2 { margin-top: .2rem; }
+.quiz { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--blue);
+  border-radius: 12px; padding: .9rem 1.1rem; margin: 1rem 0; box-shadow: var(--shadow); }
+.quiz .qn { font-weight: 650; }
+.quiz ol.opts { list-style: upper-alpha; margin: .55rem 0 .6rem 1.5rem; padding: 0; }
+.quiz ol.opts li { margin: .3rem 0; padding-left: .15rem; }
+.quiz details.accordion { margin: .5rem 0 0; }
+.selftest code { font-family: ui-monospace, monospace; font-size: .9em; color: var(--accent-ink);
+  background: var(--accent-soft); padding: 0 .28em; border-radius: 4px; }
+
+/* footer nav */
+.footnav { display: flex; justify-content: space-between; gap: 1rem; margin-top: 3rem;
+  padding-top: 1.4rem; border-top: 1px solid var(--line); }
+.footnav a { flex: 1; padding: .85rem 1.1rem; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--panel); box-shadow: var(--shadow); transition: .15s; }
+.footnav a:hover { border-color: var(--accent); transform: translateY(-1px); }
+.footnav a.next { text-align: right; }
+.footnav .dir { font-size: .72rem; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; }
+.footnav .ttl { font-weight: 700; color: var(--ink); margin-top: .15rem; }
+.footnav a.disabled { opacity: .35; pointer-events: none; }
+
+/* index page */
+.toc { display: grid; gap: .7rem; margin-top: 1.6rem; }
+.toc-part { font-size: .78rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--accent); margin: 1.4rem 0 .2rem; }
+.toc a { display: flex; align-items: center; gap: .9rem; padding: .85rem 1.05rem; border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); transition: .15s; }
+.toc a:hover { border-color: var(--accent); transform: translateX(3px); }
+.toc .n { width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink);
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; flex-shrink: 0; }
+.toc .tt { font-weight: 650; color: var(--ink); }
+.toc .ts { font-size: .8rem; color: var(--muted); margin-left: auto; text-align: right; }
+.toc-search { position: relative; margin: 1.6rem 0 -.4rem; }
+.toc-search input { width: 100%; box-sizing: border-box; padding: .75rem 2.8rem .75rem 1rem;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  font-size: .98rem; box-shadow: var(--shadow); }
+.toc-search input:focus { outline: none; border-color: var(--accent); }
+.toc-search .qcount { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
+  color: var(--faint); font-size: .8rem; pointer-events: none; }
+.toc a.hide, .toc .toc-part.hide { display: none; }
+.toc-empty { display: none; color: var(--muted); padding: 1rem; text-align: center; }
+.toc-empty.show { display: block; }
+.hero.index h1 { font-size: 2.3rem; }
+.legend { display:flex; gap:1.2rem; flex-wrap:wrap; margin-top:1rem; font-size:.8rem; color:var(--muted); }
+.legend span { display:flex; align-items:center; gap:.4rem; }
+.legend i { width:12px; height:12px; border-radius:3px; display:inline-block; }
+.pdf-btn { display:inline-flex; align-items:center; gap:.4rem; padding:.55rem 1.1rem;
+  background:var(--accent); color:#fff; border-radius:10px; font-size:.9rem; font-weight:650;
+  box-shadow:var(--shadow); transition:.15s; }
+.pdf-btn:hover { background:var(--accent-ink); transform:translateY(-1px); }
+
+/* ---- bilingual language switch ----
+   Contract: <html> must carry data-lang="zh" (default) or "en".
+   page()/index_page() hard-code data-lang="zh"; LANG_BOOT may switch to "en". */
+html[data-lang="en"] .lang-zh { display: none !important; }
+html[data-lang="zh"] .lang-en { display: none !important; }
+.langtoggle { font-size:.72rem; font-weight:700; color:var(--accent-ink);
+  background:var(--accent-soft); border:1px solid var(--accent); border-radius:999px;
+  padding:.22rem .7rem; cursor:pointer; line-height:1.4; white-space:nowrap; }
+.langtoggle:hover { background:var(--accent); color:#fff; }
+
+/* ---- schematic: cell strips (memory and data-flow blocks) ---- */
+.cellgroup { margin: 1.2rem 0; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+.cellgroup .cg-cap { font-size: .82rem; color: var(--muted); margin-bottom: .55rem; }
+.cellgroup .cg-cap b { color: var(--ink); }
+.cells { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.cells + .cells { margin-top: .5rem; }
+.cell { min-width: 2.1rem; padding: .38rem .5rem; text-align: center; border-radius: 8px;
+  background: var(--panel-2); border: 1px solid var(--line); font-size: .78rem;
+  font-family: ui-monospace, monospace; white-space: nowrap; }
+.cell.scale { background: var(--amber-soft); border-color: var(--amber); color: var(--amber); font-weight: 700; }
+.cell.hl    { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.cell.q     { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+.cell.dim   { opacity: .45; }
+.cells .lab { font-size: .76rem; color: var(--faint); padding: 0 .35rem; }
+.cells .sep { color: var(--faint); padding: 0 .1rem; }
+
+/* ---- schematic: timeline lanes (step-by-step data movement) ---- */
+.timeline { margin: 1.2rem 0; display: flex; flex-direction: column; gap: .5rem;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+.timeline .lane { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.timeline .lane-label { min-width: 6rem; font-size: .8rem; font-weight: 700; color: var(--muted); }
+.timeline .tslot { padding: .4rem .6rem; border-radius: 8px; background: var(--panel-2);
+  border: 1px solid var(--line); font-size: .78rem; text-align: center; font-family: ui-monospace, monospace; }
+.timeline .tslot.span { flex: 1; min-width: 8rem; background: var(--blue-soft); border-color: var(--blue);
+  color: var(--blue); font-weight: 700; }
+.timeline .tslot.now { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+
+/* ---- worked-example trace: one concrete input, stepped through ---- */
+.trace { margin: 1.3rem 0; background: var(--panel); border: 1px solid var(--line);
+  border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+.trace .tcap { font-size: .82rem; color: var(--muted); margin-bottom: .7rem; }
+.trace .tcap b { color: var(--accent-ink); }
+.trace .stations { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
+.trace .stn { flex: 1 1 0; min-width: 116px; border: 1px solid var(--line); border-radius: 10px;
+  padding: .55rem; background: var(--bg); }
+.trace .stn h5 { margin: 0 0 .45rem; font-size: .8rem; color: var(--ink); }
+.trace .cellrow { display: flex; gap: .3rem; align-items: center; flex-wrap: wrap; }
+.trace .vc { min-width: 2.1rem; padding: .32rem .45rem; text-align: center; border-radius: 7px;
+  background: var(--panel-2); border: 1px solid var(--line); font: 600 .76rem ui-monospace, monospace; white-space: nowrap; }
+.trace .vc.hot  { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.trace .vc.blue { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+.trace .vc.dim  { opacity: .42; }
+.trace .tlab { font-size: .68rem; color: var(--faint); margin-top: .35rem; }
+.trace .op { align-self: center; color: var(--accent); font: 700 .72rem ui-monospace, monospace;
+  padding: 0 .5rem; text-align: center; white-space: nowrap; }
+.trace svg { max-width: 100%; height: auto; display: block; margin: .3rem auto; }
+@media (max-width: 640px) { .trace .stations { flex-direction: column; } .trace .op { padding: .3rem 0; } }
+</style>
+</head><body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
+    <span class="pill"><span class="lang-zh">第八部分 · 生态、运维、调试与词汇表</span><span class="lang-en">Part 8 · Ecosystem, operations, debugging, and glossary</span></span>
+    <span class="pill">32 / 32</span>
+    <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
+  </div>
+  <div class="progress"><span style="width:100%"></span></div>
+</div>
+<div class="wrap">
+  <div class="hero">
+    <div class="part"><span class="lang-zh">第八部分 · 生态、运维、调试与词汇表</span><span class="lang-en">Part 8 · Ecosystem, operations, debugging, and glossary</span></div>
+    <h1><span class="lang-zh">Hermes Gateway、HTTP 端点与安全开关</span><span class="lang-en">Hermes Gateway, HTTP endpoints, and security knobs</span></h1>
+  </div>
+  <div class="lang-zh">
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Hermes / direct Gateway 用户走的是外部 HTTP 路径：请求先进入 <span class="inline">src/gateway/server.ts</span>，再由
+<span class="inline">src/gateway/config.ts</span> 解析监听地址、CORS、鉴权、payload 限制和超时等安全开关。通过这些守卫后，Gateway 暴露的 memory 端点才会
+把请求交给 standalone host adapter，最后进入宿主无关的 <span class="inline">TdaiCore</span>。这条路径和 OpenClaw 插件的进程内 hooks 不同：它多了一层网络边界，也多了一组运维责任。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  OpenClaw 进程内插件像办公室里的内部柜台：同楼层的人按内部流程办事。Hermes Gateway 像对外服务窗口：有人从门外递交表单，保安先检查入口、名单、证件、包裹大小和等待时间，再把合规请求转给内部柜台。
+</div>
+
+<h2>一条外部 HTTP 调用怎样进入记忆核心</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Hermes client</div><div class="nd">provider 或直接调用者只知道受控 Gateway 地址与占位 token。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Gateway HTTP route</div><div class="nd"><span class="inline">server.ts</span> 创建 HTTP server，注册 health、status 与 memory routes。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">config/security guard</div><div class="nd"><span class="inline">config.ts</span> 解析 host、port、origin、auth、body limit、timeout。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">standalone adapter</div><div class="nd">把 HTTP 请求转换为 host-neutral 上下文、日志与 LLM 边界。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">TdaiCore</div><div class="nd">复用 capture、recall、search、store 与 pipeline facade。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">memory layers</div><div class="nd">L0/L1/L2/L3、SQLite / VectorDB、Context Offload 按配置工作。</div></div>
+</div>
+
+<h2>server.ts：路由不是核心，边界才是重点</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>create server</h4><p>Gateway 先创建 HTTP server，并把 route table、request parser、错误响应和关闭流程放在同一个入口附近，便于运维检查。</p><div class="mono">createHttpServer(config)</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>public health/status</h4><p><span class="inline">/health</span> 用于 liveness；<span class="inline">/status</span> 用于确认功能是否启用。它们只能返回安全状态，不应泄露 token、完整路径或云账号信息。</p><div class="mono">GET /health -&gt; ok</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>validate request</h4><p>memory routes 在委托前检查方法、路径、content-type、payload 大小、JSON schema 形状、timeout 和可选 auth token。</p><div class="mono">reject early before TdaiCore</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>delegate safely</h4><p>通过 standalone host adapter 构造宿主上下文，让 HTTP 层不直接知道 OpenClaw hook 细节，也不把外部请求对象泄漏到核心。</p><div class="mono">HTTP request -&gt; HostAdapter -&gt; TdaiCore</div></div></div>
+</div>
+
+<h2>OpenClaw 进程内路径 vs Hermes/Gateway 外部路径</h2>
+<div class="cols">
+  <div class="col"><h4>OpenClaw in-process plugin path</h4><p>OpenClaw 启动插件，插件在同一宿主生命周期内注册 hooks 和 tools。before_prompt_build、agent_end、after_tool_call 等事件直接调用 adapter，再进入 <span class="inline">TdaiCore</span>。主要风险是宿主配置、hook 顺序、数据目录和 pipeline 资源隔离。</p></div>
+  <div class="col"><h4>Hermes / Gateway external HTTP path</h4><p>Hermes provider 或直接调用方通过 HTTP 调用 Gateway。网络入口必须先处理绑定地址、CORS、鉴权、body limit、超时和日志脱敏，然后才委托 standalone adapter。主要风险是暴露面、滥用、跨源访问和错误日志泄密。</p></div>
+  <div class="col"><h4>共同核心</h4><p>两条路径最终都应收敛到 host-neutral <span class="inline">TdaiCore</span>：记忆层、搜索、召回、存储后端和调度逻辑不应因为调用来自 hook 还是 HTTP 而分叉。</p></div>
+</div>
+
+<h2>config.ts：安全开关要在启动时讲清楚</h2>
+<table class="t">
+  <tr><th>Knob</th><th>Default idea</th><th>Risk if loose</th><th>Safe example</th></tr>
+  <tr><td class="mono">listen host</td><td>loopback only</td><td>绑定到所有网卡会把 memory API 暴露给非预期网络。</td><td><span class="inline">127.0.0.1</span> 或受防火墙保护的内网地址占位。</td></tr>
+  <tr><td class="mono">port</td><td>explicit configured port</td><td>端口冲突或误以为服务启动成功。</td><td><span class="inline">TDAI_GATEWAY_PORT=PORT_PLACEHOLDER</span></td></tr>
+  <tr><td class="mono">allowed origins</td><td>deny by default or narrow allow-list</td><td>浏览器跨源页面可误用本机 Gateway。</td><td><span class="inline">https://APP_HOST_PLACEHOLDER</span></td></tr>
+  <tr><td class="mono">auth token</td><td>required outside trusted loopback</td><td>未授权调用可读取、写入或搜索记忆。</td><td><span class="inline">Authorization: Bearer TOKEN_PLACEHOLDER</span></td></tr>
+  <tr><td class="mono">payload size</td><td>small bounded JSON</td><td>大 body 占内存、拖慢解析，或把工具日志误塞进 HTTP。</td><td><span class="inline">MAX_BODY_BYTES=1048576</span></td></tr>
+  <tr><td class="mono">timeout</td><td>bounded per request</td><td>慢请求耗尽 worker 或让用户误判为 Gateway 挂死。</td><td><span class="inline">REQUEST_TIMEOUT_MS=30000</span></td></tr>
+  <tr><td class="mono">rate / abuse</td><td>deploy boundary enforces quota</td><td>内置开关不能替代反滥用策略；搜索与写入可被刷爆。</td><td>只在可信网络暴露，前置反向代理或平台限流。</td></tr>
+  <tr><td class="mono">logging</td><td>structured and redacted</td><td>token、prompt、用户数据或云配置进入日志。</td><td>记录 request id、route、status、duration；不记录 secrets。</td></tr>
+</table>
+
+<h2>Hermes provider 配置要只出现占位值</h2>
+<div class="cellgroup">
+  <div class="cg-cap"><b>provider side</b>：Hermes 只需要知道 provider key、Gateway URL 占位和客户端 token 占位。</div>
+  <div class="cells"><span class="cell hl">provider key</span><span class="sep">-&gt;</span><span class="cell">GATEWAY_URL_PLACEHOLDER</span><span class="sep">-&gt;</span><span class="cell q">TOKEN_PLACEHOLDER</span></div>
+  <div class="cg-cap"><b>gateway side</b>：Gateway 用自己的 env/config 解析 listen、CORS、auth、size 与 timeout，不从页面复制真实密钥。</div>
+  <div class="cells"><span class="cell">TDAI_GATEWAY_HOST</span><span class="cell">TDAI_GATEWAY_PORT</span><span class="cell">TDAI_GATEWAY_API_KEY</span><span class="cell">TDAI_GATEWAY_ALLOWED_ORIGINS</span></div>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">config = load_gateway_config(env)
+server = create_http_server(config)
+
+on_request(req):
+    route = match_gateway_route(req.method, req.path)
+    if route is None:
+        return not_found()
+    if route.requires_auth:
+        require_bearer_token(req.headers, config.auth_token_placeholder)
+    origin = req.headers.get("origin")
+    enforce_allowed_origin(origin, config.allowed_origins)
+    body = read_json_body(req, max_bytes=config.max_body_bytes)
+    validate_memory_payload(route.name, body)
+
+    with timeout(config.request_timeout_ms):
+        context = standalone_host_adapter.from_http(req, body)
+        result = tdai_core.handle(route.operation, context)
+        return json_response(redact_secrets(result))</pre>
+
+<h2>运维检查清单</h2>
+<div class="timeline">
+  <div class="tl"><div class="tm">before bind</div><div class="td">确认监听地址是否只在 loopback 或受控内网；若必须对外暴露，先放到防火墙、反向代理、TLS 和限流之后。</div></div>
+  <div class="tl"><div class="tm">before enable</div><div class="td">设置 allowed origins、auth token、payload size 和 request timeout。health/status 可以轻量公开，但 memory routes 必须受保护。</div></div>
+  <div class="tl"><div class="tm">during ops</div><div class="td">日志只保留 route、状态码、耗时、request id 和脱敏错误；不要记录 Authorization、provider secret、完整 prompt 或云服务凭据。</div></div>
+  <div class="tl"><div class="tm">when abused</div><div class="td">Gateway 代码里的开关不是完整 WAF。高频写入、超大 payload、跨源调用和搜索刷量需要平台层限速、配额与告警。</div></div>
+</div>
+
+<h2>源码锚点</h2>
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li>批准规格 Part 8 Gateway coverage：本课聚焦 Hermes/direct Gateway 用户的 HTTP 运行路径与安全开关。</li>
+    <li><span class="inline">src/gateway/server.ts</span>：HTTP server 创建、路由注册、health/status 端点、请求校验和向核心委托。</li>
+    <li><span class="inline">src/gateway/config.ts</span>：env/config 解析、listen host/port、安全开关、auth token 与默认值。</li>
+    <li><span class="inline">hermes-plugin/memory/memory_tencentdb/README.md</span>：Hermes provider 安装、provider key、配置与 Gateway 路径。</li>
+    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>：standalone host boundary，把 HTTP 调用适配成核心可理解的宿主上下文。</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>：Gateway 适配之后的宿主无关 memory facade。</li>
+    <li><span class="inline">README_CN.md</span>：Gateway security hardening guidance，强调绑定地址、鉴权、CORS、日志与部署边界。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  Hermes / Gateway 路径是外部 HTTP 服务路径，不是 OpenClaw 进程内 hook 路径。HTTP 请求必须先经过
+  <span class="inline">server.ts</span> 的路由与校验、<span class="inline">config.ts</span> 的安全开关，再由 standalone host adapter 收敛到 <span class="inline">TdaiCore</span>。
+  安全默认值应偏向 loopback、窄 CORS、占位 token、小 payload、短 timeout、平台限流和日志脱敏；文档与示例只能使用占位凭据和占位端点。
+</div>
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. Hermes / Gateway 路径和 OpenClaw 进程内插件路径最关键的运维差异是什么？</div>
+  <ol class="opts">
+    <li>Hermes / Gateway 多了外部 HTTP 网络边界，必须先处理 bind、CORS、auth、payload、timeout 和日志脱敏</li>
+    <li>OpenClaw 进程内路径必须公开到公网才能工作</li>
+    <li>Hermes / Gateway 会绕过 TdaiCore，直接写所有记忆文件</li>
+    <li>两条路径完全相同，都不需要安全配置</li>
+  </ol>
+  <details class="accordion">
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：A</strong>。两条路径最终都应收敛到 TdaiCore；差异在入口边界。HTTP Gateway 是可被外部调用的服务，必须在委托核心前完成网络与请求安全控制。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>如果必须把 Gateway 暴露到非本机网络，你会怎样组合监听地址、allowed origins、auth token、反向代理限流和日志策略？</li>
+  </ul>
+</div>
+</div></div>
+  <div class="lang-en">
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Hermes / direct Gateway users take the external HTTP path: the request enters <span class="inline">src/gateway/server.ts</span>, while
+<span class="inline">src/gateway/config.ts</span> resolves listen address, CORS, authentication, payload limits, timeouts, and other security switches. Only after those guards does the Gateway memory route
+hand the request to the standalone host adapter and then to the host-neutral <span class="inline">TdaiCore</span>. This differs from the OpenClaw in-process plugin path: it adds a network boundary and a set of operational responsibilities.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  The OpenClaw in-process plugin is like an internal office counter: people in the same building follow internal workflow. The Hermes Gateway is like an external service window: someone submits a form from outside, security checks the entrance, allow-list, credential, package size, and wait time, then forwards valid requests to the internal counter.
+</div>
+
+<h2>How an external HTTP call reaches memory core</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Hermes client</div><div class="nd">A provider or direct caller only knows the controlled Gateway address and a placeholder token.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Gateway HTTP route</div><div class="nd"><span class="inline">server.ts</span> creates the HTTP server and registers health, status, and memory routes.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">config/security guard</div><div class="nd"><span class="inline">config.ts</span> resolves host, port, origin, auth, body limit, and timeout.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">standalone adapter</div><div class="nd">Converts HTTP requests into host-neutral context, logging, and LLM boundaries.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">TdaiCore</div><div class="nd">Reuses the capture, recall, search, store, and pipeline facade.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">memory layers</div><div class="nd">L0/L1/L2/L3, SQLite / VectorDB, and Context Offload operate by configuration.</div></div>
+</div>
+
+<h2>server.ts: routes matter less than the boundary</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>create server</h4><p>The Gateway creates the HTTP server and keeps the route table, request parser, error responses, and shutdown flow near one entry point for operational review.</p><div class="mono">createHttpServer(config)</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>public health/status</h4><p><span class="inline">/health</span> serves liveness; <span class="inline">/status</span> confirms feature state. They should return safe status only, never tokens, full paths, or cloud account data.</p><div class="mono">GET /health -&gt; ok</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>validate request</h4><p>Memory routes check method, path, content-type, payload size, JSON schema shape, timeout, and optional auth token before delegation.</p><div class="mono">reject early before TdaiCore</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>delegate safely</h4><p>The standalone host adapter builds host context so the HTTP layer does not know OpenClaw hook details and does not leak external request objects into core.</p><div class="mono">HTTP request -&gt; HostAdapter -&gt; TdaiCore</div></div></div>
+</div>
+
+<h2>OpenClaw in-process path vs Hermes/Gateway external path</h2>
+<div class="cols">
+  <div class="col"><h4>OpenClaw in-process plugin path</h4><p>OpenClaw starts the plugin, and the plugin registers hooks and tools inside the same host lifecycle. Events such as before_prompt_build, agent_end, and after_tool_call call the adapter directly, then enter <span class="inline">TdaiCore</span>. The main risks are host config, hook order, data directory isolation, and pipeline resources.</p></div>
+  <div class="col"><h4>Hermes / Gateway external HTTP path</h4><p>A Hermes provider or direct caller invokes the Gateway over HTTP. The network entry must handle bind address, CORS, auth, body limit, timeout, and redacted logging before the standalone adapter. The main risks are exposure, abuse, cross-origin access, and secret leakage in error logs.</p></div>
+  <div class="col"><h4>Shared core</h4><p>Both paths should converge on host-neutral <span class="inline">TdaiCore</span>: memory layers, search, recall, storage backends, and scheduling should not fork merely because a call came from a hook or HTTP.</p></div>
+</div>
+
+<h2>config.ts: security switches should be explicit at startup</h2>
+<table class="t">
+  <tr><th>Knob</th><th>Default idea</th><th>Risk if loose</th><th>Safe example</th></tr>
+  <tr><td class="mono">listen host</td><td>loopback only</td><td>Binding all interfaces can expose the memory API to unintended networks.</td><td><span class="inline">127.0.0.1</span> or a protected internal address placeholder.</td></tr>
+  <tr><td class="mono">port</td><td>explicit configured port</td><td>Port conflicts or a false belief that the service started correctly.</td><td><span class="inline">TDAI_GATEWAY_PORT=PORT_PLACEHOLDER</span></td></tr>
+  <tr><td class="mono">allowed origins</td><td>deny by default or narrow allow-list</td><td>A browser page from another origin may misuse a local Gateway.</td><td><span class="inline">https://APP_HOST_PLACEHOLDER</span></td></tr>
+  <tr><td class="mono">auth token</td><td>required outside trusted loopback</td><td>Unauthorized callers may read, write, or search memory.</td><td><span class="inline">Authorization: Bearer TOKEN_PLACEHOLDER</span></td></tr>
+  <tr><td class="mono">payload size</td><td>small bounded JSON</td><td>Large bodies consume memory, slow parsing, or stuff tool logs into HTTP.</td><td><span class="inline">MAX_BODY_BYTES=1048576</span></td></tr>
+  <tr><td class="mono">timeout</td><td>bounded per request</td><td>Slow requests exhaust workers or make users think Gateway is hung.</td><td><span class="inline">REQUEST_TIMEOUT_MS=30000</span></td></tr>
+  <tr><td class="mono">rate / abuse</td><td>deployment boundary enforces quota</td><td>Built-in switches are not a full abuse strategy; search and writes can be hammered.</td><td>Expose only on trusted networks, with a reverse proxy or platform rate limit.</td></tr>
+  <tr><td class="mono">logging</td><td>structured and redacted</td><td>Tokens, prompts, user data, or cloud config can enter logs.</td><td>Log request id, route, status, duration; do not log secrets.</td></tr>
+</table>
+
+<h2>Hermes provider config should use placeholders only</h2>
+<div class="cellgroup">
+  <div class="cg-cap"><b>provider side</b>: Hermes only needs the provider key, Gateway URL placeholder, and client token placeholder.</div>
+  <div class="cells"><span class="cell hl">provider key</span><span class="sep">-&gt;</span><span class="cell">GATEWAY_URL_PLACEHOLDER</span><span class="sep">-&gt;</span><span class="cell q">TOKEN_PLACEHOLDER</span></div>
+  <div class="cg-cap"><b>gateway side</b>: Gateway resolves listen, CORS, auth, size, and timeout from its own env/config; never copy real secrets from a page.</div>
+  <div class="cells"><span class="cell">TDAI_GATEWAY_HOST</span><span class="cell">TDAI_GATEWAY_PORT</span><span class="cell">TDAI_GATEWAY_API_KEY</span><span class="cell">TDAI_GATEWAY_ALLOWED_ORIGINS</span></div>
+</div>
+
+<h2>Core pseudocode</h2>
+<pre class="code">config = load_gateway_config(env)
+server = create_http_server(config)
+
+on_request(req):
+    route = match_gateway_route(req.method, req.path)
+    if route is None:
+        return not_found()
+    if route.requires_auth:
+        require_bearer_token(req.headers, config.auth_token_placeholder)
+    origin = req.headers.get("origin")
+    enforce_allowed_origin(origin, config.allowed_origins)
+    body = read_json_body(req, max_bytes=config.max_body_bytes)
+    validate_memory_payload(route.name, body)
+
+    with timeout(config.request_timeout_ms):
+        context = standalone_host_adapter.from_http(req, body)
+        result = tdai_core.handle(route.operation, context)
+        return json_response(redact_secrets(result))</pre>
+
+<h2>Operations checklist</h2>
+<div class="timeline">
+  <div class="tl"><div class="tm">before bind</div><div class="td">Confirm whether the listen address is loopback or controlled internal network only. If external exposure is required, put it behind firewall, reverse proxy, TLS, and rate limits first.</div></div>
+  <div class="tl"><div class="tm">before enable</div><div class="td">Set allowed origins, auth token, payload size, and request timeout. Health/status can be lightweight, but memory routes must be protected.</div></div>
+  <div class="tl"><div class="tm">during ops</div><div class="td">Logs keep only route, status code, duration, request id, and redacted errors. Do not record Authorization, provider secrets, full prompts, or cloud credentials.</div></div>
+  <div class="tl"><div class="tm">when abused</div><div class="td">Gateway code switches are not a full WAF. High-frequency writes, oversized payloads, cross-origin calls, and search hammering need platform rate limits, quota, and alerts.</div></div>
+</div>
+
+<h2>Source anchors</h2>
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li>Approved spec Part 8 Gateway coverage: this lesson focuses on the HTTP operational path and security switches for Hermes/direct Gateway users.</li>
+    <li><span class="inline">src/gateway/server.ts</span>: HTTP server creation, route registration, health/status endpoints, request validation, and delegation to core.</li>
+    <li><span class="inline">src/gateway/config.ts</span>: env/config resolution, listen host/port, security switches, auth token, and defaults.</li>
+    <li><span class="inline">hermes-plugin/memory/memory_tencentdb/README.md</span>: Hermes provider install, provider key, configuration, and Gateway path.</li>
+    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>: standalone host boundary that adapts HTTP calls into core-understandable host context.</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>: host-neutral memory facade after Gateway adaptation.</li>
+    <li><span class="inline">README_CN.md</span>: Gateway security hardening guidance for bind address, auth, CORS, logging, and deployment boundary.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  The Hermes / Gateway path is an external HTTP service path, not the OpenClaw in-process hook path. HTTP requests must pass
+  <span class="inline">server.ts</span> routing and validation plus <span class="inline">config.ts</span> security switches before the standalone host adapter converges on <span class="inline">TdaiCore</span>.
+  Safe defaults should favor loopback, narrow CORS, placeholder tokens, small payloads, short timeouts, platform rate limits, and redacted logs; docs and examples should use only placeholder credentials and placeholder endpoints.
+</div>
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. What is the key operational difference between the Hermes / Gateway path and the OpenClaw in-process plugin path?</div>
+  <ol class="opts">
+    <li>Hermes / Gateway adds an external HTTP network boundary, so bind, CORS, auth, payload, timeout, and redacted logging must be handled first</li>
+    <li>The OpenClaw in-process path must be public on the internet to work</li>
+    <li>Hermes / Gateway bypasses TdaiCore and writes every memory file directly</li>
+    <li>The two paths are identical and need no security configuration</li>
+  </ol>
+  <details class="accordion">
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Both paths should converge on TdaiCore; the difference is the entry boundary. An HTTP Gateway is externally callable, so network and request security must be enforced before delegating to core.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>If the Gateway must be exposed beyond the local machine, how would you combine bind address, allowed origins, auth token, reverse-proxy rate limits, and logging policy?</li>
+  </ul>
+</div>
+</div></div>
+  <div class="footnav"><a class="prev" href="31-l3-context-injection-emergency-compression.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
+</div>
+<script>
+function tdamvgSetLang(l){
+  l=(l==='en')?'en':'zh';
+  var d=document.documentElement;
+  d.dataset.lang=l; d.lang=(l==='en'?'en':'zh-CN');
+  try{localStorage.setItem('tdamvg-lang',l);}catch(e){}
+}
+function tdamvgToggleLang(){
+  tdamvgSetLang(document.documentElement.dataset.lang==='en'?'zh':'en');
+}
+</script>
+</body></html>

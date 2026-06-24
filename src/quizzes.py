@@ -535,6 +535,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果模型入口仍然报 token overflow，你会怎样判断该进入 emergency compression，且哪些消息绝不能被删？", "en": "If the model entry still reports token overflow, how would you decide to enter emergency compression, and which messages must never be removed?"}],
     },
+    "32-hermes-gateway-http-security.html": {
+        "mcq": [{
+            "q": {"zh": "Hermes / Gateway 路径和 OpenClaw 进程内插件路径最关键的运维差异是什么？", "en": "What is the key operational difference between the Hermes / Gateway path and the OpenClaw in-process plugin path?"},
+            "opts": [
+                {"zh": "Hermes / Gateway 多了外部 HTTP 网络边界，必须先处理 bind、CORS、auth、payload、timeout 和日志脱敏", "en": "Hermes / Gateway adds an external HTTP network boundary, so bind, CORS, auth, payload, timeout, and redacted logging must be handled first"},
+                {"zh": "Hermes / Gateway 会绕过 TdaiCore，直接写所有记忆文件", "en": "Hermes / Gateway bypasses TdaiCore and writes every memory file directly"},
+                {"zh": "OpenClaw 进程内路径必须公开到公网才能工作", "en": "The OpenClaw in-process path must be public on the internet to work"},
+                {"zh": "两条路径完全相同，都不需要安全配置", "en": "The two paths are identical and need no security configuration"},
+            ],
+            "answer": 0,
+            "why": {"zh": "两条路径最终都应收敛到 TdaiCore；差异在入口边界。HTTP Gateway 是可被外部调用的服务，必须在委托核心前完成网络与请求安全控制。", "en": "Both paths should converge on TdaiCore; the difference is the entry boundary. An HTTP Gateway is externally callable, so network and request security must be enforced before delegating to core."},
+        }],
+        "open": [{"zh": "如果必须把 Gateway 暴露到非本机网络，你会怎样组合监听地址、allowed origins、auth token、反向代理限流和日志策略？", "en": "If the Gateway must be exposed beyond the local machine, how would you combine bind address, allowed origins, auth token, reverse-proxy rate limits, and logging policy?"}],
+    },
 }
 
 
