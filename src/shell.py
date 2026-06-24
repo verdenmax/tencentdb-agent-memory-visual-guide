@@ -82,6 +82,8 @@ PAGES = [
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
     ("18-scene-extractor-sandbox.html", "SceneExtractor 与沙箱文件写入工具", "SceneExtractor and sandboxed file-writing tools",
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
+    ("19-scene-index-navigation-backups.html", "Scene index、导航与备份", "Scene index, navigation, and backups",
+     "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
 ]
 
 def bi(zh, en):
@@ -551,6 +553,8 @@ SUBTITLES = {
                                     "organize scattered L1 atoms into navigable, traceable, growing scene blocks"),
     "18-scene-extractor-sandbox.html": ("CleanContextRunner 只暴露 scene_blocks 工作区，LLM 可写场景但看不到元数据",
                                        "CleanContextRunner exposes only scene_blocks, so the LLM writes scenes without seeing metadata"),
+    "19-scene-index-navigation-backups.html": ("工程侧维护 .metadata/scene_index.json，并生成可 read_file 下钻的 Scene Navigation",
+                                           "engineering maintains .metadata/scene_index.json and generates read_file-ready Scene Navigation"),
 }
 
 def index_page(lesson_prefix="lessons/"):

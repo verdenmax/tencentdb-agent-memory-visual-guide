@@ -352,6 +352,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果 LLM 写坏了一个 scene block，备份和索引同步分别能帮你排查什么？", "en": "If the LLM corrupts a scene block, what do backups and index sync help diagnose?"}],
     },
+    "19-scene-index-navigation-backups.html": {
+        "mcq": [{
+            "q": {"zh": "Scene Navigation 为什么包含场景文件路径？", "en": "Why does Scene Navigation include scene file paths?"},
+            "opts": [
+                {"zh": "让 agent 在需要细节时用 read_file 下钻，而不是每轮注入全文", "en": "So the agent can drill down with read_file when details are needed instead of injecting full scenes every turn"},
+                {"zh": "让浏览器下载 SQLite", "en": "To make the browser download SQLite"},
+                {"zh": "隐藏所有场景摘要", "en": "To hide all scene summaries"},
+                {"zh": "替代 L1 搜索", "en": "To replace L1 search"},
+            ],
+            "answer": 0,
+            "why": {"zh": "导航提供高层索引，完整证据按需读取，节省 prompt budget。", "en": "Navigation gives a high-level index, while full evidence is read on demand to save prompt budget."},
+        }],
+        "open": [{"zh": "为什么 scene_index 应由工程代码写，而不是让 LLM 直接维护？", "en": "Why should engineering code write scene_index instead of letting the LLM maintain it directly?"}],
+    },
 }
 
 

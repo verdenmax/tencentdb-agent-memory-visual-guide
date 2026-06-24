@@ -314,3 +314,182 @@ Creative edits happen in L2 scene prose; deterministic code still owns backups, 
 </div>
 """,
 }
+
+
+LESSON_19 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+上一课看到 LLM 只负责写 <span class="inline">scene_blocks/</span>。本课看工程代码如何在沙箱外维护
+<span class="inline">.metadata/scene_index.json</span>，再生成可被 <span class="inline">read_file</span> 逐步下钻的 Scene Navigation。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  Scene block 是档案页，scene index 是管理员维护的目录卡，Scene Navigation 是贴在工作台上的索引摘要。
+  Agent 先看摘要判断哪页可能相关；需要证据时，再按绝对路径取出那一页，而不是把整柜档案每轮都搬进 prompt。
+</div>
+
+<h2>从 Markdown 场景到 recall 导航</h2>
+<div class="flow">
+  <div class="node"><div class="nt">scene markdown files</div><div class="nd">LLM 在 scene_blocks/ 写出的可读场景</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">parser</div><div class="nd">parseSceneBlock 解析 META</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">scene index JSON</div><div class="nd">工程侧写 .metadata/scene_index.json</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">navigation</div><div class="nd">按 heat 排序并带文件路径</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">recall</div><div class="nd">注入高层索引，按需 read_file</div></div>
+</div>
+
+<p>
+<span class="inline">syncSceneIndex()</span> 是沙箱边界之后的确定性整理步骤。它扫描
+<span class="inline">scene_blocks/*.md</span>，对每个 Markdown scene 调用 <span class="inline">parseSceneBlock</span>
+读取 <span class="inline">created</span>、<span class="inline">updated</span>、<span class="inline">summary</span>、
+<span class="inline">heat</span> 等 META，并把文件名、标题、摘要、热度和更新时间写入
+<span class="inline">.metadata/scene_index.json</span>。这个文件位于 LLM 工作区之外：LLM 可以改场景正文，
+但不能伪造目录状态、覆盖 checkpoint，或绕过工程代码的清理与一致性检查。
+</p>
+
+<h2>Index file vs Navigation markdown</h2>
+<div class="cols">
+  <div class="col"><h4>Index file</h4><p><span class="inline">.metadata/scene_index.json</span> 是机器可读状态：稳定 ID/文件名、summary、heat、时间戳和统计信息。它由 <span class="inline">readSceneIndex</span> 读取、由 <span class="inline">writeSceneIndex</span> 写入、由 <span class="inline">syncSceneIndex</span> 从真实 Markdown 重新生成。</p></div>
+  <div class="col"><h4>Navigation markdown</h4><p><span class="inline">generateSceneNavigation()</span> 把索引变成 prompt 友好的 Markdown：热场景排在前面，显示摘要和安全的绝对路径示例，如 <span class="inline">/workspace/agent-memory-data/scene_blocks/payment-debugging.md</span>，方便 agent 用 <span class="inline">read_file</span> 逐步展开细节。</p></div>
+</div>
+
+<p>
+导航不是要替代场景全文，而是做 progressive disclosure。<span class="inline">generateSceneNavigation()</span>
+先按 <span class="inline">heat</span> 与更新时间排序，把最可能相关的场景放在前面；每条导航保留文件路径，
+让 agent 在判断“这条摘要相关”之后再读取完整 Markdown。这样 recall 可以花很少的 token 暴露场景地图，
+同时仍保留回到完整 L2 叙事和来源引用的能力。
+</p>
+
+<h2>为什么追加到 persona 与 recall context</h2>
+<p>
+Scene Navigation 会被追加到 persona 和 recall 的系统上下文中，因为 L3 画像与本轮 recall 都需要知道“有哪些可用场景”。
+Persona 负责稳定长期倾向，但场景导航告诉 agent：某个长期特征背后有哪些近期活动可查；recall 负责本轮相关性，
+导航则让它先看摘要，再用 <span class="inline">read_file</span> 下钻完整证据。注入导航而非全文，可以同时保留可发现性与 prompt budget。
+</p>
+
+<h2>备份位置与恢复目的</h2>
+<table class="t">
+  <tr><th>备份对象</th><th>典型位置</th><th>恢复目的</th></tr>
+  <tr><td><span class="inline">scene_blocks/</span> directory</td><td><span class="inline">.backup/scene_blocks/...</span></td><td>LLM 批量编辑前保存整目录；如果模型写坏多个场景，可恢复到写入前快照。</td></tr>
+  <tr><td>single scene file</td><td><span class="inline">.backup/files/...</span></td><td>针对单文件维护或人工修复前保存旧版本，便于比较和回滚。</td></tr>
+  <tr><td>retention cleanup</td><td><span class="inline">.backup/</span> 内按数量保留</td><td><span class="inline">BackupManager</span> 控制保留数量，避免备份无限增长，同时保留最近可恢复点。</td></tr>
+</table>
+
+<h2>核心伪代码</h2>
+<pre class="code">files = list(scene_blocks/*.md)
+entries = [parseSceneBlock(file).meta for file in files]
+writeSceneIndex(dataDir, entries)
+nav = generateSceneNavigation(sort_by_heat(entries), dataDir)
+appendSystemContext("&lt;scene-navigation&gt;" + nav + "&lt;/scene-navigation&gt;")</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/scene/scene-index.ts</span>：<span class="inline">readSceneIndex</span>、<span class="inline">writeSceneIndex</span> 与 <span class="inline">syncSceneIndex</span> 维护工程侧 scene index。</li>
+    <li><span class="inline">src/core/scene/scene-navigation.ts</span>：<span class="inline">generateSceneNavigation</span> 生成带路径的导航，<span class="inline">stripSceneNavigation</span> 防止重复注入旧导航。</li>
+    <li><span class="inline">src/core/scene/scene-format.ts</span>：解析 scene Markdown META，是索引从真实场景重建的依据。</li>
+    <li><span class="inline">src/utils/backup.ts</span>：目录/文件备份与保留策略，保护 LLM 编辑前后的可恢复性。</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：把 Scene Navigation 注入 recall/persona 相关上下文，让 agent 先看索引再按需读文件。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  LLM 写场景正文；工程代码扫描、解析并写 <span class="inline">.metadata/scene_index.json</span>。
+  Scene Navigation 按热度排序，包含安全绝对路径，帮助 agent 用 <span class="inline">read_file</span> 按需下钻。
+  备份在 LLM 编辑前创建，导航追加到 persona 与 recall context 中，以低 token 成本保留场景可发现性。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+The previous lesson showed that the LLM writes only <span class="inline">scene_blocks/</span>. This lesson shows how engineering code maintains
+<span class="inline">.metadata/scene_index.json</span> outside the sandbox, then generates Scene Navigation that is ready for progressive
+<span class="inline">read_file</span> drill-down.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  A scene block is an archive page, the scene index is the catalog maintained by the archivist, and Scene Navigation is the summary pinned to the workbench.
+  The agent reads the summary first; when evidence is needed, it opens one page by absolute path instead of loading the whole archive every turn.
+</div>
+
+<h2>From Markdown scenes to recall navigation</h2>
+<div class="flow">
+  <div class="node"><div class="nt">scene markdown files</div><div class="nd">readable scenes written by the LLM in scene_blocks/</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">parser</div><div class="nd">parseSceneBlock reads META</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">scene index JSON</div><div class="nd">engineering writes .metadata/scene_index.json</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">navigation</div><div class="nd">sorted by heat with file paths</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">recall</div><div class="nd">inject index, then read_file on demand</div></div>
+</div>
+
+<p>
+<span class="inline">syncSceneIndex()</span> is the deterministic cleanup step after the sandbox boundary. It scans
+<span class="inline">scene_blocks/*.md</span>, calls <span class="inline">parseSceneBlock</span> for each Markdown scene,
+reads META such as <span class="inline">created</span>, <span class="inline">updated</span>,
+<span class="inline">summary</span>, and <span class="inline">heat</span>, then writes filenames, titles, summaries,
+heat, and update times to <span class="inline">.metadata/scene_index.json</span>. That file lives outside the LLM workspace:
+the LLM can edit scene prose, but it cannot forge catalog state, overwrite checkpoints, or bypass engineering cleanup and consistency checks.
+</p>
+
+<h2>Index file vs navigation markdown</h2>
+<div class="cols">
+  <div class="col"><h4>Index file</h4><p><span class="inline">.metadata/scene_index.json</span> is machine-readable state: stable IDs/filenames, summaries, heat, timestamps, and stats. <span class="inline">readSceneIndex</span> reads it, <span class="inline">writeSceneIndex</span> writes it, and <span class="inline">syncSceneIndex</span> rebuilds it from real Markdown scenes.</p></div>
+  <div class="col"><h4>Navigation markdown</h4><p><span class="inline">generateSceneNavigation()</span> converts the index into prompt-friendly Markdown: hot scenes first, compact summaries, and safe absolute path examples such as <span class="inline">/workspace/agent-memory-data/scene_blocks/payment-debugging.md</span> so the agent can drill down with <span class="inline">read_file</span>.</p></div>
+</div>
+
+<p>
+Navigation does not replace full scenes; it enables progressive disclosure. <span class="inline">generateSceneNavigation()</span>
+sorts by <span class="inline">heat</span> and update time so likely-relevant scenes appear first. Each entry keeps a file path,
+so after the agent decides a summary matters, it can read the full Markdown scene. Recall spends only a small token budget on the scene map
+while preserving a path back to complete L2 narrative and source references.
+</p>
+
+<h2>Why append it to persona and recall context</h2>
+<p>
+Scene Navigation is appended to persona and recall system context because both L3 persona and turn-level recall need to know which scenes are available.
+Persona stores stable long-term tendencies, but navigation tells the agent which recent activities can support or challenge a trait. Recall chooses what matters now,
+and navigation lets it inspect summaries first, then use <span class="inline">read_file</span> for full evidence. Injecting navigation instead of full scenes keeps discoverability without spending the whole prompt budget.
+</p>
+
+<h2>Backup locations and recovery purpose</h2>
+<table class="t">
+  <tr><th>Backup target</th><th>Typical location</th><th>Recovery purpose</th></tr>
+  <tr><td><span class="inline">scene_blocks/</span> directory</td><td><span class="inline">.backup/scene_blocks/...</span></td><td>Snapshot the whole directory before LLM batch edits; restore if the model corrupts multiple scenes.</td></tr>
+  <tr><td>single scene file</td><td><span class="inline">.backup/files/...</span></td><td>Save the old version before single-file maintenance or manual repair, making comparison and rollback possible.</td></tr>
+  <tr><td>retention cleanup</td><td>inside <span class="inline">.backup/</span> by count</td><td><span class="inline">BackupManager</span> limits retained backups so snapshots do not grow forever while recent restore points remain.</td></tr>
+</table>
+
+<h2>Core pseudocode</h2>
+<pre class="code">files = list(scene_blocks/*.md)
+entries = [parseSceneBlock(file).meta for file in files]
+writeSceneIndex(dataDir, entries)
+nav = generateSceneNavigation(sort_by_heat(entries), dataDir)
+appendSystemContext("&lt;scene-navigation&gt;" + nav + "&lt;/scene-navigation&gt;")</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/scene/scene-index.ts</span>: <span class="inline">readSceneIndex</span>, <span class="inline">writeSceneIndex</span>, and <span class="inline">syncSceneIndex</span> maintain the engineering-owned scene index.</li>
+    <li><span class="inline">src/core/scene/scene-navigation.ts</span>: <span class="inline">generateSceneNavigation</span> creates path-bearing navigation, while <span class="inline">stripSceneNavigation</span> prevents reinjecting stale navigation.</li>
+    <li><span class="inline">src/core/scene/scene-format.ts</span>: parses scene Markdown META, the basis for rebuilding the index from real scenes.</li>
+    <li><span class="inline">src/utils/backup.ts</span>: directory/file backups and retention protect recoverability before and after LLM edits.</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: injects Scene Navigation into recall/persona-related context so the agent sees the index before reading files on demand.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  The LLM writes scene prose; engineering code scans, parses, and writes <span class="inline">.metadata/scene_index.json</span>.
+  Scene Navigation is sorted by heat and includes safe absolute paths so the agent can drill down with <span class="inline">read_file</span> only when needed.
+  Backups happen before LLM edits, and navigation is appended to persona and recall context to preserve scene discoverability at low token cost.
+</div>
+""",
+}

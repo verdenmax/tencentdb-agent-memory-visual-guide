@@ -24,4 +24,5 @@ CONTENT = {
     "16-l1-dedup-write.html": part4.LESSON_16,
     "17-why-l2-scene-blocks.html": part5.LESSON_17,
     "18-scene-extractor-sandbox.html": part5.LESSON_18,
+    "19-scene-index-navigation-backups.html": part5.LESSON_19,
 }
