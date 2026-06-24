@@ -346,20 +346,21 @@ LESSON_19 = {
 <span class="inline">syncSceneIndex()</span> 是沙箱边界之后的确定性整理步骤。它扫描
 <span class="inline">scene_blocks/*.md</span>，对每个 Markdown scene 调用 <span class="inline">parseSceneBlock</span>
 读取 <span class="inline">created</span>、<span class="inline">updated</span>、<span class="inline">summary</span>、
-<span class="inline">heat</span> 等 META，并把文件名、标题、摘要、热度和更新时间写入
+<span class="inline">heat</span> 等 META，并把 <span class="inline">filename</span>、<span class="inline">summary</span>、
+<span class="inline">heat</span>、<span class="inline">created</span>、<span class="inline">updated</span> 写入
 <span class="inline">.metadata/scene_index.json</span>。这个文件位于 LLM 工作区之外：LLM 可以改场景正文，
 但不能伪造目录状态、覆盖 checkpoint，或绕过工程代码的清理与一致性检查。
 </p>
 
 <h2>Index file vs Navigation markdown</h2>
 <div class="cols">
-  <div class="col"><h4>Index file</h4><p><span class="inline">.metadata/scene_index.json</span> 是机器可读状态：稳定 ID/文件名、summary、heat、时间戳和统计信息。它由 <span class="inline">readSceneIndex</span> 读取、由 <span class="inline">writeSceneIndex</span> 写入、由 <span class="inline">syncSceneIndex</span> 从真实 Markdown 重新生成。</p></div>
+  <div class="col"><h4>Index file</h4><p><span class="inline">.metadata/scene_index.json</span> 是机器可读状态：每条 <span class="inline">SceneIndexEntry</span> 只包含 <span class="inline">filename</span>、<span class="inline">summary</span>、<span class="inline">heat</span>、<span class="inline">created</span>、<span class="inline">updated</span>。它由 <span class="inline">readSceneIndex</span> 读取、由 <span class="inline">writeSceneIndex</span> 写入、由 <span class="inline">syncSceneIndex</span> 从真实 Markdown 重新生成。</p></div>
   <div class="col"><h4>Navigation markdown</h4><p><span class="inline">generateSceneNavigation()</span> 把索引变成 prompt 友好的 Markdown：热场景排在前面，显示摘要和安全的绝对路径示例，如 <span class="inline">/workspace/agent-memory-data/scene_blocks/payment-debugging.md</span>，方便 agent 用 <span class="inline">read_file</span> 逐步展开细节。</p></div>
 </div>
 
 <p>
 导航不是要替代场景全文，而是做 progressive disclosure。<span class="inline">generateSceneNavigation()</span>
-先按 <span class="inline">heat</span> 与更新时间排序，把最可能相关的场景放在前面；每条导航保留文件路径，
+只按 <span class="inline">heat</span> 降序排序，把热度最高的场景放在前面；每条导航保留文件路径，并显示更新时间，
 让 agent 在判断“这条摘要相关”之后再读取完整 Markdown。这样 recall 可以花很少的 token 暴露场景地图，
 同时仍保留回到完整 L2 叙事和来源引用的能力。
 </p>
@@ -374,8 +375,8 @@ Persona 负责稳定长期倾向，但场景导航告诉 agent：某个长期特
 <h2>备份位置与恢复目的</h2>
 <table class="t">
   <tr><th>备份对象</th><th>典型位置</th><th>恢复目的</th></tr>
-  <tr><td><span class="inline">scene_blocks/</span> directory</td><td><span class="inline">.backup/scene_blocks/...</span></td><td>LLM 批量编辑前保存整目录；如果模型写坏多个场景，可恢复到写入前快照。</td></tr>
-  <tr><td>single scene file</td><td><span class="inline">.backup/files/...</span></td><td>针对单文件维护或人工修复前保存旧版本，便于比较和回滚。</td></tr>
+  <tr><td><span class="inline">scene_blocks/</span> directory</td><td><span class="inline">.backup/scene_blocks/scene_blocks_YYYYMMDD_HHmmss_offset42/</span></td><td>LLM 批量编辑前保存整目录；如果模型写坏多个场景，可恢复到写入前快照。</td></tr>
+  <tr><td><span class="inline">persona.md</span> file</td><td><span class="inline">.backup/persona/persona_YYYYMMDD_HHmmss_offset42.md</span></td><td>使用 <span class="inline">backupFile(src, "persona", tag, maxKeep)</span> 在 persona 生成前保存旧版本；其他单文件备份也按传入 category 命名。</td></tr>
   <tr><td>retention cleanup</td><td><span class="inline">.backup/</span> 内按数量保留</td><td><span class="inline">BackupManager</span> 控制保留数量，避免备份无限增长，同时保留最近可恢复点。</td></tr>
 </table>
 
@@ -383,7 +384,7 @@ Persona 负责稳定长期倾向，但场景导航告诉 agent：某个长期特
 <pre class="code">files = list(scene_blocks/*.md)
 entries = [parseSceneBlock(file).meta for file in files]
 writeSceneIndex(dataDir, entries)
-nav = generateSceneNavigation(sort_by_heat(entries), dataDir)
+nav = generateSceneNavigation(entries, dataDir)
 appendSystemContext("&lt;scene-navigation&gt;" + nav + "&lt;/scene-navigation&gt;")</pre>
 
 <div class="card detail">
@@ -434,20 +435,21 @@ The previous lesson showed that the LLM writes only <span class="inline">scene_b
 <span class="inline">syncSceneIndex()</span> is the deterministic cleanup step after the sandbox boundary. It scans
 <span class="inline">scene_blocks/*.md</span>, calls <span class="inline">parseSceneBlock</span> for each Markdown scene,
 reads META such as <span class="inline">created</span>, <span class="inline">updated</span>,
-<span class="inline">summary</span>, and <span class="inline">heat</span>, then writes filenames, titles, summaries,
-heat, and update times to <span class="inline">.metadata/scene_index.json</span>. That file lives outside the LLM workspace:
+<span class="inline">summary</span>, and <span class="inline">heat</span>, then writes exactly
+<span class="inline">filename</span>, <span class="inline">summary</span>, <span class="inline">heat</span>,
+<span class="inline">created</span>, and <span class="inline">updated</span> to <span class="inline">.metadata/scene_index.json</span>. That file lives outside the LLM workspace:
 the LLM can edit scene prose, but it cannot forge catalog state, overwrite checkpoints, or bypass engineering cleanup and consistency checks.
 </p>
 
 <h2>Index file vs navigation markdown</h2>
 <div class="cols">
-  <div class="col"><h4>Index file</h4><p><span class="inline">.metadata/scene_index.json</span> is machine-readable state: stable IDs/filenames, summaries, heat, timestamps, and stats. <span class="inline">readSceneIndex</span> reads it, <span class="inline">writeSceneIndex</span> writes it, and <span class="inline">syncSceneIndex</span> rebuilds it from real Markdown scenes.</p></div>
+  <div class="col"><h4>Index file</h4><p><span class="inline">.metadata/scene_index.json</span> is machine-readable state: each <span class="inline">SceneIndexEntry</span> contains only <span class="inline">filename</span>, <span class="inline">summary</span>, <span class="inline">heat</span>, <span class="inline">created</span>, and <span class="inline">updated</span>. <span class="inline">readSceneIndex</span> reads it, <span class="inline">writeSceneIndex</span> writes it, and <span class="inline">syncSceneIndex</span> rebuilds it from real Markdown scenes.</p></div>
   <div class="col"><h4>Navigation markdown</h4><p><span class="inline">generateSceneNavigation()</span> converts the index into prompt-friendly Markdown: hot scenes first, compact summaries, and safe absolute path examples such as <span class="inline">/workspace/agent-memory-data/scene_blocks/payment-debugging.md</span> so the agent can drill down with <span class="inline">read_file</span>.</p></div>
 </div>
 
 <p>
 Navigation does not replace full scenes; it enables progressive disclosure. <span class="inline">generateSceneNavigation()</span>
-sorts by <span class="inline">heat</span> and update time so likely-relevant scenes appear first. Each entry keeps a file path,
+sorts only by <span class="inline">heat</span> descending so the hottest scenes appear first. Each entry keeps a file path and displays the update time,
 so after the agent decides a summary matters, it can read the full Markdown scene. Recall spends only a small token budget on the scene map
 while preserving a path back to complete L2 narrative and source references.
 </p>
@@ -462,8 +464,8 @@ and navigation lets it inspect summaries first, then use <span class="inline">re
 <h2>Backup locations and recovery purpose</h2>
 <table class="t">
   <tr><th>Backup target</th><th>Typical location</th><th>Recovery purpose</th></tr>
-  <tr><td><span class="inline">scene_blocks/</span> directory</td><td><span class="inline">.backup/scene_blocks/...</span></td><td>Snapshot the whole directory before LLM batch edits; restore if the model corrupts multiple scenes.</td></tr>
-  <tr><td>single scene file</td><td><span class="inline">.backup/files/...</span></td><td>Save the old version before single-file maintenance or manual repair, making comparison and rollback possible.</td></tr>
+  <tr><td><span class="inline">scene_blocks/</span> directory</td><td><span class="inline">.backup/scene_blocks/scene_blocks_YYYYMMDD_HHmmss_offset42/</span></td><td>Snapshot the whole directory before LLM batch edits; restore if the model corrupts multiple scenes.</td></tr>
+  <tr><td><span class="inline">persona.md</span> file</td><td><span class="inline">.backup/persona/persona_YYYYMMDD_HHmmss_offset42.md</span></td><td><span class="inline">backupFile(src, "persona", tag, maxKeep)</span> saves the old persona before generation; other single-file backups use the provided category name.</td></tr>
   <tr><td>retention cleanup</td><td>inside <span class="inline">.backup/</span> by count</td><td><span class="inline">BackupManager</span> limits retained backups so snapshots do not grow forever while recent restore points remain.</td></tr>
 </table>
 
@@ -471,7 +473,7 @@ and navigation lets it inspect summaries first, then use <span class="inline">re
 <pre class="code">files = list(scene_blocks/*.md)
 entries = [parseSceneBlock(file).meta for file in files]
 writeSceneIndex(dataDir, entries)
-nav = generateSceneNavigation(sort_by_heat(entries), dataDir)
+nav = generateSceneNavigation(entries, dataDir)
 appendSystemContext("&lt;scene-navigation&gt;" + nav + "&lt;/scene-navigation&gt;")</pre>
 
 <div class="card detail">
