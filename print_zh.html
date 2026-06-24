@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 24 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">24 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 25 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">25 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -356,6 +356,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">Prompt 构建前的 Auto Recall</span><span class="lang-en">Auto-recall before prompt build</span></li>
   <li><span class="lang-zh">L1 记忆搜索与召回预算</span><span class="lang-en">L1 memory search and recall budgeting</span></li>
   <li><span class="lang-zh">L2 导航与 L3 Persona 注入</span><span class="lang-en">L2 navigation plus L3 persona injection</span></li>
+  <li><span class="lang-zh">SQLite、sqlite-vec、FTS、BM25 与混合搜索</span><span class="lang-en">SQLite, sqlite-vec, FTS, BM25, and hybrid search</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -2992,6 +2993,120 @@ appendSystemContext = join(stableParts)</pre>
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>什么时候 agent 应使用 Scene Navigation 的 read_file，而不是依赖自动注入？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">SQLite、sqlite-vec、FTS、BM25 与混合搜索</span><span class="lang-en">SQLite, sqlite-vec, FTS, BM25, and hybrid search</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+本课把第 23 课的策略落到本地 SQLite store。<span class="inline">VectorStore</span> 在同一个
+<span class="inline">vectors.db</span> 里维护元数据表、FTS5 虚拟表和 <span class="inline">sqlite-vec</span>
+的 <span class="inline">vec0</span> 向量表：关键词召回用 FTS5/BM25，语义召回用 cosine distance，
+混合召回在客户端用 <span class="inline">rrfMerge()</span> 合并排名。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  这像一个本地资料柜有三套索引：登记表记录每份材料的 id、时间和分类；关键词卡片按词找材料；
+  语义卡片按“意思相近”找材料。最后助理把两份候选清单按 RRF 融合，避免只相信一种索引。
+</div>
+
+<h2>本地 store 的四层结构</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">metadata</span><span class="name">l1_records / l0_conversations</span></div><div class="ld">普通 SQLite 表保存可展示、可过滤、可追溯的字段：L1 content/type/priority/scene/timestamps，L0 session、role、message_text 与 recorded_at。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">keyword</span><span class="name">l1_fts / l0_fts</span></div><div class="ld">FTS5 虚拟表保存分词后的索引列，并保留 original 文本用于展示；查询由 <span class="inline">buildFtsQuery()</span> 构造，结果按 <span class="inline">bm25()</span> rank 升序排列。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">vector</span><span class="name">l1_vec / l0_vec</span></div><div class="ld"><span class="inline">vec0</span> 表保存 embedding，使用 <span class="inline">distance_metric=cosine</span> 做近邻搜索；维度来自 embedding 配置。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">embedding</span><span class="name">provider + model + dimensions</span></div><div class="ld">embedding service 记录 provider/model/dimensions。provider、model 或维度变化会让旧向量不可比，factory/schema 会走 drop vec tables + reindex 路径。</div></div>
+</div>
+
+<h2>写入路径：一个事务包住元数据、FTS 和向量</h2>
+<div class="flow">
+  <div class="node"><div class="nt">write L1</div><div class="nd">L1 writer 传入 record 与可选 embedding。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">metadata insert</div><div class="nd"><span class="inline">l1_records</span> 用 <span class="inline">ON CONFLICT</span> 更新普通字段。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">FTS tokenize</div><div class="nd"><span class="inline">tokenizeForFts()</span> 写 <span class="inline">l1_fts</span>；FTS 失败只降级关键词索引。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">embedding</div><div class="nd">有可用向量时进入 vec0；无 embedding 时仍保留 metadata + FTS。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">vector upsert</div><div class="nd"><span class="inline">vec0</span> 不支持 <span class="inline">ON CONFLICT</span>，所以先 delete 再 insert。</div></div>
+</div>
+
+<p>
+<span class="inline">sqlite.ts</span> 使用手动 <span class="inline">BEGIN</span>/<span class="inline">COMMIT</span>，
+失败时 <span class="inline">ROLLBACK</span>，让 metadata、FTS 和 vector 尽量保持同一条记录的同步状态。
+数据库开启 WAL mode，读写可以更稳地并行；但要记住，FTS 与 vec0 是派生索引，metadata 表才是可追溯事实的主记录。
+</p>
+
+<h2>三种召回列对比</h2>
+<div class="cols">
+  <div class="col"><h4>BM25 keyword recall</h4><p><span class="inline">buildFtsQuery(query)</span> 把用户输入变成可执行的 FTS5 查询；<span class="inline">bm25(l1_fts)</span> 或 <span class="inline">bm25(l0_fts)</span> 排名。适合精确术语、函数名、文件名、中文分词后关键词。</p></div>
+  <div class="col"><h4>Vector semantic recall</h4><p>查询先经过同一个 embedding provider 编码，再在 <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span> 上按 cosine distance 取最近邻。适合“换一种说法”的语义相似。</p></div>
+  <div class="col"><h4>RRF hybrid</h4><p>本地 SQLite 没有服务端原生 hybrid rank；工具层分别拿 FTS 和 vector 候选，再用 <span class="inline">rrfMerge()</span> 按名次加权融合，得到更稳的候选顺序。</p></div>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">writeMemory(record):
+    begin_transaction()
+    upsert(l1_records, record.metadata)
+    upsert(l1_fts, tokenize_for_fts(record.content))
+    if embedding_available:
+        delete(l1_vec where rowid = record.id)
+        insert(l1_vec, embed(record.content))
+    commit()
+
+hybrid(query):
+    ftsRanked = searchL1Fts(buildFtsQuery(query))
+    vecRanked = searchL1Vector(embed(query))
+    return rrfMerge([ftsRanked, vecRanked])</pre>
+
+<h2>provider metadata 与 reindex</h2>
+<p>
+向量不是“纯文本索引”，它绑定了 provider、model 和 dimensions。同一段文字由不同模型生成的向量空间可能完全不同；
+维度不同则 <span class="inline">vec0</span> 表结构也不兼容。因此 <span class="inline">embedding_meta</span>
+检测到 provider/model/dimensions 改变时，要保留 <span class="inline">l1_records</span> 与
+<span class="inline">l0_conversations</span>，重建 <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span>，
+再按当前 embedding service 重新索引。local provider 可能需要 warmup；remote provider 是 HTTP 调用，但二者都必须产出与配置维度一致的向量。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/store/sqlite.ts</span>：<span class="inline">VectorStore</span>、<span class="inline">buildFtsQuery</span>、<span class="inline">l1_records</span>/<span class="inline">l0_conversations</span>、FTS5 表、<span class="inline">vec0</span> 表、WAL、事务和 delete + insert upsert。</li>
+    <li><span class="inline">src/core/store/search-utils.ts</span>：<span class="inline">rrfMerge()</span> 用 <span class="inline">1 / (k + rank + 1)</span> 合并多路排名。</li>
+    <li><span class="inline">src/core/store/embedding.ts</span>：embedding provider info、dimensions、local/remote embedding service 与 not-ready 行为。</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite bundle 创建、embedding service 接线、<span class="inline">vectors.db</span> 路径与 reindex 所需的 store snapshot。</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>：L0 对话搜索同时尝试 FTS5 与 vector，再把本地候选融合。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  SQLite 本地 store 把“事实记录”和“检索索引”分开：metadata 表负责可追溯事实，FTS5/BM25 负责关键词召回，sqlite-vec/vec0 负责语义召回。
+  写入要用事务同步 metadata、FTS 与 vector；vec0 upsert 用 delete + insert；embedding provider 变化后旧向量不可比，通常需要 reindex。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. SQLite 本地混合搜索为什么同时需要 FTS5 和 sqlite-vec？</div>
+  <ol class="opts">
+    <li>BM25 只能搜索图片</li>
+    <li>sqlite-vec 会删除 FTS</li>
+    <li>FTS5/BM25 擅长关键词匹配，sqlite-vec 擅长语义相似，RRF 合并两者</li>
+    <li>两者都只负责生成 HTML</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。关键词和语义召回互补，混合排序提高鲁棒性。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>为什么 embedding provider 变化后可能需要 reindex？</li>
   </ul>
 </div>
 </div>

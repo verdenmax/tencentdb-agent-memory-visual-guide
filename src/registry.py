@@ -31,4 +31,5 @@ CONTENT = {
     "22-auto-recall-before-prompt.html": part6.LESSON_22,
     "23-l1-search-recall-budget.html": part6.LESSON_23,
     "24-l2-navigation-l3-persona-injection.html": part6.LESSON_24,
+    "25-sqlite-vec-fts-bm25-hybrid.html": part6.LESSON_25,
 }

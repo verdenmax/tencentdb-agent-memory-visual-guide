@@ -94,6 +94,8 @@ PAGES = [
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
     ("24-l2-navigation-l3-persona-injection.html", "L2 导航与 L3 Persona 注入", "L2 navigation plus L3 persona injection",
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
+    ("25-sqlite-vec-fts-bm25-hybrid.html", "SQLite、sqlite-vec、FTS、BM25 与混合搜索", "SQLite, sqlite-vec, FTS, BM25, and hybrid search",
+     "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
 ]
 
 def bi(zh, en):
@@ -575,6 +577,8 @@ SUBTITLES = {
                                     "keyword, embedding, and hybrid strategies find relevant L1, then maxResults and character budgets trim output"),
     "24-l2-navigation-l3-persona-injection.html": ("稳定上下文进 system 末尾，动态 L1 进 user 前缀，保留 prompt cache 友好性",
                                                "stable context goes to the system tail; dynamic L1 goes to the user prefix for prompt-cache friendliness"),
+    "25-sqlite-vec-fts-bm25-hybrid.html": ("本地 l1_records/l0_conversations 元数据表 + vec0 向量表 + FTS5 BM25 排序",
+                                           "local l1_records/l0_conversations metadata tables + vec0 vector tables + FTS5 BM25 ranking"),
 }
 
 def index_page(lesson_prefix="lessons/"):

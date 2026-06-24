@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>25 · SQLite、sqlite-vec、FTS、BM25 与混合搜索 / SQLite, sqlite-vec, FTS, BM25, and hybrid search - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第六部分 · Recall、Search 与 Store｜SQLite、sqlite-vec、FTS、BM25 与混合搜索 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="25 · SQLite、sqlite-vec、FTS、BM25 与混合搜索 / SQLite, sqlite-vec, FTS, BM25, and hybrid search - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第六部分 · Recall、Search 与 Store｜SQLite、sqlite-vec、FTS、BM25 与混合搜索 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="06 · 运行后会出现哪些文件 / Runtime files and data products - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第二部分 · 最小运行闭环｜运行后会出现哪些文件 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="25 · SQLite、sqlite-vec、FTS、BM25 与混合搜索 / SQLite, sqlite-vec, FTS, BM25, and hybrid search - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第六部分 · Recall、Search 与 Store｜SQLite、sqlite-vec、FTS、BM25 与混合搜索 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,209 +317,233 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></span>
-    <span class="pill">06 / 25</span>
+    <span class="pill"><span class="lang-zh">第六部分 · Recall、Search 与 Store</span><span class="lang-en">Part 6 · Recall, search, and storage</span></span>
+    <span class="pill">25 / 25</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:24%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第二部分 · 最小运行闭环</span><span class="lang-en">Part 2 · Minimal working loop</span></div>
-    <h1><span class="lang-zh">运行后会出现哪些文件</span><span class="lang-en">Runtime files and data products</span></h1>
+    <div class="part"><span class="lang-zh">第六部分 · Recall、Search 与 Store</span><span class="lang-en">Part 6 · Recall, search, and storage</span></div>
+    <h1><span class="lang-zh">SQLite、sqlite-vec、FTS、BM25 与混合搜索</span><span class="lang-en">SQLite, sqlite-vec, FTS, BM25, and hybrid search</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-运行后的文件不是隐藏实现细节，而是一张调试地图：当召回、画像、场景或长任务摘要看起来不对时，先看高层产物理解系统“相信了什么”，再一路下钻到低层证据确认它为什么这么相信。
+本课把第 23 课的策略落到本地 SQLite store。<span class="inline">VectorStore</span> 在同一个
+<span class="inline">vectors.db</span> 里维护元数据表、FTS5 虚拟表和 <span class="inline">sqlite-vec</span>
+的 <span class="inline">vec0</span> 向量表：关键词召回用 FTS5/BM25，语义召回用 cosine distance，
+混合召回在客户端用 <span class="inline">rrfMerge()</span> 合并排名。
 </p>
 
 <div class="card analogy">
-  <div class="tag">🗺️ 生活类比</div>
-  这些目录像侦探案卷：画像和场景是案情摘要，L1 原子记忆是证词卡片，L0 对话是原始录音；Offload 的 MMD 是任务白板，JSONL 和 refs 是白板背后的材料袋。
+  <div class="tag">🧭 生活类比</div>
+  这像一个本地资料柜有三套索引：登记表记录每份材料的 id、时间和分类；关键词卡片按词找材料；
+  语义卡片按“意思相近”找材料。最后助理把两份候选清单按 RRF 融合，避免只相信一种索引。
 </div>
 
-<h2>L0-L3 分层会落到哪些文件</h2>
+<h2>本地 store 的四层结构</h2>
 <div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> 保存原始对话 JSONL，由 <span class="inline">src/core/conversation/l0-recorder.ts</span> 写入，负责保留最底层证据。</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> 保存结构化记忆 JSONL，由 <span class="inline">src/core/record/l1-writer.ts</span> 写入，便于搜索和召回。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> 保存 Markdown 场景块，由 <span class="inline">src/core/scene/scene-extractor.ts</span> 聚合多条 L1 证据。</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> 保存长期画像，由 <span class="inline">src/core/persona/persona-generator.ts</span> 从场景中生成稳定偏好和用户特征。</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">metadata</span><span class="name">l1_records / l0_conversations</span></div><div class="ld">普通 SQLite 表保存可展示、可过滤、可追溯的字段：L1 content/type/priority/scene/timestamps，L0 session、role、message_text 与 recorded_at。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">keyword</span><span class="name">l1_fts / l0_fts</span></div><div class="ld">FTS5 虚拟表保存分词后的索引列，并保留 original 文本用于展示；查询由 <span class="inline">buildFtsQuery()</span> 构造，结果按 <span class="inline">bm25()</span> rank 升序排列。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">vector</span><span class="name">l1_vec / l0_vec</span></div><div class="ld"><span class="inline">vec0</span> 表保存 embedding，使用 <span class="inline">distance_metric=cosine</span> 做近邻搜索；维度来自 embedding 配置。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">embedding</span><span class="name">provider + model + dimensions</span></div><div class="ld">embedding service 记录 provider/model/dimensions。provider、model 或维度变化会让旧向量不可比，factory/schema 会走 drop vec tables + reindex 路径。</div></div>
+</div>
+
+<h2>写入路径：一个事务包住元数据、FTS 和向量</h2>
+<div class="flow">
+  <div class="node"><div class="nt">write L1</div><div class="nd">L1 writer 传入 record 与可选 embedding。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">metadata insert</div><div class="nd"><span class="inline">l1_records</span> 用 <span class="inline">ON CONFLICT</span> 更新普通字段。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">FTS tokenize</div><div class="nd"><span class="inline">tokenizeForFts()</span> 写 <span class="inline">l1_fts</span>；FTS 失败只降级关键词索引。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">embedding</div><div class="nd">有可用向量时进入 vec0；无 embedding 时仍保留 metadata + FTS。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">vector upsert</div><div class="nd"><span class="inline">vec0</span> 不支持 <span class="inline">ON CONFLICT</span>，所以先 delete 再 insert。</div></div>
 </div>
 
 <p>
-本地长期记忆目录通常还会看到 <span class="inline">vectors.db</span>：它是本地 SQLite 向量/全文检索存储，入口可从 <span class="inline">src/core/store/factory.ts</span> 看存储后端如何创建。
-<span class="inline">.metadata/</span> 放 manifest、索引状态和检查点线索，对应 <span class="inline">src/utils/manifest.ts</span> 与 <span class="inline">src/utils/checkpoint.ts</span>；<span class="inline">.backup/</span> 用于备份，方便升级或调试前回滚。
-所以调试时不要只盯一个数据库文件：目录、JSONL、Markdown、metadata 和 backup 一起构成“可解释的记忆状态”。
+<span class="inline">sqlite.ts</span> 使用手动 <span class="inline">BEGIN</span>/<span class="inline">COMMIT</span>，
+失败时 <span class="inline">ROLLBACK</span>，让 metadata、FTS 和 vector 尽量保持同一条记录的同步状态。
+数据库开启 WAL mode，读写可以更稳地并行；但要记住，FTS 与 vec0 是派生索引，metadata 表才是可追溯事实的主记录。
 </p>
 
-<h2>长期记忆目录 vs Offload 目录</h2>
+<h2>三种召回列对比</h2>
 <div class="cols">
-  <div class="col"><h4>长期记忆：跨会话复用</h4><p><span class="inline">memory-tdai/</span> 位于解析后的 OpenClaw state dir 下，常见完整路径是 <span class="inline">~/.openclaw/state/memory-tdai/</span>；standalone 或 fallback 路径可能不同。里面的 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">persona.md</span>、<span class="inline">vectors.db</span>、<span class="inline">.metadata/</span>、<span class="inline">.backup/</span> 关注“未来会话还能不能记得、搜到、解释清楚”。它的证据链是 L3 -&gt; L2 -&gt; L1 -&gt; L0。</p></div>
-  <div class="col"><h4>Context Offload：当前任务压缩</h4><p><span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span> 下会有 <span class="inline">refs/</span>、<span class="inline">mmds/</span>、<span class="inline">offload-&lt;session&gt;.jsonl</span>、<span class="inline">state.json</span>、<span class="inline">sessions-registry.json</span>。它关注“当前长任务如何把大块材料移出上下文，但仍能找回证据”。实现入口看 <span class="inline">src/offload/storage.ts</span>。</p></div>
+  <div class="col"><h4>BM25 keyword recall</h4><p><span class="inline">buildFtsQuery(query)</span> 把用户输入变成可执行的 FTS5 查询；<span class="inline">bm25(l1_fts)</span> 或 <span class="inline">bm25(l0_fts)</span> 排名。适合精确术语、函数名、文件名、中文分词后关键词。</p></div>
+  <div class="col"><h4>Vector semantic recall</h4><p>查询先经过同一个 embedding provider 编码，再在 <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span> 上按 cosine distance 取最近邻。适合“换一种说法”的语义相似。</p></div>
+  <div class="col"><h4>RRF hybrid</h4><p>本地 SQLite 没有服务端原生 hybrid rank；工具层分别拿 FTS 和 vector 候选，再用 <span class="inline">rrfMerge()</span> 按名次加权融合，得到更稳的候选顺序。</p></div>
 </div>
 
-<h2>最小文件形状</h2>
-<pre class="code">memory-tdai/
-  conversations/     # L0 raw messages
-  records/           # L1 atoms
-  scene_blocks/      # L2 scenes
-  persona.md         # L3 persona
-  vectors.db         # local search index
+<h2>核心伪代码</h2>
+<pre class="code">writeMemory(record):
+    begin_transaction()
+    upsert(l1_records, record.metadata)
+    upsert(l1_fts, tokenize_for_fts(record.content))
+    if embedding_available:
+        delete(l1_vec where rowid = record.id)
+        insert(l1_vec, embed(record.content))
+    commit()
 
-context-offload/
-  &lt;agent&gt;/refs/
-  &lt;agent&gt;/mmds/
-  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+hybrid(query):
+    ftsRanked = searchL1Fts(buildFtsQuery(query))
+    vecRanked = searchL1Vector(embed(query))
+    return rrfMerge([ftsRanked, vecRanked])</pre>
 
+<h2>provider metadata 与 reindex</h2>
 <p>
-Offload 的 <span class="inline">refs/</span> 保存被卸载的大块原文或引用材料，<span class="inline">mmds/</span> 保存 Mermaid/MMD 任务图，<span class="inline">offload-&lt;session&gt;.jsonl</span> 记录会话内的卸载事件。
-<span class="inline">state.json</span> 维护当前状态，<span class="inline">sessions-registry.json</span> 则帮助按会话找到对应产物。MMD 适合先看全局任务结构，但如果节点描述和真实材料冲突，最终仍要回到 JSONL 与 refs。
+向量不是“纯文本索引”，它绑定了 provider、model 和 dimensions。同一段文字由不同模型生成的向量空间可能完全不同；
+维度不同则 <span class="inline">vec0</span> 表结构也不兼容。因此 <span class="inline">embedding_meta</span>
+检测到 provider/model/dimensions 改变时，要保留 <span class="inline">l1_records</span> 与
+<span class="inline">l0_conversations</span>，重建 <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span>，
+再按当前 embedding service 重新索引。local provider 可能需要 warmup；remote provider 是 HTTP 调用，但二者都必须产出与配置维度一致的向量。
 </p>
-
-<h2>下钻调试：先看结构，再找证据</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -&gt; Scene</h4><p>如果用户说“画像不对”，先打开 <span class="inline">persona.md</span> 看具体 claim，再找它来自哪些 <span class="inline">scene_blocks/</span>。</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -&gt; Atom</h4><p>场景块只保结构和叙述，不是最终证据。继续到 <span class="inline">records/</span> 找 L1 Atom，核对事实、偏好、约束的抽取是否合理。</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -&gt; Conversation</h4><p>如果 L1 本身可疑，回到 <span class="inline">conversations/</span> 的 L0 JSONL，核对原始用户话语、时间和上下文。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -&gt; offload JSONL -&gt; refs</h4><p>如果长任务摘要或节点错了，先看 <span class="inline">mmds/</span> 的节点，再查 <span class="inline">offload-&lt;session&gt;.jsonl</span>，最后打开 <span class="inline">refs/</span> 里的原文材料。</p></div></div>
-</div>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：L0 对话 JSONL 写入。</li>
-    <li><span class="inline">src/core/record/l1-writer.ts</span>：L1 结构化记录写入。</li>
-    <li><span class="inline">src/core/scene/scene-extractor.ts</span>：L2 场景块抽取。</li>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>：L3 persona 生成。</li>
-    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite/搜索存储创建。</li>
-    <li><span class="inline">src/offload/storage.ts</span>：context-offload 目录、refs、MMD、JSONL 和会话状态。</li>
-    <li><span class="inline">src/utils/manifest.ts</span>：manifest 元数据。</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>：checkpoint 读写。</li>
+    <li><span class="inline">src/core/store/sqlite.ts</span>：<span class="inline">VectorStore</span>、<span class="inline">buildFtsQuery</span>、<span class="inline">l1_records</span>/<span class="inline">l0_conversations</span>、FTS5 表、<span class="inline">vec0</span> 表、WAL、事务和 delete + insert upsert。</li>
+    <li><span class="inline">src/core/store/search-utils.ts</span>：<span class="inline">rrfMerge()</span> 用 <span class="inline">1 / (k + rank + 1)</span> 合并多路排名。</li>
+    <li><span class="inline">src/core/store/embedding.ts</span>：embedding provider info、dimensions、local/remote embedding service 与 not-ready 行为。</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite bundle 创建、embedding service 接线、<span class="inline">vectors.db</span> 路径与 reindex 所需的 store snapshot。</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>：L0 对话搜索同时尝试 FTS5 与 vector，再把本地候选融合。</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  运行产物是调试入口：长期记忆按 Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation 下钻，Offload 按 MMD node -&gt; offload JSONL -&gt; refs 下钻。高层帮你快速定位结构，低层负责给出可核对证据。
+  SQLite 本地 store 把“事实记录”和“检索索引”分开：metadata 表负责可追溯事实，FTS5/BM25 负责关键词召回，sqlite-vec/vec0 负责语义召回。
+  写入要用事务同步 metadata、FTS 与 vector；vec0 upsert 用 delete + insert；embedding provider 变化后旧向量不可比，通常需要 reindex。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. 如果想核对一条用户画像背后的原始证据，正确的下钻方向是什么？</div>
+  <div class="qn">1. SQLite 本地混合搜索为什么同时需要 FTS5 和 sqlite-vec？</div>
   <ol class="opts">
-    <li>Offload MMD -&gt; npm install</li>
-    <li>L0 -&gt; 删除 records -&gt; 重新启动</li>
-    <li>Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation</li>
-    <li>vectors.db -&gt; README -&gt; package.json</li>
+    <li>BM25 只能搜索图片</li>
+    <li>sqlite-vec 会删除 FTS</li>
+    <li>FTS5/BM25 擅长关键词匹配，sqlite-vec 擅长语义相似，RRF 合并两者</li>
+    <li>两者都只负责生成 HTML</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。本项目的核心是高层保结构、低层保证据；画像要通过场景、原子记忆回到原始对话。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。关键词和语义召回互补，混合排序提高鲁棒性。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>如果用户说“召回错了”，你会先打开哪个文件或目录？为什么？</li>
+    <li>为什么 embedding provider 变化后可能需要 reindex？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Runtime files are not hidden implementation details. They are a debugging map: when recall, persona, scenes, or long-task summaries look wrong, start with the high-level artifact to see what the system believes, then drill down to the evidence.
+This lesson grounds Lesson 23's strategies in the local SQLite store. <span class="inline">VectorStore</span> keeps metadata tables,
+FTS5 virtual tables, and <span class="inline">sqlite-vec</span> <span class="inline">vec0</span> vector tables in the same
+<span class="inline">vectors.db</span>: keyword recall uses FTS5/BM25, semantic recall uses cosine distance, and hybrid recall merges client-side rankings with <span class="inline">rrfMerge()</span>.
 </p>
 
 <div class="card analogy">
-  <div class="tag">🗺️ Analogy</div>
-  Think of the files as a detective case folder: persona and scenes are summaries, L1 atoms are evidence cards, L0 conversations are recordings; Offload MMDs are task boards, with JSONL and refs as the source bags behind them.
+  <div class="tag">🧭 Analogy</div>
+  Think of a local file cabinet with three indexes. A registry records each document's id, time, and category; keyword cards find documents by words; semantic cards find documents by nearby meaning. The assistant then fuses both candidate lists with RRF instead of trusting only one index.
 </div>
 
-<h2>Where L0-L3 land on disk</h2>
+<h2>The four local store layers</h2>
 <div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">L0</span><span class="name">Conversation</span></div><div class="ld"><span class="inline">conversations/</span> stores raw conversation JSONL, written by <span class="inline">src/core/conversation/l0-recorder.ts</span>, and preserves bottom-level evidence.</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">L1</span><span class="name">Atom</span></div><div class="ld"><span class="inline">records/</span> stores structured memory JSONL, written by <span class="inline">src/core/record/l1-writer.ts</span>, for search and recall.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">L2</span><span class="name">Scene</span></div><div class="ld"><span class="inline">scene_blocks/</span> stores Markdown scene blocks, produced by <span class="inline">src/core/scene/scene-extractor.ts</span> from multiple L1 records.</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">Persona</span></div><div class="ld"><span class="inline">persona.md</span> stores long-term persona, generated by <span class="inline">src/core/persona/persona-generator.ts</span> from scenes.</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">metadata</span><span class="name">l1_records / l0_conversations</span></div><div class="ld">Ordinary SQLite tables store displayable, filterable, traceable fields: L1 content/type/priority/scene/timestamps, and L0 session, role, message_text, and recorded_at.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">keyword</span><span class="name">l1_fts / l0_fts</span></div><div class="ld">FTS5 virtual tables store tokenized index columns plus original text for display; <span class="inline">buildFtsQuery()</span> builds the query and <span class="inline">bm25()</span> ranks results ascending by rank.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">vector</span><span class="name">l1_vec / l0_vec</span></div><div class="ld"><span class="inline">vec0</span> tables store embeddings and use <span class="inline">distance_metric=cosine</span> for nearest-neighbor search; dimensions come from embedding config.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">embedding</span><span class="name">provider + model + dimensions</span></div><div class="ld">The embedding service records provider/model/dimensions. Provider, model, or dimension changes make old vectors incomparable, so schema/factory paths drop vec tables and reindex.</div></div>
+</div>
+
+<h2>Write path: one transaction around metadata, FTS, and vectors</h2>
+<div class="flow">
+  <div class="node"><div class="nt">write L1</div><div class="nd">The L1 writer passes a record and optional embedding.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">metadata insert</div><div class="nd"><span class="inline">l1_records</span> uses <span class="inline">ON CONFLICT</span> to update normal fields.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">FTS tokenize</div><div class="nd"><span class="inline">tokenizeForFts()</span> writes <span class="inline">l1_fts</span>; FTS failures only degrade keyword indexing.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">embedding</div><div class="nd">When a usable vector exists, it enters vec0; without embedding, metadata + FTS still persist.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">vector upsert</div><div class="nd"><span class="inline">vec0</span> does not support <span class="inline">ON CONFLICT</span>, so upsert is delete then insert.</div></div>
 </div>
 
 <p>
-The long-term memory directory usually also contains <span class="inline">vectors.db</span>, the local SQLite vector/full-text search store; use <span class="inline">src/core/store/factory.ts</span> to see how storage is created.
-<span class="inline">.metadata/</span> keeps manifest and checkpoint clues, connected to <span class="inline">src/utils/manifest.ts</span> and <span class="inline">src/utils/checkpoint.ts</span>; <span class="inline">.backup/</span> keeps backups for rollback before upgrades or debugging.
+<span class="inline">sqlite.ts</span> uses manual <span class="inline">BEGIN</span>/<span class="inline">COMMIT</span> and
+<span class="inline">ROLLBACK</span> on failure, keeping metadata, FTS, and vector rows synchronized for a record as much as possible.
+The database runs in WAL mode for safer concurrent reads and writes. Remember that FTS and vec0 are derived indexes; the metadata tables are the traceable source records.
 </p>
 
-<h2>Long-term memory vs Offload directories</h2>
+<h2>Three recall columns</h2>
 <div class="cols">
-  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p><span class="inline">memory-tdai/</span> lives under the resolved OpenClaw state dir, commonly <span class="inline">~/.openclaw/state/memory-tdai/</span>; standalone or fallback paths may differ. Its <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -&gt; L2 -&gt; L1 -&gt; L0.</p></div>
-  <div class="col"><h4>Context Offload: current-task compression</h4><p>Under <span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span>, expect <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;session&gt;.jsonl</span>, <span class="inline">state.json</span>, and <span class="inline">sessions-registry.json</span>. It answers how the current long task moved large evidence out of context while keeping it recoverable. See <span class="inline">src/offload/storage.ts</span>.</p></div>
+  <div class="col"><h4>BM25 keyword recall</h4><p><span class="inline">buildFtsQuery(query)</span> turns user input into an executable FTS5 query; <span class="inline">bm25(l1_fts)</span> or <span class="inline">bm25(l0_fts)</span> ranks matches. It is strong for exact terms, function names, file names, and tokenized Chinese keywords.</p></div>
+  <div class="col"><h4>Vector semantic recall</h4><p>The query is encoded by the same embedding provider, then nearest neighbors are searched in <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span> by cosine distance. This helps when users ask with different wording.</p></div>
+  <div class="col"><h4>RRF hybrid</h4><p>Local SQLite has no server-side native hybrid rank. Tool code collects FTS and vector candidates separately, then uses <span class="inline">rrfMerge()</span> to fuse rankings into a more robust order.</p></div>
 </div>
 
-<h2>Minimal file shape</h2>
-<pre class="code">memory-tdai/
-  conversations/     # L0 raw messages
-  records/           # L1 atoms
-  scene_blocks/      # L2 scenes
-  persona.md         # L3 persona
-  vectors.db         # local search index
+<h2>Core pseudocode</h2>
+<pre class="code">writeMemory(record):
+    begin_transaction()
+    upsert(l1_records, record.metadata)
+    upsert(l1_fts, tokenize_for_fts(record.content))
+    if embedding_available:
+        delete(l1_vec where rowid = record.id)
+        insert(l1_vec, embed(record.content))
+    commit()
 
-context-offload/
-  &lt;agent&gt;/refs/
-  &lt;agent&gt;/mmds/
-  &lt;agent&gt;/offload-&lt;session&gt;.jsonl</pre>
+hybrid(query):
+    ftsRanked = searchL1Fts(buildFtsQuery(query))
+    vecRanked = searchL1Vector(embed(query))
+    return rrfMerge([ftsRanked, vecRanked])</pre>
 
+<h2>Provider metadata and reindexing</h2>
 <p>
-Offload <span class="inline">refs/</span> keep large source text or referenced material; <span class="inline">mmds/</span> keep Mermaid/MMD task diagrams; <span class="inline">offload-&lt;session&gt;.jsonl</span> records offload events for the session.
-<span class="inline">state.json</span> tracks current state, and <span class="inline">sessions-registry.json</span> helps find artifacts by session.
+Vectors are not plain text indexes; they are bound to provider, model, and dimensions. The same text embedded by different models may live in incompatible vector spaces, and different dimensions make the <span class="inline">vec0</span> schema incompatible.
+So when <span class="inline">embedding_meta</span> detects provider/model/dimensions changes, the store preserves <span class="inline">l1_records</span> and <span class="inline">l0_conversations</span>, rebuilds <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span>, and reindexes with the current embedding service. A local provider may need warmup; a remote provider is HTTP-based, but both must emit vectors matching configured dimensions.
 </p>
-
-<h2>Drill-down debugging: structure first, evidence second</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Persona -&gt; Scene</h4><p>If the user says "the persona is wrong", open <span class="inline">persona.md</span> for the specific claim, then find the related <span class="inline">scene_blocks/</span>.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Scene -&gt; Atom</h4><p>A scene keeps structure and narrative, not final proof. Continue to <span class="inline">records/</span> and inspect the L1 atom extraction.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Atom -&gt; Conversation</h4><p>If the atom is suspicious, return to <span class="inline">conversations/</span> L0 JSONL and verify the raw user words, time, and context.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>MMD node -&gt; offload JSONL -&gt; refs</h4><p>If a long-task node is wrong, inspect the <span class="inline">mmds/</span> node, then <span class="inline">offload-&lt;session&gt;.jsonl</span>, then the raw material in <span class="inline">refs/</span>.</p></div></div>
-</div>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: L0 conversation JSONL.</li>
-    <li><span class="inline">src/core/record/l1-writer.ts</span>: L1 structured records.</li>
-    <li><span class="inline">src/core/scene/scene-extractor.ts</span>: L2 scene extraction.</li>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>: L3 persona generation.</li>
-    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite/search store creation.</li>
-    <li><span class="inline">src/offload/storage.ts</span>: context-offload directory, refs, MMDs, JSONL, and session state.</li>
-    <li><span class="inline">src/utils/manifest.ts</span>: manifest metadata.</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: checkpoint reads and writes.</li>
+    <li><span class="inline">src/core/store/sqlite.ts</span>: <span class="inline">VectorStore</span>, <span class="inline">buildFtsQuery</span>, <span class="inline">l1_records</span>/<span class="inline">l0_conversations</span>, FTS5 tables, <span class="inline">vec0</span> tables, WAL, transactions, and delete + insert upsert.</li>
+    <li><span class="inline">src/core/store/search-utils.ts</span>: <span class="inline">rrfMerge()</span> merges ranked lists with <span class="inline">1 / (k + rank + 1)</span>.</li>
+    <li><span class="inline">src/core/store/embedding.ts</span>: embedding provider info, dimensions, local/remote embedding services, and not-ready behavior.</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite bundle creation, embedding service wiring, <span class="inline">vectors.db</span> path, and store snapshot used for reindex decisions.</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>: L0 conversation search tries FTS5 and vector search, then fuses local candidates.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Runtime artifacts are debugging entry points: long-term memory drills down Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation, while Offload drills down MMD node -&gt; offload JSONL -&gt; refs. Upper layers locate structure; lower layers provide verifiable evidence.
+  The local SQLite store separates source records from retrieval indexes: metadata tables keep traceable facts, FTS5/BM25 handles keyword recall, and sqlite-vec/vec0 handles semantic recall.
+  Writes synchronize metadata, FTS, and vectors inside a transaction; vec0 upsert is delete + insert; after an embedding provider change, old vectors are not comparable and usually need reindexing.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. To verify raw evidence behind a persona claim, which drill-down direction is correct?</div>
+  <div class="qn">1. Why does local SQLite hybrid search need both FTS5 and sqlite-vec?</div>
   <ol class="opts">
-    <li>Offload MMD -&gt; npm install</li>
-    <li>L0 -&gt; delete records -&gt; restart</li>
-    <li>Persona -&gt; Scene -&gt; L1 Atom -&gt; L0 Conversation</li>
-    <li>vectors.db -&gt; README -&gt; package.json</li>
+    <li>BM25 can only search images</li>
+    <li>sqlite-vec deletes FTS</li>
+    <li>FTS5/BM25 handles keyword matches, sqlite-vec handles semantic similarity, and RRF merges both</li>
+    <li>Both only generate HTML</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. The project keeps structure in upper layers and evidence in lower layers; a persona claim drills down through scenes and atoms to raw conversation.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. Keyword and semantic recall complement each other, and hybrid ranking improves robustness.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>If a user says recall is wrong, which file or directory would you open first, and why?</li>
+    <li>Why might changing the embedding provider require reindexing?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="05-hermes-gateway-path.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Hermes 与 Gateway 路径</span><span class="lang-en">Hermes and Gateway path</span></div></a><a class="next" href="07-config-levels.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></div></a></div>
+  <div class="footnav"><a class="prev" href="24-l2-navigation-l3-persona-injection.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">L2 导航与 L3 Persona 注入</span><span class="lang-en">L2 navigation plus L3 persona injection</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

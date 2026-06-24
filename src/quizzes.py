@@ -436,6 +436,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "什么时候 agent 应使用 Scene Navigation 的 read_file，而不是依赖自动注入？", "en": "When should the agent use read_file from Scene Navigation instead of relying on automatic injection?"}],
     },
+    "25-sqlite-vec-fts-bm25-hybrid.html": {
+        "mcq": [{
+            "q": {"zh": "SQLite 本地混合搜索为什么同时需要 FTS5 和 sqlite-vec？", "en": "Why does local SQLite hybrid search need both FTS5 and sqlite-vec?"},
+            "opts": [
+                {"zh": "FTS5/BM25 擅长关键词匹配，sqlite-vec 擅长语义相似，RRF 合并两者", "en": "FTS5/BM25 handles keyword matches, sqlite-vec handles semantic similarity, and RRF merges both"},
+                {"zh": "两者都只负责生成 HTML", "en": "Both only generate HTML"},
+                {"zh": "sqlite-vec 会删除 FTS", "en": "sqlite-vec deletes FTS"},
+                {"zh": "BM25 只能搜索图片", "en": "BM25 can only search images"},
+            ],
+            "answer": 0,
+            "why": {"zh": "关键词和语义召回互补，混合排序提高鲁棒性。", "en": "Keyword and semantic recall complement each other, and hybrid ranking improves robustness."},
+        }],
+        "open": [{"zh": "为什么 embedding provider 变化后可能需要 reindex？", "en": "Why might changing the embedding provider require reindexing?"}],
+    },
 }
 
 

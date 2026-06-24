@@ -515,3 +515,180 @@ If dynamic L1 also lived in system context, it would frequently bust the system 
 </div>
 """,
 }
+
+
+LESSON_25 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+本课把第 23 课的策略落到本地 SQLite store。<span class="inline">VectorStore</span> 在同一个
+<span class="inline">vectors.db</span> 里维护元数据表、FTS5 虚拟表和 <span class="inline">sqlite-vec</span>
+的 <span class="inline">vec0</span> 向量表：关键词召回用 FTS5/BM25，语义召回用 cosine distance，
+混合召回在客户端用 <span class="inline">rrfMerge()</span> 合并排名。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  这像一个本地资料柜有三套索引：登记表记录每份材料的 id、时间和分类；关键词卡片按词找材料；
+  语义卡片按“意思相近”找材料。最后助理把两份候选清单按 RRF 融合，避免只相信一种索引。
+</div>
+
+<h2>本地 store 的四层结构</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">metadata</span><span class="name">l1_records / l0_conversations</span></div><div class="ld">普通 SQLite 表保存可展示、可过滤、可追溯的字段：L1 content/type/priority/scene/timestamps，L0 session、role、message_text 与 recorded_at。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">keyword</span><span class="name">l1_fts / l0_fts</span></div><div class="ld">FTS5 虚拟表保存分词后的索引列，并保留 original 文本用于展示；查询由 <span class="inline">buildFtsQuery()</span> 构造，结果按 <span class="inline">bm25()</span> rank 升序排列。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">vector</span><span class="name">l1_vec / l0_vec</span></div><div class="ld"><span class="inline">vec0</span> 表保存 embedding，使用 <span class="inline">distance_metric=cosine</span> 做近邻搜索；维度来自 embedding 配置。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">embedding</span><span class="name">provider + model + dimensions</span></div><div class="ld">embedding service 记录 provider/model/dimensions。provider、model 或维度变化会让旧向量不可比，factory/schema 会走 drop vec tables + reindex 路径。</div></div>
+</div>
+
+<h2>写入路径：一个事务包住元数据、FTS 和向量</h2>
+<div class="flow">
+  <div class="node"><div class="nt">write L1</div><div class="nd">L1 writer 传入 record 与可选 embedding。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">metadata insert</div><div class="nd"><span class="inline">l1_records</span> 用 <span class="inline">ON CONFLICT</span> 更新普通字段。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">FTS tokenize</div><div class="nd"><span class="inline">tokenizeForFts()</span> 写 <span class="inline">l1_fts</span>；FTS 失败只降级关键词索引。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">embedding</div><div class="nd">有可用向量时进入 vec0；无 embedding 时仍保留 metadata + FTS。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">vector upsert</div><div class="nd"><span class="inline">vec0</span> 不支持 <span class="inline">ON CONFLICT</span>，所以先 delete 再 insert。</div></div>
+</div>
+
+<p>
+<span class="inline">sqlite.ts</span> 使用手动 <span class="inline">BEGIN</span>/<span class="inline">COMMIT</span>，
+失败时 <span class="inline">ROLLBACK</span>，让 metadata、FTS 和 vector 尽量保持同一条记录的同步状态。
+数据库开启 WAL mode，读写可以更稳地并行；但要记住，FTS 与 vec0 是派生索引，metadata 表才是可追溯事实的主记录。
+</p>
+
+<h2>三种召回列对比</h2>
+<div class="cols">
+  <div class="col"><h4>BM25 keyword recall</h4><p><span class="inline">buildFtsQuery(query)</span> 把用户输入变成可执行的 FTS5 查询；<span class="inline">bm25(l1_fts)</span> 或 <span class="inline">bm25(l0_fts)</span> 排名。适合精确术语、函数名、文件名、中文分词后关键词。</p></div>
+  <div class="col"><h4>Vector semantic recall</h4><p>查询先经过同一个 embedding provider 编码，再在 <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span> 上按 cosine distance 取最近邻。适合“换一种说法”的语义相似。</p></div>
+  <div class="col"><h4>RRF hybrid</h4><p>本地 SQLite 没有服务端原生 hybrid rank；工具层分别拿 FTS 和 vector 候选，再用 <span class="inline">rrfMerge()</span> 按名次加权融合，得到更稳的候选顺序。</p></div>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">writeMemory(record):
+    begin_transaction()
+    upsert(l1_records, record.metadata)
+    upsert(l1_fts, tokenize_for_fts(record.content))
+    if embedding_available:
+        delete(l1_vec where rowid = record.id)
+        insert(l1_vec, embed(record.content))
+    commit()
+
+hybrid(query):
+    ftsRanked = searchL1Fts(buildFtsQuery(query))
+    vecRanked = searchL1Vector(embed(query))
+    return rrfMerge([ftsRanked, vecRanked])</pre>
+
+<h2>provider metadata 与 reindex</h2>
+<p>
+向量不是“纯文本索引”，它绑定了 provider、model 和 dimensions。同一段文字由不同模型生成的向量空间可能完全不同；
+维度不同则 <span class="inline">vec0</span> 表结构也不兼容。因此 <span class="inline">embedding_meta</span>
+检测到 provider/model/dimensions 改变时，要保留 <span class="inline">l1_records</span> 与
+<span class="inline">l0_conversations</span>，重建 <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span>，
+再按当前 embedding service 重新索引。local provider 可能需要 warmup；remote provider 是 HTTP 调用，但二者都必须产出与配置维度一致的向量。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/store/sqlite.ts</span>：<span class="inline">VectorStore</span>、<span class="inline">buildFtsQuery</span>、<span class="inline">l1_records</span>/<span class="inline">l0_conversations</span>、FTS5 表、<span class="inline">vec0</span> 表、WAL、事务和 delete + insert upsert。</li>
+    <li><span class="inline">src/core/store/search-utils.ts</span>：<span class="inline">rrfMerge()</span> 用 <span class="inline">1 / (k + rank + 1)</span> 合并多路排名。</li>
+    <li><span class="inline">src/core/store/embedding.ts</span>：embedding provider info、dimensions、local/remote embedding service 与 not-ready 行为。</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：本地 SQLite bundle 创建、embedding service 接线、<span class="inline">vectors.db</span> 路径与 reindex 所需的 store snapshot。</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>：L0 对话搜索同时尝试 FTS5 与 vector，再把本地候选融合。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  SQLite 本地 store 把“事实记录”和“检索索引”分开：metadata 表负责可追溯事实，FTS5/BM25 负责关键词召回，sqlite-vec/vec0 负责语义召回。
+  写入要用事务同步 metadata、FTS 与 vector；vec0 upsert 用 delete + insert；embedding provider 变化后旧向量不可比，通常需要 reindex。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+This lesson grounds Lesson 23's strategies in the local SQLite store. <span class="inline">VectorStore</span> keeps metadata tables,
+FTS5 virtual tables, and <span class="inline">sqlite-vec</span> <span class="inline">vec0</span> vector tables in the same
+<span class="inline">vectors.db</span>: keyword recall uses FTS5/BM25, semantic recall uses cosine distance, and hybrid recall merges client-side rankings with <span class="inline">rrfMerge()</span>.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Think of a local file cabinet with three indexes. A registry records each document's id, time, and category; keyword cards find documents by words; semantic cards find documents by nearby meaning. The assistant then fuses both candidate lists with RRF instead of trusting only one index.
+</div>
+
+<h2>The four local store layers</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">metadata</span><span class="name">l1_records / l0_conversations</span></div><div class="ld">Ordinary SQLite tables store displayable, filterable, traceable fields: L1 content/type/priority/scene/timestamps, and L0 session, role, message_text, and recorded_at.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">keyword</span><span class="name">l1_fts / l0_fts</span></div><div class="ld">FTS5 virtual tables store tokenized index columns plus original text for display; <span class="inline">buildFtsQuery()</span> builds the query and <span class="inline">bm25()</span> ranks results ascending by rank.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">vector</span><span class="name">l1_vec / l0_vec</span></div><div class="ld"><span class="inline">vec0</span> tables store embeddings and use <span class="inline">distance_metric=cosine</span> for nearest-neighbor search; dimensions come from embedding config.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">embedding</span><span class="name">provider + model + dimensions</span></div><div class="ld">The embedding service records provider/model/dimensions. Provider, model, or dimension changes make old vectors incomparable, so schema/factory paths drop vec tables and reindex.</div></div>
+</div>
+
+<h2>Write path: one transaction around metadata, FTS, and vectors</h2>
+<div class="flow">
+  <div class="node"><div class="nt">write L1</div><div class="nd">The L1 writer passes a record and optional embedding.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">metadata insert</div><div class="nd"><span class="inline">l1_records</span> uses <span class="inline">ON CONFLICT</span> to update normal fields.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">FTS tokenize</div><div class="nd"><span class="inline">tokenizeForFts()</span> writes <span class="inline">l1_fts</span>; FTS failures only degrade keyword indexing.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">embedding</div><div class="nd">When a usable vector exists, it enters vec0; without embedding, metadata + FTS still persist.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">vector upsert</div><div class="nd"><span class="inline">vec0</span> does not support <span class="inline">ON CONFLICT</span>, so upsert is delete then insert.</div></div>
+</div>
+
+<p>
+<span class="inline">sqlite.ts</span> uses manual <span class="inline">BEGIN</span>/<span class="inline">COMMIT</span> and
+<span class="inline">ROLLBACK</span> on failure, keeping metadata, FTS, and vector rows synchronized for a record as much as possible.
+The database runs in WAL mode for safer concurrent reads and writes. Remember that FTS and vec0 are derived indexes; the metadata tables are the traceable source records.
+</p>
+
+<h2>Three recall columns</h2>
+<div class="cols">
+  <div class="col"><h4>BM25 keyword recall</h4><p><span class="inline">buildFtsQuery(query)</span> turns user input into an executable FTS5 query; <span class="inline">bm25(l1_fts)</span> or <span class="inline">bm25(l0_fts)</span> ranks matches. It is strong for exact terms, function names, file names, and tokenized Chinese keywords.</p></div>
+  <div class="col"><h4>Vector semantic recall</h4><p>The query is encoded by the same embedding provider, then nearest neighbors are searched in <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span> by cosine distance. This helps when users ask with different wording.</p></div>
+  <div class="col"><h4>RRF hybrid</h4><p>Local SQLite has no server-side native hybrid rank. Tool code collects FTS and vector candidates separately, then uses <span class="inline">rrfMerge()</span> to fuse rankings into a more robust order.</p></div>
+</div>
+
+<h2>Core pseudocode</h2>
+<pre class="code">writeMemory(record):
+    begin_transaction()
+    upsert(l1_records, record.metadata)
+    upsert(l1_fts, tokenize_for_fts(record.content))
+    if embedding_available:
+        delete(l1_vec where rowid = record.id)
+        insert(l1_vec, embed(record.content))
+    commit()
+
+hybrid(query):
+    ftsRanked = searchL1Fts(buildFtsQuery(query))
+    vecRanked = searchL1Vector(embed(query))
+    return rrfMerge([ftsRanked, vecRanked])</pre>
+
+<h2>Provider metadata and reindexing</h2>
+<p>
+Vectors are not plain text indexes; they are bound to provider, model, and dimensions. The same text embedded by different models may live in incompatible vector spaces, and different dimensions make the <span class="inline">vec0</span> schema incompatible.
+So when <span class="inline">embedding_meta</span> detects provider/model/dimensions changes, the store preserves <span class="inline">l1_records</span> and <span class="inline">l0_conversations</span>, rebuilds <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span>, and reindexes with the current embedding service. A local provider may need warmup; a remote provider is HTTP-based, but both must emit vectors matching configured dimensions.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/store/sqlite.ts</span>: <span class="inline">VectorStore</span>, <span class="inline">buildFtsQuery</span>, <span class="inline">l1_records</span>/<span class="inline">l0_conversations</span>, FTS5 tables, <span class="inline">vec0</span> tables, WAL, transactions, and delete + insert upsert.</li>
+    <li><span class="inline">src/core/store/search-utils.ts</span>: <span class="inline">rrfMerge()</span> merges ranked lists with <span class="inline">1 / (k + rank + 1)</span>.</li>
+    <li><span class="inline">src/core/store/embedding.ts</span>: embedding provider info, dimensions, local/remote embedding services, and not-ready behavior.</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite bundle creation, embedding service wiring, <span class="inline">vectors.db</span> path, and store snapshot used for reindex decisions.</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>: L0 conversation search tries FTS5 and vector search, then fuses local candidates.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  The local SQLite store separates source records from retrieval indexes: metadata tables keep traceable facts, FTS5/BM25 handles keyword recall, and sqlite-vec/vec0 handles semantic recall.
+  Writes synchronize metadata, FTS, and vectors inside a transaction; vec0 upsert is delete + insert; after an embedding provider change, old vectors are not comparable and usually need reindexing.
+</div>
+""",
+}
