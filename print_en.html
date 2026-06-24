@@ -2262,6 +2262,7 @@ Creative edits happen in L2 scene prose; deterministic code still owns backups, 
   <div class="tag">🔬 Source anchors</div>
   <ul>
     <li><span class="inline">src/core/scene/scene-extractor.ts</span>: <span class="inline">SceneExtractor.extract</span> orchestrates directory creation, backup, index loading, prompt construction, <span class="inline">runner.run({ workspaceDir: sceneBlocksDir })</span>, cleanup, index sync, and <span class="inline">parsePersonaUpdateSignal</span>.</li>
+    <li><span class="inline">src/core/scene/scene-index.ts</span>: <span class="inline">readSceneIndex</span> reads <span class="inline">.metadata/scene_index.json</span>; <span class="inline">syncSceneIndex</span> resynchronizes the index after model writes.</li>
     <li><span class="inline">src/utils/clean-context-runner.ts</span>: defines the tool-enabled runner contract; tools are enabled when the runner is constructed, while the restricted <span class="inline">workspaceDir</span> is supplied on each <span class="inline">run()</span> call.</li>
     <li><span class="inline">src/core/prompts/scene-extraction.ts</span>: constrains allowed scene operations: create, update, soft-delete Markdown scene files, and emit persona update signals.</li>
     <li><span class="inline">src/core/scene/filename-normalizer.ts</span>: converges model-produced scene filenames into normalized names, reducing duplicates and unpredictable paths.</li>
