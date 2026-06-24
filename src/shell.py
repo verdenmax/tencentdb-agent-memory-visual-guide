@@ -609,6 +609,8 @@ SUBTITLES = {
                                           "MMD is the task map, and node_id is the index from map back to evidence"),
     "31-l3-context-injection-emergency-compression.html": ("先注入任务地图，再按 token 压力进行温和、激进和紧急压缩",
                                                       "inject the task map first, then apply mild, aggressive, and emergency compression by token pressure"),
+    "32-hermes-gateway-http-security.html": ("把外部 HTTP Gateway 边界和安全开关从核心记忆逻辑中分离",
+                                             "separate the external HTTP Gateway boundary and security knobs from core memory logic"),
     "33-seed-cli-migration-export-read.html": ("用可回滚脚本完成初始化、迁移、导出、诊断和本地读取",
                                                "use reversible scripts for seeding, migration, export, diagnostics, and local reads"),
     "34-debug-tests-contribution-glossary.html": ("用检查清单定位问题，用测试和术语表完成可维护贡献",
