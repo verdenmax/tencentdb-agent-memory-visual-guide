@@ -541,8 +541,8 @@ SUBTITLES = {
                                   "captureAtomically, timestamp cursor, position slice, scheduler start gate"),
     "15-l1-extraction.html": ("质量门、背景窗口、场景分段、LLM JSON 输出、source_message_ids",
                               "quality gate, background window, scene segments, LLM JSON, source_message_ids"),
-    "16-l1-dedup-write.html": ("batchDedup、向量候选、JSONL 写入、store upsert、失败降级",
-                               "batchDedup, vector candidates, JSONL write, store upsert, degraded fallback"),
+    "16-l1-dedup-write.html": ("batchDedup、向量候选、JSONL 写入、store upsert、召回降级",
+                               "batchDedup, vector candidates, JSONL write, store upsert, recall fallback"),
 }
 
 def index_page(lesson_prefix="lessons/"):

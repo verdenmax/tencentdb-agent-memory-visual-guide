@@ -719,19 +719,19 @@ store upsert 路径把同一条记录维护到可搜索后端：本地
   <div class="col"><h4>TCVDB backend</h4><p><span class="inline">src/core/store/tcvdb.ts</span> 适合接入托管向量数据库。<span class="inline">createStoreBundle</span> 根据配置组装 embedding、store 与 fallback，使上层写入逻辑不需要知道具体后端。</p></div>
 </div>
 
-<h2>降级模式：召回能力下降时仍保留新记忆</h2>
+<h2>召回降级：召回能力下降时仍保留新记忆</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>vector recall</h4><p>如果已有向量数据且 embedding 服务可用，<span class="inline">batchDedup</span> 用向量相似检索召回候选。</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>FTS recall</h4><p>如果向量召回不可用但 FTS 关键词检索可用，则用关键词召回候选，去重判断的召回基础会变弱。</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>no recall</h4><p>如果向量与 FTS 召回都不可用，跳过冲突检测，并把本批新记忆按默认 <span class="inline">store</span> 决策写入。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>write path</h4><p><span class="inline">writeMemory</span> 按 store / update / merge / skip 决策维护 JSONL 与 store 写入；索引能力恢复后可再补齐检索层。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>write path</h4><p><span class="inline">writeMemory</span> 按 store / update / merge / skip 决策维护 JSONL 与 store 写入；需要时可手动依据 JSONL 重建检索层。</p></div></div>
 </div>
 
 <h2>伪代码</h2>
 <pre class="code">memories = extracted.map(assign_record_id)
 decisions = batchDedup(memories)
 for memory in memories:
-    decision = decisions[memory.record_id] ?? "store"
+    decision = decisions[memory.record_id] ?? "store"  # educational lookup from returned decisions
     writeMemory(memory, decision)  # store/update/merge/skip + JSONL/store writes</pre>
 
 <div class="card detail">
@@ -805,19 +805,19 @@ JSONL is durable evidence; the store is the retrieval index. Together they make 
   <div class="col"><h4>TCVDB backend</h4><p><span class="inline">src/core/store/tcvdb.ts</span> integrates a managed vector database. <span class="inline">createStoreBundle</span> wires embedding, store backend, and fallback behavior so the writer does not depend on backend details.</p></div>
 </div>
 
-<h2>Degraded mode: keep new memories when recall is unavailable</h2>
+<h2>Recall fallback: keep new memories when recall is unavailable</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>vector recall</h4><p>If vector data exists and the embedding service is available, <span class="inline">batchDedup</span> recalls candidates with vector similarity.</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>FTS recall</h4><p>If vector recall is unavailable but FTS keyword search exists, keyword recall can still provide candidates, with a weaker recall basis.</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>no recall</h4><p>If neither vector nor FTS recall is available, conflict detection is skipped and the new batch defaults to <span class="inline">store</span>.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>write path</h4><p><span class="inline">writeMemory</span> applies store / update / merge / skip decisions to JSONL and store writes; retrieval indexes can be repaired when capabilities return.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>write path</h4><p><span class="inline">writeMemory</span> applies store / update / merge / skip decisions to JSONL and store writes; operators can manually rebuild the retrieval layer from JSONL when needed.</p></div></div>
 </div>
 
 <h2>Pseudocode</h2>
 <pre class="code">memories = extracted.map(assign_record_id)
 decisions = batchDedup(memories)
 for memory in memories:
-    decision = decisions[memory.record_id] ?? "store"
+    decision = decisions[memory.record_id] ?? "store"  # educational lookup from returned decisions
     writeMemory(memory, decision)  # store/update/merge/skip + JSONL/store writes</pre>
 
 <div class="card detail">
