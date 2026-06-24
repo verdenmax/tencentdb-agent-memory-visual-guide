@@ -1987,7 +1987,7 @@ During parsing, <span class="inline">parseExtractionResult</span> first removes 
 
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 L1 extraction turns L0 messages into structured memories, but the extracted batch can contain duplicates or facts that conflict with existing memory.
-Before writing, <span class="inline">batchDedup</span> acts as quality control: recall similar candidates, decide whether the new memory should be kept, used to update an existing memory, or skipped.
+Before writing, <span class="inline">batchDedup</span> acts as quality control: recall similar candidates, then decide whether the new memory action is store, update, merge, or skip.
 It governs searchable L1 facts; it does not delete raw L0 evidence.
 </p>
 
@@ -2001,18 +2001,18 @@ It governs searchable L1 facts; it does not delete raw L0 evidence.
 <div class="flow">
   <div class="node"><div class="nt">extracted memories</div><div class="nd">LLM / logic emits candidate L1 atoms</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">candidate recall</div><div class="nd">when vector store is available, recall similar existing memories</div></div>
+  <div class="node"><div class="nt">candidate recall</div><div class="nd">when vector or FTS recall is available, find similar existing memories</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">dedup decision</div><div class="nd">choose keep / update / skip and explain conflicts</div></div>
+  <div class="node"><div class="nt">dedup decision</div><div class="nd">choose store / update / merge / skip and explain conflicts</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">write / update / skip</div><div class="nd">only qualified L1 enters JSONL and searchable store</div></div>
+  <div class="node hl"><div class="nt">write / update / merge / skip</div><div class="nd">apply the decision to JSONL and searchable store writes, or skip</div></div>
 </div>
 
 <p>
 <span class="inline">batchDedup</span> in <span class="inline">src/core/record/l1-dedup.ts</span>
-runs before batch writes. It prefers store similarity search for candidates: repeated preferences can be skipped,
-corrected preferences can update an existing record, and unrelated new facts can be kept. The decision can come from the LLM prompt in
-<span class="inline">src/core/prompts/l1-dedup.ts</span>, or from conservative rule logic in degraded paths.
+runs before batch writes over extracted memories that already have a <span class="inline">record_id</span>, returning <span class="inline">store/update/merge/skip</span> actions. It prefers available recall for candidates: repeated preferences can be skipped,
+corrected preferences can update an existing record, mergeable details can be merged, and unrelated new facts can be stored. The decision comes from the LLM prompt in
+<span class="inline">src/core/prompts/l1-dedup.ts</span>.
 </p>
 
 <h2>Why dedup does not discard evidence</h2>
@@ -2023,9 +2023,10 @@ corrected preferences can update an existing record, and unrelated new facts can
 
 <h2>Write path: JSONL plus store upsert</h2>
 <p>
-Accepted memories enter <span class="inline">writeMemory</span>. The writer uses
-<span class="inline">generateMemoryId</span> to create a stable record ID, then appends the L1 record to JSONL.
-After that, the store upsert path keeps the same record searchable: local <span class="inline">sqlite</span>
+The extraction flow first uses <span class="inline">generateMemoryId</span> to preassign a unique record ID. It uses time plus random bytes for the record that may be written;
+it is not a content-stable hash or the semantic identity chosen by dedup. <span class="inline">batchDedup</span> then returns decisions keyed by those IDs, and
+<span class="inline">writeMemory</span> uses the preassigned ID when appending or upserting the L1 record.
+The store upsert path keeps the same record searchable: local <span class="inline">sqlite</span>
 can provide vector / FTS search, while <span class="inline">TCVDB</span> can provide managed vector search.
 JSONL is durable evidence; the store is the retrieval index. Together they make memory auditable and recallable.
 </p>
@@ -2035,30 +2036,28 @@ JSONL is durable evidence; the store is the retrieval index. Together they make 
   <div class="col"><h4>TCVDB backend</h4><p><span class="inline">src/core/store/tcvdb.ts</span> integrates a managed vector database. <span class="inline">createStoreBundle</span> wires embedding, store backend, and fallback behavior so the writer does not depend on backend details.</p></div>
 </div>
 
-<h2>Degraded mode: keep memory when embedding / store is unavailable</h2>
+<h2>Degraded mode: keep new memories when recall is unavailable</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>embedding unavailable</h4><p>Without vectors, similar-candidate recall becomes weaker, so <span class="inline">batchDedup</span> must use available candidates, keywords, or conservative rules.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>store unavailable</h4><p>If index upsert fails, the system should not drop L1 output; the store is a retrieval accelerator, not the only persistence path.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>JSONL fallback</h4><p><span class="inline">writeMemory</span> still appends L1 JSONL with content, source messages, type, priority, and time metadata.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>later rebuild</h4><p>When services recover, the store index can be rebuilt from JSONL; the evidence chain was not lost during the outage.</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>vector recall</h4><p>If vector data exists and the embedding service is available, <span class="inline">batchDedup</span> recalls candidates with vector similarity.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>FTS recall</h4><p>If vector recall is unavailable but FTS keyword search exists, keyword recall can still provide candidates, with a weaker recall basis.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>no recall</h4><p>If neither vector nor FTS recall is available, conflict detection is skipped and the new batch defaults to <span class="inline">store</span>.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>write path</h4><p><span class="inline">writeMemory</span> applies store / update / merge / skip decisions to JSONL and store writes; retrieval indexes can be repaired when capabilities return.</p></div></div>
 </div>
 
 <h2>Pseudocode</h2>
-<pre class="code">for memory in extracted:
-    candidates = recall_similar(memory)
-    decision = dedup(memory, candidates)
-    if decision.keep:
-        record = writeMemory(memory)
-        store.upsert(record)
-    elif decision.update:
-        update_existing(record)</pre>
+<pre class="code">memories = extracted.map(assign_record_id)
+decisions = batchDedup(memories)
+for memory in memories:
+    decision = decisions[memory.record_id] ?? "store"
+    writeMemory(memory, decision)  # store/update/merge/skip + JSONL/store writes</pre>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/record/l1-dedup.ts</span>: <span class="inline">batchDedup</span> recalls candidates before writes and decides keep / update / skip</li>
+    <li><span class="inline">src/core/record/l1-extractor.ts</span>: assigns record IDs to extracted memories, calls <span class="inline">batchDedup</span>, applies decisions, and invokes <span class="inline">writeMemory</span></li>
+    <li><span class="inline">src/core/record/l1-dedup.ts</span>: <span class="inline">batchDedup</span> recalls candidates before writes and decides store / update / merge / skip</li>
     <li><span class="inline">src/core/prompts/l1-dedup.ts</span>: dedup prompt for comparing a new memory with candidates and detecting duplicates or conflicts</li>
-    <li><span class="inline">src/core/record/l1-writer.ts</span>: <span class="inline">writeMemory</span> and <span class="inline">generateMemoryId</span> generate and append L1 JSONL records</li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>: <span class="inline">writeMemory</span> uses the preassigned record ID when appending or upserting L1 JSONL / store records</li>
     <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> connects embedding, store backends, and degraded fallback</li>
     <li><span class="inline">src/core/store/sqlite.ts</span>: local vector / FTS store; <span class="inline">src/core/store/tcvdb.ts</span>: TCVDB store</li>
   </ul>
@@ -2067,8 +2066,8 @@ JSONL is durable evidence; the store is the retrieval index. Together they make 
 <div class="card key">
   <div class="tag">✅ Key points</div>
   L1 dedup runs before writing because extraction can produce duplicate or conflicting memories. <span class="inline">batchDedup</span>
-  recalls similar candidates when the store is available and chooses keep / update / skip. <span class="inline">writeMemory</span>
-  writes L1 JSONL, store upsert maintains the searchable index, and JSONL fallback still preserves auditable memory evidence when embedding or store services are unavailable.
+  recalls similar candidates when recall is available and chooses store / update / merge / skip. <span class="inline">writeMemory</span>
+  writes L1 JSONL and store records with the preassigned record ID; when recall is unavailable, conflict detection is skipped and new memories default to store.
 </div>
 
 <div class="selftest">
@@ -2089,7 +2088,7 @@ JSONL is durable evidence; the store is the retrieval index. Together they make 
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>If the embedding service is unavailable, what capability should the L1 write path still preserve?</li>
+    <li>If neither vector recall nor FTS recall is available, how does batchDedup handle the new batch?</li>
   </ul>
 </div>
 </div>

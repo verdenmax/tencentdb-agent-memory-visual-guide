@@ -322,7 +322,7 @@ QUIZZES = {
             "answer": 0,
             "why": {"zh": "原文证据必须保留；去重处理的是可召回结构化事实是否重复/冲突。", "en": "Raw evidence must remain; dedup handles whether recallable structured facts duplicate or conflict."},
         }],
-        "open": [{"zh": "如果 embedding 服务不可用，L1 写入路径还应保留什么能力？", "en": "If the embedding service is unavailable, what capability should the L1 write path still preserve?"}],
+        "open": [{"zh": "如果向量召回与 FTS 召回都不可用，batchDedup 会怎样处理这批新记忆？", "en": "If neither vector recall nor FTS recall is available, how does batchDedup handle the new batch?"}],
     },
 }
 
