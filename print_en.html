@@ -2995,12 +2995,12 @@ If dynamic L1 also lived in system context, it would frequently bust the system 
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 This lesson grounds Lesson 23's strategies in the local SQLite store. <span class="inline">VectorStore</span> keeps metadata tables,
 FTS5 virtual tables, and <span class="inline">sqlite-vec</span> <span class="inline">vec0</span> vector tables in the same
-<span class="inline">vectors.db</span>: keyword recall uses FTS5/BM25, semantic recall uses cosine distance, and hybrid recall merges client-side rankings with <span class="inline">rrfMerge()</span>.
+<span class="inline">vectors.db</span>: keyword recall uses FTS5/BM25, semantic recall uses cosine distance, and hybrid recall does an RRF-style client-side merge through a shared helper or a local equivalent in the calling path.
 </p>
 
 <div class="card analogy">
   <div class="tag">🧭 Analogy</div>
-  Think of a local file cabinet with three indexes. A registry records each document's id, time, and category; keyword cards find documents by words; semantic cards find documents by nearby meaning. The assistant then fuses both candidate lists with RRF instead of trusting only one index.
+  Think of a local file cabinet with three indexes. A registry records each document's id, time, and category; keyword cards find documents by words; semantic cards find documents by nearby meaning. The assistant then fuses both candidate lists with an RRF-style merge instead of trusting only one index.
 </div>
 
 <h2>The four local store layers</h2>
@@ -3008,7 +3008,7 @@ FTS5 virtual tables, and <span class="inline">sqlite-vec</span> <span class="inl
   <div class="layer l-core"><div class="lh"><span class="badge">metadata</span><span class="name">l1_records / l0_conversations</span></div><div class="ld">Ordinary SQLite tables store displayable, filterable, traceable fields: L1 content/type/priority/scene/timestamps, and L0 session, role, message_text, and recorded_at.</div></div>
   <div class="layer l-main"><div class="lh"><span class="badge">keyword</span><span class="name">l1_fts / l0_fts</span></div><div class="ld">FTS5 virtual tables store tokenized index columns plus original text for display; <span class="inline">buildFtsQuery()</span> builds the query and <span class="inline">bm25()</span> ranks results ascending by rank.</div></div>
   <div class="layer l-part"><div class="lh"><span class="badge">vector</span><span class="name">l1_vec / l0_vec</span></div><div class="ld"><span class="inline">vec0</span> tables store embeddings and use <span class="inline">distance_metric=cosine</span> for nearest-neighbor search; dimensions come from embedding config.</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">embedding</span><span class="name">provider + model + dimensions</span></div><div class="ld">The embedding service records provider/model/dimensions. Provider, model, or dimension changes make old vectors incomparable, so schema/factory paths drop vec tables and reindex.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">embedding</span><span class="name">provider + model + dimensions</span></div><div class="ld">The embedding service records provider/model/dimensions. Provider, model, or dimension changes make old vectors incomparable; store initialization uses embedding metadata to decide when to drop vec tables and reindex.</div></div>
 </div>
 
 <h2>Write path: one transaction around metadata, FTS, and vectors</h2>
@@ -3034,7 +3034,7 @@ The database runs in WAL mode for safer concurrent reads and writes. Remember th
 <div class="cols">
   <div class="col"><h4>BM25 keyword recall</h4><p><span class="inline">buildFtsQuery(query)</span> turns user input into an executable FTS5 query; <span class="inline">bm25(l1_fts)</span> or <span class="inline">bm25(l0_fts)</span> ranks matches. It is strong for exact terms, function names, file names, and tokenized Chinese keywords.</p></div>
   <div class="col"><h4>Vector semantic recall</h4><p>The query is encoded by the same embedding provider, then nearest neighbors are searched in <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span> by cosine distance. This helps when users ask with different wording.</p></div>
-  <div class="col"><h4>RRF hybrid</h4><p>Local SQLite has no server-side native hybrid rank. Tool code collects FTS and vector candidates separately, then uses <span class="inline">rrfMerge()</span> to fuse rankings into a more robust order.</p></div>
+  <div class="col"><h4>RRF-style hybrid</h4><p>Local SQLite has no server-side native hybrid rank. Tool code collects FTS and vector candidates separately, then uses a shared RRF helper or a local equivalent in the calling path to fuse rankings into a more robust order.</p></div>
 </div>
 
 <h2>Core pseudocode</h2>
@@ -3043,14 +3043,14 @@ The database runs in WAL mode for safer concurrent reads and writes. Remember th
     upsert(l1_records, record.metadata)
     upsert(l1_fts, tokenize_for_fts(record.content))
     if embedding_available:
-        delete(l1_vec where rowid = record.id)
+        delete(l1_vec where record_id = record.id)
         insert(l1_vec, embed(record.content))
     commit()
 
 hybrid(query):
     ftsRanked = searchL1Fts(buildFtsQuery(query))
     vecRanked = searchL1Vector(embed(query))
-    return rrfMerge([ftsRanked, vecRanked])</pre>
+    return rrf_style_merge_or_local_equivalent([ftsRanked, vecRanked])</pre>
 
 <h2>Provider metadata and reindexing</h2>
 <p>
@@ -3062,9 +3062,9 @@ So when <span class="inline">embedding_meta</span> detects provider/model/dimens
   <div class="tag">🔬 Source anchors</div>
   <ul>
     <li><span class="inline">src/core/store/sqlite.ts</span>: <span class="inline">VectorStore</span>, <span class="inline">buildFtsQuery</span>, <span class="inline">l1_records</span>/<span class="inline">l0_conversations</span>, FTS5 tables, <span class="inline">vec0</span> tables, WAL, transactions, and delete + insert upsert.</li>
-    <li><span class="inline">src/core/store/search-utils.ts</span>: <span class="inline">rrfMerge()</span> merges ranked lists with <span class="inline">1 / (k + rank + 1)</span>.</li>
+    <li><span class="inline">src/core/store/search-utils.ts</span>: contains the shared RRF helper for merging ranked lists with <span class="inline">1 / (k + rank + 1)</span>; individual recall/search paths may call that helper or keep a local equivalent.</li>
     <li><span class="inline">src/core/store/embedding.ts</span>: embedding provider info, dimensions, local/remote embedding services, and not-ready behavior.</li>
-    <li><span class="inline">src/core/store/factory.ts</span>: local SQLite bundle creation, embedding service wiring, <span class="inline">vectors.db</span> path, and store snapshot used for reindex decisions.</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: creates the local SQLite store bundle, wires the embedding service, resolves the <span class="inline">vectors.db</span> path, and exposes the store snapshot; embedding drift / reindex decisions are handled by store initialization and embedding metadata.</li>
     <li><span class="inline">src/core/tools/conversation-search.ts</span>: L0 conversation search tries FTS5 and vector search, then fuses local candidates.</li>
   </ul>
 </div>
