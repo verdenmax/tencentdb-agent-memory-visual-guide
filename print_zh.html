@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 21 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">21 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 22 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">22 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -353,6 +353,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">Scene index、导航与备份</span><span class="lang-en">Scene index, navigation, and backups</span></li>
   <li><span class="lang-zh">PersonaGenerator 与增量画像更新</span><span class="lang-en">PersonaGenerator and incremental profile updates</span></li>
   <li><span class="lang-zh">L2/L3 调度与触发规则</span><span class="lang-en">L2/L3 scheduling and trigger rules</span></li>
+  <li><span class="lang-zh">Prompt 构建前的 Auto Recall</span><span class="lang-en">Auto-recall before prompt build</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -2662,6 +2663,102 @@ destroy():
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>为什么 L3 persona 生成需要全局串行，而不是每个 session 并发运行？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">Prompt 构建前的 Auto Recall</span><span class="lang-en">Auto-recall before prompt build</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Auto Recall 发生在 prompt 真正交给模型之前。插件先保留用户原始输入，再把清洗后的查询交给核心层召回记忆；
+如果召回及时返回，就把用户侧上下文和系统侧上下文分别注入。如果超时或失败，主对话必须继续，不让记忆增强阻塞用户响应。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  这像开会前的助理检索：用户刚提出问题，助理快速翻出相关项目笔记，贴在发言稿前后。
+  如果档案柜一时打不开，会议不会停在门口；最多这轮先按没有记忆的方式回答。
+</div>
+
+<h2>before_prompt_build 路径</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>用户文本进入 hook</h4><p><span class="inline">index.ts</span> 的 before-prompt hook 收到本轮用户文本，并把原始 prompt 写入 <span class="inline">pendingOriginalPrompts</span>，供后续 capture 使用。</p><div class="mono">user text -&gt; pendingOriginalPrompts</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>交给 TdaiCore</h4><p>插件调用 <span class="inline">TdaiCore.handleBeforeRecall</span>，让宿主壳只负责接线，核心层负责 recall 语义。</p><div class="mono">index.ts -&gt; TdaiCore.handleBeforeRecall</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>执行超时竞速</h4><p><span class="inline">performAutoRecall</span> 使用 <span class="inline">recall.timeoutMs</span> 与召回任务 race：配置策略决定查哪些层、取多少上下文，超时则返回跳过注入。</p><div class="mono">recall task -&gt; race(timeoutMs)</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>注入上下文</h4><p>及时返回时，结果里的 <span class="inline">prependContext</span> 被放到用户消息前，<span class="inline">appendSystemContext</span> 被追加到系统上下文。</p><div class="mono">prependContext + appendSystemContext -&gt; prompt</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>模型继续响应</h4><p>模型看到的是增强后的 prompt；如果召回超时或失败，模型仍然收到原始对话路径，不被记忆系统拖住。</p><div class="mono">prompt -&gt; model</div></div></div>
+</div>
+
+<h2>两种注入位置</h2>
+<div class="cols">
+  <div class="col"><h4>Prepend user context</h4><p>适合放“与本轮用户问题直接相关”的记忆片段。它贴近用户文本，让模型把这些事实当成本轮问题的可用背景，而不是新的用户命令。</p></div>
+  <div class="col"><h4>Append system context</h4><p>适合放更稳定的系统侧说明，例如 recall 结果摘要、来源提示或使用边界。它补充系统上下文，但不覆盖原始系统规则。</p></div>
+</div>
+
+<h2>缓存、清洗与指标</h2>
+<div class="flow">
+  <div class="node"><div class="nt">original prompt cache</div><div class="nd"><span class="inline">pendingOriginalPrompts</span> 保留用户原文，避免 capture 保存被 recall prepend 污染后的文本。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">sanitized query</div><div class="nd"><span class="inline">sanitize.ts</span> 清洗 prompt/query，防止把注入标签或控制片段带入检索。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">recall result</div><div class="nd"><span class="inline">performAutoRecall</span> 生成可注入上下文、命中信息与耗时。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">metrics cache</div><div class="nd"><span class="inline">pendingRecallCache</span> 暂存本轮 recall 指标，供之后提交、观测或调试关联。</div></div>
+</div>
+
+<p>
+清洗后的 query 用于“找记忆”，原始 prompt 用于“记录用户真的说了什么”。这两个数据面不能混淆：
+如果 capture 直接保存被 prepend 后的文本，下一轮 L0/L1 会把系统注入当成用户证据，形成自我污染。
+</p>
+
+<h2>核心伪代码</h2>
+<pre class="code">before_prompt_build(userText):
+    pendingOriginalPrompts[sessionKey] = userText
+    result = await core.handleBeforeRecall(userText, sessionKey)
+    if result within timeout:
+        prepend_to_user(result.prependContext)
+        append_to_system(result.appendSystemContext)
+        pendingRecallCache[turnId] = result.metrics
+    else:
+        continue_without_memory()</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">index.ts</span>：before prompt hook 负责缓存 <span class="inline">pendingOriginalPrompts</span>，接收 recall 结果，并把 metrics 放入 <span class="inline">pendingRecallCache</span>。</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>：<span class="inline">handleBeforeRecall</span> 是宿主壳调用的核心入口。</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：<span class="inline">performAutoRecall</span> 执行 recall，并用 timeout race 保护主链路。</li>
+    <li><span class="inline">src/config.ts</span>：<span class="inline">recall.timeoutMs</span> 与 strategy config 决定召回预算、策略和结果规模。</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>：负责 prompt/query sanitization，避免把注入标记或不可信控制文本带入检索。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  Recall 是增强能力，不是主对话的硬依赖。before-prompt 阶段要先缓存原始输入，再用清洗后的 query 尝试召回；
+  及时返回则注入 <span class="inline">prependContext</span> 与 <span class="inline">appendSystemContext</span>，超时则 fail open，继续无记忆对话。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. Auto Recall 超时后为什么跳过注入而不是阻塞主对话？</div>
+  <ol class="opts">
+    <li>因为 HTML 需要重新编译</li>
+    <li>因为 L1 不可搜索</li>
+    <li>因为 persona.md 必须删除</li>
+    <li>记忆是增强能力，不能破坏用户当前响应路径</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。召回失败应降级为无记忆对话，而不是让用户等待或失败。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>为什么 capture 时需要原始 prompt 缓存，而不是直接保存被 recall prepend 后的文本？</li>
   </ul>
 </div>
 </div>

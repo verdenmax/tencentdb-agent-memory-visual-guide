@@ -4,6 +4,7 @@ import part2
 import part3
 import part4
 import part5
+import part6
 
 CONTENT = {
     "01-why-agent-memory.html": part1.LESSON_01,
@@ -27,4 +28,5 @@ CONTENT = {
     "19-scene-index-navigation-backups.html": part5.LESSON_19,
     "20-persona-generator-incremental.html": part5.LESSON_20,
     "21-l2-l3-scheduling-triggers.html": part5.LESSON_21,
+    "22-auto-recall-before-prompt.html": part6.LESSON_22,
 }

@@ -88,6 +88,8 @@ PAGES = [
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
     ("21-l2-l3-scheduling-triggers.html", "L2/L3 调度与触发规则", "L2/L3 scheduling and trigger rules",
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
+    ("22-auto-recall-before-prompt.html", "Prompt 构建前的 Auto Recall", "Auto-recall before prompt build",
+     "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
 ]
 
 def bi(zh, en):
@@ -563,6 +565,8 @@ SUBTITLES = {
                                           "read changed scenes, preserve existing persona, sandbox-write persona.md, then append scene navigation"),
     "21-l2-l3-scheduling-triggers.html": ("L1 resettable idle、L2 downward-only timer、L3 全局串行队列与 pending 去重",
                                           "L1 resettable idle, L2 downward-only timer, L3 global serial queue with pending dedup"),
+    "22-auto-recall-before-prompt.html": ("before_prompt_build 调 performAutoRecall，超时则跳过注入以保护主对话",
+                                      "before_prompt_build calls performAutoRecall; timeout skips injection to protect the main chat"),
 }
 
 def index_page(lesson_prefix="lessons/"):

@@ -394,6 +394,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "为什么 L3 persona 生成需要全局串行，而不是每个 session 并发运行？", "en": "Why should L3 persona generation be globally serialized instead of running concurrently per session?"}],
     },
+    "22-auto-recall-before-prompt.html": {
+        "mcq": [{
+            "q": {"zh": "Auto Recall 超时后为什么跳过注入而不是阻塞主对话？", "en": "Why does Auto Recall skip injection on timeout instead of blocking the main chat?"},
+            "opts": [
+                {"zh": "记忆是增强能力，不能破坏用户当前响应路径", "en": "Memory is an enhancement and must not break the user's current response path"},
+                {"zh": "因为 L1 不可搜索", "en": "Because L1 cannot be searched"},
+                {"zh": "因为 persona.md 必须删除", "en": "Because persona.md must be deleted"},
+                {"zh": "因为 HTML 需要重新编译", "en": "Because HTML must be rebuilt"},
+            ],
+            "answer": 0,
+            "why": {"zh": "召回失败应降级为无记忆对话，而不是让用户等待或失败。", "en": "Recall failure should degrade to a no-memory chat rather than making the user wait or fail."},
+        }],
+        "open": [{"zh": "为什么 capture 时需要原始 prompt 缓存，而不是直接保存被 recall prepend 后的文本？", "en": "Why does capture need the original prompt cache instead of saving recall-prepended text?"}],
+    },
 }
 
 
