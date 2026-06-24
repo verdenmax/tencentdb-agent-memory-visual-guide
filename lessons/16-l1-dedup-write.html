@@ -509,7 +509,7 @@ for memory in memories:
     <li><span class="inline">src/core/record/l1-dedup.ts</span>: <span class="inline">batchDedup</span> recalls candidates before writes and decides store / update / merge / skip</li>
     <li><span class="inline">src/core/prompts/l1-dedup.ts</span>: dedup prompt for comparing a new memory with candidates and detecting duplicates or conflicts</li>
     <li><span class="inline">src/core/record/l1-writer.ts</span>: <span class="inline">writeMemory</span> uses the preassigned record ID when appending or upserting L1 JSONL / store records</li>
-    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> connects embedding, store backends, and degraded fallback</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> connects embedding, store backends, and the embedding/store fallback path</li>
     <li><span class="inline">src/core/store/sqlite.ts</span>: local vector / FTS store; <span class="inline">src/core/store/tcvdb.ts</span>: TCVDB store</li>
   </ul>
 </div>
