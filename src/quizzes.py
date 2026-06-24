@@ -478,6 +478,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "哪些工具结果应该保留为 refs 证据，而不是持续注入 live prompt？", "en": "Which tool results should remain as refs evidence instead of staying injected in the live prompt?"}],
     },
+    "28-after-tool-call-refs-offload-jsonl.html": {
+        "mcq": [{
+            "q": {"zh": "after-tool-call 捕获完成工具结果后，为什么还要写 refs 和 offload JSONL 两种产物？", "en": "After after-tool-call captures a completed tool result, why write both refs and offload JSONL?"},
+            "opts": [
+                {"zh": "refs 保存完整原始证据，JSONL 保存可去重、可筛选、可注入的紧凑符号", "en": "refs keep full raw evidence; JSONL keeps compact symbols that can be deduped, filtered, and injected"},
+                {"zh": "refs 用来保存真实 API key，JSONL 用来删除工具结果", "en": "refs store real API keys, and JSONL deletes tool results"},
+                {"zh": "两者内容必须完全相同，方便重复占用上下文", "en": "They must be identical so context can be duplicated"},
+                {"zh": "JSONL 只能保存 Mermaid，refs 只能保存 CSS", "en": "JSONL can only store Mermaid, and refs can only store CSS"},
+            ],
+            "answer": 0,
+            "why": {"zh": "Context Offload 的设计是证据与符号分离：原始结果可追溯，摘要行轻量可导航，并用 tool_call_id 写入去重。", "en": "Context Offload separates evidence from symbols: raw results stay traceable, summary rows stay lightweight and navigable, and tool_call_id enables write-time dedup."},
+        }],
+        "open": [{"zh": "如果同一个 tool_call_id 因重试被重复写入，你希望 JSONL 和 refs 分别表现出什么行为？", "en": "If the same tool_call_id is replayed after a retry, how should JSONL and refs behave?"}],
+    },
 }
 
 

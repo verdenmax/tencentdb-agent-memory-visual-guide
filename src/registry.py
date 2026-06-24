@@ -35,4 +35,5 @@ CONTENT = {
     "25-sqlite-vec-fts-bm25-hybrid.html": part6.LESSON_25,
     "26-tencent-vectordb-embedding.html": part6.LESSON_26,
     "27-why-long-task-logs-symbolic-compression.html": part7.LESSON_27,
+    "28-after-tool-call-refs-offload-jsonl.html": part7.LESSON_28,
 }

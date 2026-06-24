@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 27 lessons.
+The guide currently contains 28 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -37,6 +37,7 @@ The guide currently contains 27 lessons.
 | 25 | SQLite, sqlite-vec, FTS, BM25, and hybrid search |
 | 26 | Tencent Cloud VectorDB backend and embedding services |
 | 27 | Why long task logs need symbolic compression |
+| 28 | after-tool-call, refs, and offload JSONL |
 
 ## How to view locally
 

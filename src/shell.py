@@ -100,6 +100,8 @@ PAGES = [
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
     ("27-why-long-task-logs-symbolic-compression.html", "为什么长任务日志需要符号压缩", "Why long task logs need symbolic compression",
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
+    ("28-after-tool-call-refs-offload-jsonl.html", "after-tool-call、refs 与 offload JSONL", "after-tool-call, refs, and offload JSONL",
+     "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
 ]
 
 def bi(zh, en):
@@ -587,6 +589,8 @@ SUBTITLES = {
                                       "TCVDB collections, server-side dense embedding, client sparse vectors, native hybridSearch, and degradation"),
     "27-why-long-task-logs-symbolic-compression.html": ("把臃肿工具日志变成可追溯的任务符号层",
                                                    "turn bulky tool logs into a traceable symbolic task layer"),
+    "28-after-tool-call-refs-offload-jsonl.html": ("工具结果先进入缓冲区，再变成 refs 证据和 JSONL 摘要",
+                                             "tool results enter a buffer, then become refs evidence and JSONL summaries"),
 }
 
 def index_page(lesson_prefix="lessons/"):

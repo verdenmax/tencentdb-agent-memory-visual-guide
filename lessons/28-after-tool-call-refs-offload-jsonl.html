@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>08 · index.ts：OpenClaw 插件壳 / index.ts: the OpenClaw plugin shell - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜index.ts：OpenClaw 插件壳 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>28 · after-tool-call、refs 与 offload JSONL / after-tool-call, refs, and offload JSONL - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第七部分 · Context Offload：短期符号记忆｜after-tool-call、refs 与 offload JSONL - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="08 · index.ts：OpenClaw 插件壳 / index.ts: the OpenClaw plugin shell - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜index.ts：OpenClaw 插件壳 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="28 · after-tool-call、refs 与 offload JSONL / after-tool-call, refs, and offload JSONL - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第七部分 · Context Offload：短期符号记忆｜after-tool-call、refs 与 offload JSONL - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="08 · index.ts：OpenClaw 插件壳 / index.ts: the OpenClaw plugin shell - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜index.ts：OpenClaw 插件壳 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="28 · after-tool-call、refs 与 offload JSONL / after-tool-call, refs, and offload JSONL - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第七部分 · Context Offload：短期符号记忆｜after-tool-call、refs 与 offload JSONL - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,236 +317,253 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></span>
-    <span class="pill">08 / 28</span>
+    <span class="pill"><span class="lang-zh">第七部分 · Context Offload：短期符号记忆</span><span class="lang-en">Part 7 · Context Offload: short-term symbolic memory</span></span>
+    <span class="pill">28 / 28</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:28%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></div>
-    <h1><span class="lang-zh">index.ts：OpenClaw 插件壳</span><span class="lang-en">index.ts: the OpenClaw plugin shell</span></h1>
+    <div class="part"><span class="lang-zh">第七部分 · Context Offload：短期符号记忆</span><span class="lang-en">Part 7 · Context Offload: short-term symbolic memory</span></div>
+    <h1><span class="lang-zh">after-tool-call、refs 与 offload JSONL</span><span class="lang-en">after-tool-call, refs, and offload JSONL</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-本课开始进入第三部分：从 OpenClaw 宿主入口读到核心门面。<span class="inline">index.ts</span> 很重要，但它不是记忆算法本体；
-它更像插件壳，负责识别注册模式、解析配置、创建 adapter 与 <span class="inline">TdaiCore</span>，再把 tools、hooks 和可选 offload 接到 OpenClaw。
+after-tool-call hook 是 Context Offload 的入口之一：每次工具调用结束后，插件把工具名、调用 ID、参数和结果拼成
+<span class="inline">ToolPair</span>。心跳事件和等待审批的事件会被跳过；真正完成的工具结果先进入 pending buffer，
+再在数量达到阈值时强制触发 Offload-L1，把原始输出写到 <span class="inline">refs/*.md</span>，把紧凑摘要追加到
+<span class="inline">offload-&lt;sessionId&gt;.jsonl</span>。
 </p>
 
 <div class="card analogy">
-  <div class="tag">🧩 生活类比</div>
-  <span class="inline">index.ts</span> 像家电的插头和控制面板：它知道要插进 OpenClaw 哪个插座、按钮如何命名、开机时读什么配置。
-  真正制冷或加热的压缩机不在面板里；记忆系统里对应的核心能力在 <span class="inline">TdaiCore</span> 与 core 模块中。
+  <div class="tag">🧭 生活类比</div>
+  这像实验记录员：每个仪器读数先贴到临时夹板，夹板攒到一定数量后，记录员把完整读数归档到证据册，
+  再在索引卡上写“读数来自哪里、结论是什么、是否已经进入任务画布”。索引卡轻，证据册完整。
 </div>
 
-<h2>register(api) 先分清两种模式</h2>
+<h2>after-tool-call 捕获路径</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>CLI metadata 模式</h4><p>当 <span class="inline">api.registrationMode</span> 是 <span class="inline">cli-metadata</span>，入口只注册命令行展示所需的插件信息，然后立即返回。</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Full / discovery 运行模式</h4><p>真实运行时继续读取 <span class="inline">api.pluginConfig</span>，准备时间、reporter、数据目录、adapter、core、tools 和 hooks。</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>按配置接入 Offload</h4><p>只有当配置中的 offload 开启时，才调用 <span class="inline">registerOffload</span> 把短期上下文压缩能力接进同一个宿主。</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>解析工具事件</h4><p><span class="inline">createAfterToolCallHandler</span> 从事件中解析 tool call ID、工具名、参数和结果；如果事件缺少可用 ID，后续 dedup 就无法稳定工作。</p><div class="mono">event -&gt; tool_call_id + params + result</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>过滤非结果事件</h4><p>heartbeat 只说明宿主还活着；approval-pending 只说明工具尚未真正执行。两者都不应进入证据层，避免把“尚无结果”当成事实。</p><div class="mono">skip heartbeat / approval-pending</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>加入 ToolPair buffer</h4><p><span class="inline">stateManager.addToolPair</span> 缓存完成的工具调用，并保存 latest-turn context，让后续 L1 摘要知道这批结果属于哪一轮任务。</p><div class="mono">ToolPair -&gt; pending_pairs</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>达到阈值强制 L1</h4><p><span class="inline">shouldForceL1</span> 使用 <span class="inline">forceTriggerThreshold</span> 判断 pending pairs 是否足够多；达到阈值就走 L1 trigger orchestration。</p><div class="mono">pending_pairs &gt;= forceTriggerThreshold</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>写 refs 与 JSONL</h4><p>L1 输出变成 <span class="inline">OffloadEntry</span>；原始结果由 <span class="inline">writeRefMd</span> 写入 refs，紧凑行由 <span class="inline">appendOffloadEntries</span> 追加。</p><div class="mono">entries -&gt; refs/*.md + offload JSONL</div></div></div>
 </div>
 
-<p>
-这个分支解释了为什么阅读 <span class="inline">index.ts</span> 时不要把所有代码都当成“记忆算法”：
-有一部分只是给 OpenClaw CLI 发现插件、显示工具说明或暴露元数据；另一部分才会进入完整运行路径。
-同一个 <span class="inline">register(api)</span> 也可能在不同 OpenClaw 生命周期上下文或注册模式中被调用，
-因此 CLI 注册和配置解析都应保持可重复调用时安全。
-</p>
-
-<h2>从 OpenClaw API 到核心门面</h2>
+<h2>从工具结果到短期符号</h2>
 <div class="flow">
-  <div class="node"><div class="nt">OpenClaw API</div><div class="nd">pluginConfig、hooks、tools、registrationMode</div></div>
+  <div class="node"><div class="nt">after-tool-call event</div><div class="nd">包含工具名、调用 ID、参数、stdout/stderr 或结构化结果。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">index.ts</div><div class="nd">register(api) 插件壳</div></div>
+  <div class="node"><div class="nt">ToolPair buffer</div><div class="nd">按 agent/session 的 state 暂存，跳过心跳和待审批事件。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">OpenClawHostAdapter</div><div class="nd">隔离宿主调用与日志/路径</div></div>
+  <div class="node"><div class="nt">L1 summarize</div><div class="nd">本地 LLM prompt 生成摘要、score、node_id 和可导航任务符号。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">TdaiCore</div><div class="nd">recall / capture / search / pipeline</div></div>
+  <div class="node"><div class="nt">refs file</div><div class="nd">完整原始结果写入 <span class="inline">refs/*.md</span>，必要时可下钻。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">offload JSONL row</div><div class="nd">一行保存紧凑索引和 ref path，不把大结果重复塞回上下文。</div></div>
+</div>
+
+<h2>OffloadEntry 必备字段</h2>
+<table class="t">
+  <tr><th>字段</th><th>作用</th></tr>
+  <tr><td class="mono">tool_call_id</td><td>写入去重的主键之一；同一工具结果重复到达时，<span class="inline">appendOffloadEntries</span> 跳过重复行。</td></tr>
+  <tr><td class="mono">tool_call</td><td>紧凑记录工具名和参数摘要，避免 JSONL 行保存完整大参数或敏感原文。</td></tr>
+  <tr><td class="mono">summary</td><td>Offload-L1 生成的短摘要，是下一轮上下文最常读取的部分。</td></tr>
+  <tr><td class="mono">timestamp</td><td>保留捕获时间，帮助按时间恢复任务过程。</td></tr>
+  <tr><td class="mono">score</td><td>表示摘要对当前任务的相关性或重要性，供后续筛选。</td></tr>
+  <tr><td class="mono">node_id</td><td>连接 Mermaid MMD 的任务节点，让 JSONL 行能进入可视化画布。</td></tr>
+  <tr><td class="mono">result_ref</td><td>指向 <span class="inline">refs/*.md</span> 的原始证据路径。</td></tr>
+  <tr><td class="mono">offload_status</td><td>由 <span class="inline">markOffloadStatus</span> 更新，区分 pending、summarized 或 injected 等状态。</td></tr>
+</table>
+
+<h2>存储隔离：当前 session 与共享 agent 目录</h2>
+<div class="cellgroup">
+  <div class="cg-cap"><b>current session</b>：只追加本会话 JSONL，避免不同会话的工具结果互相污染。</div>
+  <div class="cells"><span class="cell hot">offload-&lt;sessionId&gt;.jsonl</span><span class="cell">latest-turn context</span><span class="cell">pending ToolPairs</span></div>
+  <div class="cg-cap"><b>shared agent folders</b>：同一 agent 下的可下钻产物，路径仍由 session/ref 命名隔离。</div>
+  <div class="cells"><span class="cell">refs/</span><span class="cell">mmds/</span><span class="cell">state</span></div>
 </div>
 
 <p>
-完整模式中，入口先用 <span class="inline">src/config.ts</span> 的 <span class="inline">parseConfig</span> 合并默认值与用户配置；
-然后初始化时间、reporter 和数据目录，构造 <span class="inline">src/adapters/openclaw/host-adapter.ts</span> 里的 <span class="inline">OpenClawHostAdapter</span>；
-再把 adapter 和配置传给 <span class="inline">src/core/tdai-core.ts</span> 的 <span class="inline">TdaiCore</span>。
-接下来，tools 与 hooks 只是把 OpenClaw 生命周期事件转交给 core。
+隔离的关键不是“只写一个目录”，而是按 agent/session 创建存储上下文：当前会话的
+<span class="inline">offload-&lt;sessionId&gt;.jsonl</span> 保存轻量索引；同一 agent 下的
+<span class="inline">refs/</span> 和 <span class="inline">mmds/</span> 保存可下钻证据与任务画布。
+写入时再用 <span class="inline">tool_call_id</span> 去重，保证重复 hook、重试或重放不会制造重复 JSONL 行。
 </p>
 
-<h2>插件壳与核心的职责边界</h2>
-<div class="cols">
-  <div class="col"><h4>index.ts 插件壳</h4><p>理解 OpenClaw 的 <span class="inline">register(api)</span>、CLI metadata、<span class="inline">api.pluginConfig</span>、hook/tool 注册、数据目录初始化，以及是否调用 <span class="inline">src/offload/index.ts</span> 的 <span class="inline">registerOffload</span>。</p></div>
-  <div class="col"><h4>TdaiCore 与 core 模块</h4><p>保持宿主无关，承接 recall、capture、search、pipeline、L0-L3 分层与指标。它不需要知道自己来自 OpenClaw、Hermes，还是未来另一个宿主。</p></div>
-</div>
-
-<h2>入口伪代码</h2>
-<pre class="code">register(api):
-    if api.registrationMode == "cli-metadata":
-        api.registerCli(lambda program: registerMemoryTdaiCli(program))
+<h2>核心伪代码</h2>
+<pre class="code">on_after_tool_call(event):
+    pair = collect_tool_name_id_params_result(event)
+    if pair.is_heartbeat or pair.is_approval_pending:
         return
+    state.pending_pairs.append(pair)
+    if len(state.pending_pairs) &gt;= force_trigger_threshold:
+        entries = l1_summarize(state.pending_pairs)
+        for entry in entries:
+            entry.ref = write_ref_md(entry.raw_result)
+        append_offload_entries(entries)</pre>
 
-    cfg = parseConfig(api.pluginConfig)
-    adapter = OpenClawHostAdapter(api, cfg)
-    core = TdaiCore(adapter, cfg)
-    register_tools_and_hooks(core)
-    if cfg.offload.enabled:
-        registerOffload(api, cfg.offload)
-    api.registerCli(lambda program: registerMemoryTdaiCli(program))</pre>
-
-<h2>为什么需要 pending 缓存</h2>
-<p>
-OpenClaw 的 before/after hooks 分别发生在模型回答前后。为了干净捕获“原始用户提示”和统计召回指标，
-<span class="inline">index.ts</span> 会用 <span class="inline">pendingOriginalPrompts</span>、<span class="inline">pendingRecallCache</span> 这类缓存，
-把 before hook 中看到的原始 prompt 与 recall 结果暂存起来，等 after hook 收到最终回答时再合并成一次完整 capture 或 metrics 记录。
-</p>
-
+<h2>源码锚点</h2>
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">index.ts</span>：<span class="inline">register(api)</span>、<span class="inline">pendingOriginalPrompts</span>、<span class="inline">pendingRecallCache</span></li>
-    <li><span class="inline">src/config.ts</span>：<span class="inline">parseConfig</span></li>
-    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>：<span class="inline">OpenClawHostAdapter</span></li>
-    <li><span class="inline">src/core/tdai-core.ts</span>：<span class="inline">TdaiCore</span></li>
-    <li><span class="inline">src/offload/index.ts</span>：<span class="inline">registerOffload</span></li>
+    <li>批准规格 Part 7 lesson 28：本课聚焦 after-tool-call、refs 与 offload JSONL 的捕获链路。</li>
+    <li><span class="inline">src/offload/hooks/after-tool-call.ts</span>：<span class="inline">createAfterToolCallHandler</span> 解析工具调用 ID/参数/结果，跳过 heartbeat 与 approval-pending，并调用 <span class="inline">stateManager.addToolPair</span>。</li>
+    <li><span class="inline">src/offload/hooks/llm-output.ts</span>：<span class="inline">shouldForceL1</span> 和 <span class="inline">forceTriggerThreshold</span> 决定 pending pairs 何时触发 L1。</li>
+    <li><span class="inline">src/offload/index.ts</span>：编排 L1 trigger、<span class="inline">appendOffloadEntries</span>、<span class="inline">writeRefMd</span> 与 <span class="inline">sanitizeText</span>。</li>
+    <li><span class="inline">src/offload/storage.ts</span>：实现 <span class="inline">writeRefMd</span>、<span class="inline">appendOffloadEntries</span>、<span class="inline">readOffloadEntries</span>、<span class="inline">markOffloadStatus</span> 和 <span class="inline">parseJsonlSafe</span>。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>：定义 L1 摘要 prompt 与解析规则。</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  把宿主相关逻辑留在 <span class="inline">index.ts</span>，可以让 <span class="inline">TdaiCore</span> 保持宿主中立：
-  OpenClaw 入口负责接线，核心负责记忆能力。这也是后续理解 hooks、adapters 与 Gateway/Hermes 复用核心的基础。
+  after-tool-call 不直接把大工具结果塞回上下文，而是先形成 <span class="inline">ToolPair</span> buffer；
+  达到阈值后由 Offload-L1 生成 <span class="inline">OffloadEntry</span>，原文进 refs，摘要进 JSONL。
+  agent/session 隔离和写入时去重共同保证可追溯、可恢复、不过量。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. 为什么说 <code>index.ts</code> 是插件壳而不是记忆算法本体？</div>
+  <div class="qn">1. after-tool-call 捕获完成工具结果后，为什么还要写 refs 和 offload JSONL 两种产物？</div>
   <ol class="opts">
-    <li>它主要负责宿主注册、配置解析、hooks/tools 接线，核心能力委托给 TdaiCore</li>
-    <li>它保存所有 L1 记忆</li>
-    <li>它是 Hermes provider 目录名</li>
-    <li>它只生成 HTML 页面</li>
+    <li>两者内容必须完全相同，方便重复占用上下文</li>
+    <li>refs 保存完整原始证据，JSONL 保存可去重、可筛选、可注入的紧凑符号</li>
+    <li>JSONL 只能保存 Mermaid，refs 只能保存 CSS</li>
+    <li>refs 用来保存真实 API key，JSONL 用来删除工具结果</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：A</strong>。宿主相关入口在 index.ts，真正的 recall/capture/search/pipeline 能力收在 TdaiCore 与 core 模块中。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：B</strong>。Context Offload 的设计是证据与符号分离：原始结果可追溯，摘要行轻量可导航，并用 tool_call_id 写入去重。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>如果要定位 hook 注册问题，你会先读 index.ts 的哪几个区域？</li>
+    <li>如果同一个 tool_call_id 因重试被重复写入，你希望 JSONL 和 refs 分别表现出什么行为？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Part 3 starts by following the OpenClaw host entry into the core facade. <span class="inline">index.ts</span> matters, but it is not the memory algorithm itself.
-It is the plugin shell that detects registration mode, parses config, creates the adapter and <span class="inline">TdaiCore</span>, then wires tools, hooks, and optional offload into OpenClaw.
+The after-tool-call hook is one entry point for Context Offload. After each tool finishes, the plugin combines the tool name,
+tool call ID, parameters, and result into a <span class="inline">ToolPair</span>. Heartbeats and approval-pending events are skipped.
+Completed results first enter a pending buffer; when enough pairs accumulate, Offload-L1 is forced, raw output is written to
+<span class="inline">refs/*.md</span>, and compact summaries are appended to <span class="inline">offload-&lt;sessionId&gt;.jsonl</span>.
 </p>
 
 <div class="card analogy">
-  <div class="tag">🧩 Analogy</div>
-  <span class="inline">index.ts</span> is like an appliance plug and control panel: it knows which OpenClaw socket to use, how buttons are named, and which config to read at startup.
-  The compressor that actually cools or heats is elsewhere; in this memory system, the core capability lives in <span class="inline">TdaiCore</span> and core modules.
+  <div class="tag">🧭 Analogy</div>
+  Think of a lab recorder. Each instrument reading first goes onto a clipboard. Once the clipboard is full enough, the recorder files
+  the complete readings in an evidence binder and writes index cards saying where the reading lives, what it means, and whether it has entered the task canvas.
+  The index card is light; the binder remains complete.
 </div>
 
-<h2>register(api) separates two modes first</h2>
+<h2>The after-tool-call capture path</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>CLI metadata mode</h4><p>When <span class="inline">api.registrationMode</span> is <span class="inline">cli-metadata</span>, the entry registers plugin information needed by the CLI and returns immediately.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Full / discovery runtime mode</h4><p>At runtime it continues with <span class="inline">api.pluginConfig</span>, time, reporter, data dirs, adapter, core, tools, and hooks.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Attach Offload by config</h4><p>Only when offload is enabled does it call <span class="inline">registerOffload</span> to attach short-term context compression to the same host.</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Resolve the tool event</h4><p><span class="inline">createAfterToolCallHandler</span> resolves tool call ID, tool name, parameters, and result from the event. Without a stable ID, later write-time dedup cannot be reliable.</p><div class="mono">event -&gt; tool_call_id + params + result</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Filter non-result events</h4><p>A heartbeat only says the host is alive; approval-pending only says the tool has not actually run yet. Neither should become evidence.</p><div class="mono">skip heartbeat / approval-pending</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Add to the ToolPair buffer</h4><p><span class="inline">stateManager.addToolPair</span> caches completed tool calls and latest-turn context so L1 can summarize the batch in the right task frame.</p><div class="mono">ToolPair -&gt; pending_pairs</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Force L1 at the threshold</h4><p><span class="inline">shouldForceL1</span> uses <span class="inline">forceTriggerThreshold</span> to decide whether enough pending pairs have accumulated, then enters L1 trigger orchestration.</p><div class="mono">pending_pairs &gt;= forceTriggerThreshold</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Write refs and JSONL</h4><p>L1 output becomes <span class="inline">OffloadEntry</span> records; <span class="inline">writeRefMd</span> stores raw results under refs, and <span class="inline">appendOffloadEntries</span> appends compact rows.</p><div class="mono">entries -&gt; refs/*.md + offload JSONL</div></div></div>
 </div>
 
-<p>
-This branch explains why you should not read every line of <span class="inline">index.ts</span> as “the memory algorithm”.
-Some code only helps the OpenClaw CLI discover the plugin, show tool descriptions, or expose metadata; the rest enters the full runtime path.
-The same <span class="inline">register(api)</span> may run in different OpenClaw lifecycle contexts or registration modes,
-so CLI registration and config parsing should stay safe across repeated calls.
-</p>
-
-<h2>From OpenClaw API to the core facade</h2>
+<h2>From tool result to short-term symbol</h2>
 <div class="flow">
-  <div class="node"><div class="nt">OpenClaw API</div><div class="nd">pluginConfig, hooks, tools, registrationMode</div></div>
+  <div class="node"><div class="nt">after-tool-call event</div><div class="nd">Carries tool name, call ID, parameters, stdout/stderr, or structured result.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">index.ts</div><div class="nd">register(api) plugin shell</div></div>
+  <div class="node"><div class="nt">ToolPair buffer</div><div class="nd">Stored in agent/session state while heartbeat and approval-pending events are ignored.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">OpenClawHostAdapter</div><div class="nd">isolates host calls, logging, paths</div></div>
+  <div class="node"><div class="nt">L1 summarize</div><div class="nd">The local LLM prompt produces a summary, score, node_id, and task symbol.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">TdaiCore</div><div class="nd">recall / capture / search / pipeline</div></div>
+  <div class="node"><div class="nt">refs file</div><div class="nd">Full raw output is written under <span class="inline">refs/*.md</span> for drill-down.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">offload JSONL row</div><div class="nd">One compact index row points to the ref path instead of repeating the large result in context.</div></div>
+</div>
+
+<h2>Essential OffloadEntry fields</h2>
+<table class="t">
+  <tr><th>Field</th><th>Purpose</th></tr>
+  <tr><td class="mono">tool_call_id</td><td>One write-time dedup key; when the same tool result arrives again, <span class="inline">appendOffloadEntries</span> skips the duplicate row.</td></tr>
+  <tr><td class="mono">tool_call</td><td>Compact tool name and parameter summary, without storing huge arguments or sensitive raw text in the JSONL row.</td></tr>
+  <tr><td class="mono">summary</td><td>The Offload-L1 short summary, usually the part injected or read in the next turn.</td></tr>
+  <tr><td class="mono">timestamp</td><td>Capture time, useful for reconstructing task order.</td></tr>
+  <tr><td class="mono">score</td><td>Relevance or importance signal used by later filtering.</td></tr>
+  <tr><td class="mono">node_id</td><td>Connects the row to a Mermaid MMD task node.</td></tr>
+  <tr><td class="mono">result_ref</td><td>Path to the raw evidence in <span class="inline">refs/*.md</span>.</td></tr>
+  <tr><td class="mono">offload_status</td><td>Updated by <span class="inline">markOffloadStatus</span> to distinguish pending, summarized, injected, and related states.</td></tr>
+</table>
+
+<h2>Storage isolation: current session and shared agent folders</h2>
+<div class="cellgroup">
+  <div class="cg-cap"><b>current session</b>: append only this session's JSONL so tool results from different sessions do not mix.</div>
+  <div class="cells"><span class="cell hot">offload-&lt;sessionId&gt;.jsonl</span><span class="cell">latest-turn context</span><span class="cell">pending ToolPairs</span></div>
+  <div class="cg-cap"><b>shared agent folders</b>: drill-down artifacts under the same agent, still separated by session/ref naming.</div>
+  <div class="cells"><span class="cell">refs/</span><span class="cell">mmds/</span><span class="cell">state</span></div>
 </div>
 
 <p>
-In full mode, the entry first uses <span class="inline">parseConfig</span> from <span class="inline">src/config.ts</span> to merge defaults and user config.
-It then initializes time, reporter, and data dirs, constructs <span class="inline">OpenClawHostAdapter</span> from <span class="inline">src/adapters/openclaw/host-adapter.ts</span>,
-and passes the adapter plus config to <span class="inline">TdaiCore</span> in <span class="inline">src/core/tdai-core.ts</span>.
-Tools and hooks then forward OpenClaw lifecycle events to the core.
+Isolation is not merely "write one directory"; storage context is created per agent and per session. The current session's
+<span class="inline">offload-&lt;sessionId&gt;.jsonl</span> keeps lightweight indexes, while <span class="inline">refs/</span> and
+<span class="inline">mmds/</span> under the agent directory hold drill-down evidence and task canvases. Write-time dedup by
+<span class="inline">tool_call_id</span> prevents repeated hooks, retries, or replays from creating duplicate JSONL rows.
 </p>
 
-<h2>Shell responsibilities vs core responsibilities</h2>
-<div class="cols">
-  <div class="col"><h4>index.ts plugin shell</h4><p>Understands OpenClaw <span class="inline">register(api)</span>, CLI metadata, <span class="inline">api.pluginConfig</span>, hook/tool registration, data-dir initialization, and whether to call <span class="inline">registerOffload</span> from <span class="inline">src/offload/index.ts</span>.</p></div>
-  <div class="col"><h4>TdaiCore and core modules</h4><p>Stay host-neutral and own recall, capture, search, pipeline, L0-L3 layering, and metrics. They do not need to know whether the caller is OpenClaw, Hermes, or a future host.</p></div>
-</div>
-
-<h2>Pseudocode</h2>
-<pre class="code">register(api):
-    if api.registrationMode == "cli-metadata":
-        api.registerCli(lambda program: registerMemoryTdaiCli(program))
+<h2>Core pseudocode</h2>
+<pre class="code">on_after_tool_call(event):
+    pair = collect_tool_name_id_params_result(event)
+    if pair.is_heartbeat or pair.is_approval_pending:
         return
+    state.pending_pairs.append(pair)
+    if len(state.pending_pairs) &gt;= force_trigger_threshold:
+        entries = l1_summarize(state.pending_pairs)
+        for entry in entries:
+            entry.ref = write_ref_md(entry.raw_result)
+        append_offload_entries(entries)</pre>
 
-    cfg = parseConfig(api.pluginConfig)
-    adapter = OpenClawHostAdapter(api, cfg)
-    core = TdaiCore(adapter, cfg)
-    register_tools_and_hooks(core)
-    if cfg.offload.enabled:
-        registerOffload(api, cfg.offload)
-    api.registerCli(lambda program: registerMemoryTdaiCli(program))</pre>
-
-<h2>Why pending caches exist</h2>
-<p>
-OpenClaw before/after hooks run on different sides of the model response. To capture the original user prompt cleanly and report recall metrics,
-<span class="inline">index.ts</span> uses caches such as <span class="inline">pendingOriginalPrompts</span> and <span class="inline">pendingRecallCache</span>.
-The before hook stores the raw prompt and recall result; the after hook combines them with the final answer into one capture or metrics record.
-</p>
-
+<h2>Source anchors</h2>
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">index.ts</span>: <span class="inline">register(api)</span>, <span class="inline">pendingOriginalPrompts</span>, <span class="inline">pendingRecallCache</span></li>
-    <li><span class="inline">src/config.ts</span>: <span class="inline">parseConfig</span></li>
-    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>: <span class="inline">OpenClawHostAdapter</span></li>
-    <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">TdaiCore</span></li>
-    <li><span class="inline">src/offload/index.ts</span>: <span class="inline">registerOffload</span></li>
+    <li>Approved spec Part 7 lesson 28: this lesson focuses on after-tool-call, refs, and offload JSONL capture.</li>
+    <li><span class="inline">src/offload/hooks/after-tool-call.ts</span>: <span class="inline">createAfterToolCallHandler</span> resolves tool call ID/params/result, skips heartbeat and approval-pending events, and calls <span class="inline">stateManager.addToolPair</span>.</li>
+    <li><span class="inline">src/offload/hooks/llm-output.ts</span>: <span class="inline">shouldForceL1</span> and <span class="inline">forceTriggerThreshold</span> decide when pending pairs trigger L1.</li>
+    <li><span class="inline">src/offload/index.ts</span>: orchestrates L1 triggering, <span class="inline">appendOffloadEntries</span>, <span class="inline">writeRefMd</span>, and <span class="inline">sanitizeText</span>.</li>
+    <li><span class="inline">src/offload/storage.ts</span>: implements <span class="inline">writeRefMd</span>, <span class="inline">appendOffloadEntries</span>, <span class="inline">readOffloadEntries</span>, <span class="inline">markOffloadStatus</span>, and <span class="inline">parseJsonlSafe</span>.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>: define the L1 summarization prompt and parser rules.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Keeping host-specific logic in <span class="inline">index.ts</span> lets <span class="inline">TdaiCore</span> remain host-neutral:
-  the OpenClaw entry wires the system, and the core owns memory behavior. This is the basis for understanding hooks, adapters, and Gateway/Hermes core reuse.
+  after-tool-call does not push large tool results straight back into context. It builds a <span class="inline">ToolPair</span> buffer first;
+  once the threshold is reached, Offload-L1 creates <span class="inline">OffloadEntry</span> records, raw output goes to refs, and summaries go to JSONL.
+  Agent/session isolation plus write-time dedup keep the system traceable, recoverable, and compact.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. Why is <code>index.ts</code> a plugin shell rather than the memory algorithm itself?</div>
+  <div class="qn">1. After after-tool-call captures a completed tool result, why write both refs and offload JSONL?</div>
   <ol class="opts">
-    <li>It mainly handles host registration, config parsing, hooks/tools wiring, and delegates core work to TdaiCore</li>
-    <li>It stores all L1 memories</li>
-    <li>It is the Hermes provider directory name</li>
-    <li>It only generates HTML pages</li>
+    <li>They must be identical so context can be duplicated</li>
+    <li>refs keep full raw evidence; JSONL keeps compact symbols that can be deduped, filtered, and injected</li>
+    <li>JSONL can only store Mermaid, and refs can only store CSS</li>
+    <li>refs store real API keys, and JSONL deletes tool results</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Host-specific entry lives in index.ts; recall/capture/search/pipeline live in TdaiCore and core modules.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: B</strong>. Context Offload separates evidence from symbols: raw results stay traceable, summary rows stay lightweight and navigable, and tool_call_id enables write-time dedup.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>If hook registration is broken, which areas of index.ts would you inspect first?</li>
+    <li>If the same tool_call_id is replayed after a retry, how should JSONL and refs behave?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="07-config-levels.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">配置层级与安全默认值</span><span class="lang-en">Configuration levels and safe defaults</span></div></a><a class="next" href="09-tdai-core-facade.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></div></a></div>
+  <div class="footnav"><a class="prev" href="27-why-long-task-logs-symbolic-compression.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">为什么长任务日志需要符号压缩</span><span class="lang-en">Why long task logs need symbolic compression</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){
