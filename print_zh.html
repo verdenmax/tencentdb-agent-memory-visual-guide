@@ -3636,7 +3636,7 @@ Mermaid MMD 不是为了好看，而是 Context Offload 的紧凑任务状态画
 <h2>MMD 是任务状态画布，不是装饰图</h2>
 <div class="layers">
   <div class="layer l-main"><div class="lh"><span class="badge">canvas</span><span class="name">mmds/task.mmd</span></div><div class="ld">用 Mermaid 节点表达当前任务、等待项、已处理项和后续路径；L2 负责 <span class="inline">writeMmd</span> 完整写入或 <span class="inline">patchMmd</span> 行级修补。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">index</span><span class="name">offload JSONL rows</span></div><div class="ld">每行保存 tool_call_id、summary、result_ref、offloaded 和 <span class="inline">node_id</span>；<span class="inline">updateOffloadNodeIds</span> 把映射写回行。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">index</span><span class="name">offload JSONL rows</span></div><div class="ld">每行保存 tool_call_id、summary、result_ref、offloaded 和 <span class="inline">node_id</span>；当前 pipeline 通过 <span class="inline">backfillNodeIds</span> 进入 <span class="inline">rewriteAllOffloadEntries</span> 重写行。</div></div>
   <div class="layer l-core"><div class="lh"><span class="badge">evidence</span><span class="name">refs/*.md</span></div><div class="ld">完整工具输出、错误栈或搜索结果留在 refs markdown；prompt 里不需要常驻所有原始行。</div></div>
 </div>
 
@@ -3670,10 +3670,10 @@ Mermaid MMD 不是为了好看，而是 Context Offload 的紧凑任务状态画
 
 <h2>写入、修补与映射回填</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>触发 L2</h4><p><span class="inline">checkL2Trigger</span> 看到未分配行数量、timeout 或 task switch 后启动 L2。</p><div class="mono">null entries / timeout / switch</div></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>触发 L2</h4><p><span class="inline">checkL2Trigger</span> 负责未分配行数量和 timeout；task switch 走单独的强制 L2 flush（<span class="inline">task_switch_flush</span>）。</p><div class="mono">null entries / timeout; forced switch flush</div></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>生成或修补 MMD</h4><p>L2 可以用 <span class="inline">writeMmd</span> 写完整画布，也可以用 <span class="inline">patchMmd</span> 做行级更新；<span class="inline">readMmd</span> 和 <span class="inline">listMmds</span> 支持读取当前任务与候选画布。</p><div class="mono">full write or line patch</div></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>规范化 node mapping</h4><p><span class="inline">l2-prompt.ts</span> 要求输出 <span class="inline">node_mapping</span>；<span class="inline">l2-parser.ts</span> 解析后，pipeline 用 <span class="inline">MMD_NODE_ID_RE</span> 与映射规范化避免脏 ID。</p><div class="mono">tool_call_id -&gt; normalized node_id</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>回填 JSONL</h4><p><span class="inline">backfillNodeIds</span> 调用 <span class="inline">updateOffloadNodeIds</span>，让每个新工具条目都能从 MMD 节点返回证据行。</p><div class="mono">mapping -&gt; offload rows</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>回填 JSONL</h4><p><span class="inline">backfillNodeIds</span> 在当前路径中调用 <span class="inline">rewriteAllOffloadEntries</span>，让每个新工具条目都能从 MMD 节点返回证据行。</p><div class="mono">mapping -&gt; rewrite all offload rows</div></div></div>
 </div>
 
 <h2>核心伪代码</h2>
@@ -3685,25 +3685,28 @@ Mermaid MMD 不是为了好看，而是 Context Offload 的紧凑任务状态画
         patchMmd(active_task, result.line_patches)
 
     mapping = normalize_node_mapping(result.node_mapping, MMD_NODE_ID_RE)
-    for entry in entries_without_node_id:
-        entry.node_id = mapping.get(entry.tool_call_id, "wait")
-    updateOffloadNodeIds(mapping)
+    backfillNodeIds(ctx, mapping, wait_ids, logger, options)
+    # backfillNodeIds persists via rewriteAllOffloadEntries
+
+if task_switch_detected:
+    task_switch_flush(active_task)
 
 active_ids = getCurrentTaskNodeIds(active_mmd)
-lookup = populateOffloadLookupMap(read_offload_jsonl())
-for node_id in active_ids:
-    for entry in lookup[node_id]:
-        detail = getOffloadEntry(entry.result_ref)</pre>
+entries = read_offload_jsonl()
+lookup = populateOffloadLookupMap(entries)  # for getOffloadEntry(lookup, toolCallId)
+for entry in entries:
+    if entry.node_id in active_ids:
+        detail = readRefMd(ctx, entry.result_ref)</pre>
 
 <h2>源码锚点</h2>
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
     <li>批准规格 Part 7 lesson 30 与 <span class="inline">node_id</span> 下钻要求：本课聚焦 MMD 画布、节点映射和证据恢复。</li>
-    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>：<span class="inline">checkL2Trigger</span>、<span class="inline">backfillNodeIds</span>、<span class="inline">MMD_NODE_ID_RE</span> 与 node mapping 规范化。</li>
-    <li><span class="inline">src/offload/storage.ts</span>：<span class="inline">writeMmd</span>、<span class="inline">patchMmd</span>、<span class="inline">readMmd</span>、<span class="inline">listMmds</span>、<span class="inline">updateOffloadNodeIds</span>。</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>：<span class="inline">checkL2Trigger</span>、<span class="inline">backfillNodeIds</span>、<span class="inline">MMD_NODE_ID_RE</span> 与 node mapping 规范化；task switch 是单独的强制 L2 flush。</li>
+    <li><span class="inline">src/offload/storage.ts</span>：<span class="inline">writeMmd</span>、<span class="inline">patchMmd</span>、<span class="inline">readMmd</span>、<span class="inline">listMmds</span>、<span class="inline">rewriteAllOffloadEntries</span>、<span class="inline">readRefMd</span>。</li>
     <li><span class="inline">src/offload/mmd-injector.ts</span>：<span class="inline">injectMmdIntoMessages</span>、<span class="inline">maybeUpdateMmdInMessages</span> 与 <span class="inline">MMD_MESSAGE_MARKER</span> 管理 prompt 里的 MMD 片段。</li>
-    <li><span class="inline">src/offload/l3-helpers.ts</span>：<span class="inline">getCurrentTaskNodeIds</span>、<span class="inline">populateOffloadLookupMap</span>、<span class="inline">getOffloadEntry</span> 支撑按节点下钻。</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>：<span class="inline">getCurrentTaskNodeIds</span>、按 <span class="inline">tool_call_id</span> 建索引的 <span class="inline">populateOffloadLookupMap</span>、<span class="inline">getOffloadEntry(map, toolCallId)</span> 支撑按节点下钻。</li>
     <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>：要求 L2 输出 <span class="inline">node_mapping</span>，否则不能可靠回填。</li>
   </ul>
 </div>
