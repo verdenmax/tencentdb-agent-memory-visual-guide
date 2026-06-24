@@ -492,6 +492,7 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果同一个 tool_call_id 因重试被重复写入，你希望 JSONL 和 refs 分别表现出什么行为？", "en": "If the same tool_call_id is replayed after a retry, how should JSONL and refs behave?"}],
     },
+
     "29-l1-l15-l2-local-llm-pipelines.html": {
         "mcq": [{
             "q": {"zh": "为什么本地 Offload 要把 L1、L1.5、L2 拆成三次模型调用？", "en": "Why does local Offload split L1, L1.5, and L2 into three model calls?"},
@@ -505,6 +506,20 @@ QUIZZES = {
             "why": {"zh": "拆分后每层只验证自己的 prompt/parser 契约；LocalLlmClient 仍与 backend client 暴露同一组方法，上层 pipeline 可复用。", "en": "Splitting lets each layer validate its own prompt/parser contract; LocalLlmClient still exposes the same methods as the backend client, so the upper pipeline is reused."},
         }],
         "open": [{"zh": "如果 L2 返回了 Mermaid 但缺少 node_mapping，你会如何防止错误回填 node_id？", "en": "If L2 returns Mermaid but no node_mapping, how would you prevent incorrect node_id backfill?"}],
+    },
+    "30-mermaid-mmd-node-id-drill-down.html": {
+        "mcq": [{
+            "q": {"zh": "为什么 Lesson 30 强调每个新工具条目都必须获得 node_id？", "en": "Why does Lesson 30 emphasize that every new tool entry must receive a node_id?"},
+            "opts": [
+                {"zh": "因为 node_id 把 MMD 任务节点连接回 JSONL 摘要行和 refs 证据，支持下钻恢复", "en": "Because node_id connects MMD task nodes back to JSONL summary rows and refs evidence for drill-down recovery"},
+                {"zh": "因为 Mermaid 没有 node_id 就不能显示任何颜色", "en": "Because Mermaid cannot display any color without node_id"},
+                {"zh": "因为 node_id 用来保存真实 API key", "en": "Because node_id stores real API keys"},
+                {"zh": "因为有了 node_id 就不需要 refs markdown", "en": "Because node_id removes the need for refs markdown"},
+            ],
+            "answer": 0,
+            "why": {"zh": "MMD 是任务地图；node_id 是从地图回到证据的索引。没有它，Offload-L3 注入的活动节点无法可靠定位原始细节。", "en": "MMD is the task map; node_id is the index from the map back to evidence. Without it, an active node injected by Offload-L3 cannot reliably locate raw detail."},
+        }],
+        "open": [{"zh": "如果 MMD 节点存在但 JSONL 行的 node_id 仍为 null，你会如何恢复或补救下钻链路？", "en": "If an MMD node exists but the JSONL row still has node_id null, how would you recover or repair the drill-down chain?"}],
     },
 }
 

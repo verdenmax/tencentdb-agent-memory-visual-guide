@@ -562,3 +562,200 @@ if should_run_l2(null_node_count, timeout, task_switched):
 </div>
 """,
 }
+
+
+
+LESSON_30 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Mermaid MMD 不是为了好看，而是 Context Offload 的紧凑任务状态画布。Offload-L2 可以完整写入新的
+<span class="inline">.mmd</span> 文件，也可以按行修补已有画布；但无论是新节点还是补丁里的新工具条目，都必须拿到
+<span class="inline">node_id</span>。这个 ID 把注入到 prompt 的任务符号，重新连接回 offload JSONL 摘要行和
+<span class="inline">refs/*.md</span> 原始证据。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  把 MMD 当作项目作战地图：地图上一个节点写着“修复登录测试”。<span class="inline">node_id</span> 像坐标编号，
+  让你从地图坐标回到索引卡，再翻到证据夹里的原始日志。没有坐标，地图再漂亮也无法复盘证据。
+</div>
+
+<h2>MMD 是任务状态画布，不是装饰图</h2>
+<div class="layers">
+  <div class="layer l-main"><div class="lh"><span class="badge">canvas</span><span class="name">mmds/task.mmd</span></div><div class="ld">用 Mermaid 节点表达当前任务、等待项、已处理项和后续路径；L2 负责 <span class="inline">writeMmd</span> 完整写入或 <span class="inline">patchMmd</span> 行级修补。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">index</span><span class="name">offload JSONL rows</span></div><div class="ld">每行保存 tool_call_id、summary、result_ref、offloaded 和 <span class="inline">node_id</span>；<span class="inline">updateOffloadNodeIds</span> 把映射写回行。</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">evidence</span><span class="name">refs/*.md</span></div><div class="ld">完整工具输出、错误栈或搜索结果留在 refs markdown；prompt 里不需要常驻所有原始行。</div></div>
+</div>
+
+<p>
+因此评审 MMD 生成时，不应只问“图是否能渲染”。更重要的问题是：每个新工具证据是否被放到明确节点？
+节点 ID 是否符合 <span class="inline">MMD_NODE_ID_RE</span>？映射是否能被规范化后回填到 JSONL？
+如果任何一步断开，Offload-L3 注入的 active node 就只剩摘要，无法安全下钻。
+</p>
+
+<h2>从 active 节点下钻恢复细节</h2>
+<div class="flow trace">
+  <div class="node hl"><div class="nt">active MMD node</div><div class="nd">例如 <span class="inline">027-N1</span>：当前任务地图上的一个节点。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">node_id</div><div class="nd">Offload-L3 只注入节点和少量周边上下文。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">matching JSONL entries</div><div class="nd"><span class="inline">getCurrentTaskNodeIds</span> 与 lookup map 找到相同行。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">ref markdown</div><div class="nd"><span class="inline">result_ref</span> 指向 refs 文件。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">recovered detail</div><div class="nd">需要时再读完整 stdout、diff、测试失败或搜索命中。</div></div>
+</div>
+
+<h2>node_id 生命周期</h2>
+<table class="t">
+  <tr><th>状态</th><th>含义</th><th>恢复能力</th></tr>
+  <tr><td class="mono">null</td><td>L1 刚写入的未分配行；还没有进入 MMD 画布。</td><td>能按时间或 tool_call_id 找到摘要和 ref，但不能从 MMD 节点直接定位。</td></tr>
+  <tr><td class="mono">wait</td><td>等待态或兜底映射；L2 尚未能归入稳定任务节点。</td><td>可保守保留，不应伪造具体节点；后续 L2 可再归一化。</td></tr>
+  <tr><td class="mono">027-N1</td><td>具体节点 ID，符合 MMD 节点命名规则并出现在 <span class="inline">node_mapping</span>。</td><td>MMD node -&gt; JSONL row -&gt; refs detail 的主下钻路径完整。</td></tr>
+  <tr><td class="mono">deleted / offloaded</td><td>行可能被标记为已 offload 或删除态；状态不等于丢失证据。</td><td>注入层可跳过或压缩显示，但仍应能通过索引和 ref 追溯历史。</td></tr>
+</table>
+
+<h2>写入、修补与映射回填</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>触发 L2</h4><p><span class="inline">checkL2Trigger</span> 看到未分配行数量、timeout 或 task switch 后启动 L2。</p><div class="mono">null entries / timeout / switch</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>生成或修补 MMD</h4><p>L2 可以用 <span class="inline">writeMmd</span> 写完整画布，也可以用 <span class="inline">patchMmd</span> 做行级更新；<span class="inline">readMmd</span> 和 <span class="inline">listMmds</span> 支持读取当前任务与候选画布。</p><div class="mono">full write or line patch</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>规范化 node mapping</h4><p><span class="inline">l2-prompt.ts</span> 要求输出 <span class="inline">node_mapping</span>；<span class="inline">l2-parser.ts</span> 解析后，pipeline 用 <span class="inline">MMD_NODE_ID_RE</span> 与映射规范化避免脏 ID。</p><div class="mono">tool_call_id -&gt; normalized node_id</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>回填 JSONL</h4><p><span class="inline">backfillNodeIds</span> 调用 <span class="inline">updateOffloadNodeIds</span>，让每个新工具条目都能从 MMD 节点返回证据行。</p><div class="mono">mapping -&gt; offload rows</div></div></div>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">if checkL2Trigger(entries_without_node_id, active_task):
+    result = l2Generate(active_mmd, entries_without_node_id)
+    if result.full_mmd:
+        writeMmd(active_task, result.mmd)
+    else:
+        patchMmd(active_task, result.line_patches)
+
+    mapping = normalize_node_mapping(result.node_mapping, MMD_NODE_ID_RE)
+    for entry in entries_without_node_id:
+        entry.node_id = mapping.get(entry.tool_call_id, "wait")
+    updateOffloadNodeIds(mapping)
+
+active_ids = getCurrentTaskNodeIds(active_mmd)
+lookup = populateOffloadLookupMap(read_offload_jsonl())
+for node_id in active_ids:
+    for entry in lookup[node_id]:
+        detail = getOffloadEntry(entry.result_ref)</pre>
+
+<h2>源码锚点</h2>
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li>批准规格 Part 7 lesson 30 与 <span class="inline">node_id</span> 下钻要求：本课聚焦 MMD 画布、节点映射和证据恢复。</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>：<span class="inline">checkL2Trigger</span>、<span class="inline">backfillNodeIds</span>、<span class="inline">MMD_NODE_ID_RE</span> 与 node mapping 规范化。</li>
+    <li><span class="inline">src/offload/storage.ts</span>：<span class="inline">writeMmd</span>、<span class="inline">patchMmd</span>、<span class="inline">readMmd</span>、<span class="inline">listMmds</span>、<span class="inline">updateOffloadNodeIds</span>。</li>
+    <li><span class="inline">src/offload/mmd-injector.ts</span>：<span class="inline">injectMmdIntoMessages</span>、<span class="inline">maybeUpdateMmdInMessages</span> 与 <span class="inline">MMD_MESSAGE_MARKER</span> 管理 prompt 里的 MMD 片段。</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>：<span class="inline">getCurrentTaskNodeIds</span>、<span class="inline">populateOffloadLookupMap</span>、<span class="inline">getOffloadEntry</span> 支撑按节点下钻。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>：要求 L2 输出 <span class="inline">node_mapping</span>，否则不能可靠回填。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  MMD 是当前任务的紧凑地图，<span class="inline">node_id</span> 是从地图回到证据的索引。
+  L2 不只生成图，还负责完整写入或行级修补 MMD，并把每个新工具条目映射回 JSONL。
+  下钻恢复路径是 active MMD node -&gt; node_id -&gt; JSONL entries -&gt; refs markdown，不需要把每行原始日志常驻 prompt。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Mermaid MMD is not a pretty diagram; it is Context Offload's compact task-state canvas. Offload-L2 may write a new
+<span class="inline">.mmd</span> file in full, or patch an existing canvas line by line. Either way, every new tool entry must receive a
+<span class="inline">node_id</span>. That ID connects injected task context back to offload JSONL summary rows and
+<span class="inline">refs/*.md</span> raw evidence.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Treat MMD as a project operations map: one map node says “fix login tests.” The <span class="inline">node_id</span> is its coordinate,
+  letting you go from the map coordinate to the index card and then to the evidence folder with the original log. Without coordinates, a pretty map cannot recover evidence.
+</div>
+
+<h2>MMD is task-state canvas, not decoration</h2>
+<div class="layers">
+  <div class="layer l-main"><div class="lh"><span class="badge">canvas</span><span class="name">mmds/task.mmd</span></div><div class="ld">Mermaid nodes express current work, wait items, processed items, and next paths; L2 owns full <span class="inline">writeMmd</span> writes and line-based <span class="inline">patchMmd</span> updates.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">index</span><span class="name">offload JSONL rows</span></div><div class="ld">Each row stores tool_call_id, summary, result_ref, offloaded, and <span class="inline">node_id</span>; <span class="inline">updateOffloadNodeIds</span> writes mappings back to rows.</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">evidence</span><span class="name">refs/*.md</span></div><div class="ld">Full tool output, stack traces, or search hits remain in refs markdown; the prompt does not need every original line resident.</div></div>
+</div>
+
+<p>
+So MMD review should not ask only “does the diagram render?” The more important questions are: did every new tool evidence row land on a clear node?
+Does the node ID match <span class="inline">MMD_NODE_ID_RE</span>? Can the mapping be normalized and backfilled to JSONL?
+If any step breaks, the active node injected by Offload-L3 becomes only a summary, not a safe drill-down path.
+</p>
+
+<h2>Drill down from active node to recovered detail</h2>
+<div class="flow trace">
+  <div class="node hl"><div class="nt">active MMD node</div><div class="nd">For example <span class="inline">027-N1</span>: a node on the current task map.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">node_id</div><div class="nd">Offload-L3 injects only the node and small surrounding context.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">matching JSONL entries</div><div class="nd"><span class="inline">getCurrentTaskNodeIds</span> plus a lookup map finds rows with the same ID.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">ref markdown</div><div class="nd"><span class="inline">result_ref</span> points at the refs file.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">recovered detail</div><div class="nd">Read full stdout, diff, test failure, or search hits only when needed.</div></div>
+</div>
+
+<h2>node_id lifecycle</h2>
+<table class="t">
+  <tr><th>State</th><th>Meaning</th><th>Recovery ability</th></tr>
+  <tr><td class="mono">null</td><td>A newly written L1 row that has not entered the MMD canvas yet.</td><td>You can find the summary and ref by time or tool_call_id, but not directly from an MMD node.</td></tr>
+  <tr><td class="mono">wait</td><td>A wait-state or fallback mapping; L2 could not place it in a stable task node yet.</td><td>Preserve it conservatively; do not invent a concrete node. Later L2 runs can normalize it.</td></tr>
+  <tr><td class="mono">027-N1</td><td>A concrete node ID that matches the MMD naming rule and appears in <span class="inline">node_mapping</span>.</td><td>The main drill-down path MMD node -&gt; JSONL row -&gt; refs detail is complete.</td></tr>
+  <tr><td class="mono">deleted / offloaded</td><td>A row may be marked offloaded or deleted; status is not the same as lost evidence.</td><td>The injection layer may skip or compress display, while indexes and refs still preserve traceability.</td></tr>
+</table>
+
+<h2>Write, patch, and backfill mapping</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Trigger L2</h4><p><span class="inline">checkL2Trigger</span> starts L2 after enough unassigned rows, a timeout, or a task switch.</p><div class="mono">null entries / timeout / switch</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Generate or patch MMD</h4><p>L2 can write a full canvas with <span class="inline">writeMmd</span>, or make line-based updates with <span class="inline">patchMmd</span>; <span class="inline">readMmd</span> and <span class="inline">listMmds</span> support reading the active task and candidate canvases.</p><div class="mono">full write or line patch</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Normalize node mapping</h4><p><span class="inline">l2-prompt.ts</span> requires <span class="inline">node_mapping</span>; after <span class="inline">l2-parser.ts</span> parses it, the pipeline uses <span class="inline">MMD_NODE_ID_RE</span> and mapping normalization to reject dirty IDs.</p><div class="mono">tool_call_id -&gt; normalized node_id</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Backfill JSONL</h4><p><span class="inline">backfillNodeIds</span> calls <span class="inline">updateOffloadNodeIds</span> so every new tool entry can return from MMD node to evidence row.</p><div class="mono">mapping -&gt; offload rows</div></div></div>
+</div>
+
+<h2>Core pseudocode</h2>
+<pre class="code">if checkL2Trigger(entries_without_node_id, active_task):
+    result = l2Generate(active_mmd, entries_without_node_id)
+    if result.full_mmd:
+        writeMmd(active_task, result.mmd)
+    else:
+        patchMmd(active_task, result.line_patches)
+
+    mapping = normalize_node_mapping(result.node_mapping, MMD_NODE_ID_RE)
+    for entry in entries_without_node_id:
+        entry.node_id = mapping.get(entry.tool_call_id, "wait")
+    updateOffloadNodeIds(mapping)
+
+active_ids = getCurrentTaskNodeIds(active_mmd)
+lookup = populateOffloadLookupMap(read_offload_jsonl())
+for node_id in active_ids:
+    for entry in lookup[node_id]:
+        detail = getOffloadEntry(entry.result_ref)</pre>
+
+<h2>Source anchors</h2>
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li>Approved spec Part 7 lesson 30 and the <span class="inline">node_id</span> drill-down requirement: this lesson focuses on MMD canvas, node mapping, and evidence recovery.</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>: <span class="inline">checkL2Trigger</span>, <span class="inline">backfillNodeIds</span>, <span class="inline">MMD_NODE_ID_RE</span>, and node mapping normalization.</li>
+    <li><span class="inline">src/offload/storage.ts</span>: <span class="inline">writeMmd</span>, <span class="inline">patchMmd</span>, <span class="inline">readMmd</span>, <span class="inline">listMmds</span>, and <span class="inline">updateOffloadNodeIds</span>.</li>
+    <li><span class="inline">src/offload/mmd-injector.ts</span>: <span class="inline">injectMmdIntoMessages</span>, <span class="inline">maybeUpdateMmdInMessages</span>, and <span class="inline">MMD_MESSAGE_MARKER</span> manage the MMD fragment in prompt messages.</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>: <span class="inline">getCurrentTaskNodeIds</span>, <span class="inline">populateOffloadLookupMap</span>, and <span class="inline">getOffloadEntry</span> support node-based drill-down.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>: require L2 to output <span class="inline">node_mapping</span>; otherwise reliable backfill is impossible.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  MMD is the compact map of the current task, and <span class="inline">node_id</span> is the index from map back to evidence.
+  L2 does more than generate a diagram: it writes full MMD files or applies line-based patches, then maps every new tool entry back to JSONL.
+  Drill-down recovery is active MMD node -&gt; node_id -&gt; JSONL entries -&gt; refs markdown, without keeping every original log line in prompt.
+</div>
+""",
+}

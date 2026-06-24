@@ -37,4 +37,5 @@ CONTENT = {
     "27-why-long-task-logs-symbolic-compression.html": part7.LESSON_27,
     "28-after-tool-call-refs-offload-jsonl.html": part7.LESSON_28,
     "29-l1-l15-l2-local-llm-pipelines.html": part7.LESSON_29,
+    "30-mermaid-mmd-node-id-drill-down.html": part7.LESSON_30,
 }

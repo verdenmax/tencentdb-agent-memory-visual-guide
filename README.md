@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 29 lessons.
+The guide currently contains 30 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -39,6 +39,7 @@ The guide currently contains 29 lessons.
 | 27 | Why long task logs need symbolic compression |
 | 28 | after-tool-call, refs, and offload JSONL |
 | 29 | L1 / L1.5 / L2 local LLM pipelines |
+| 30 | Mermaid MMD canvas, node_id, and drill-down recovery |
 
 ## How to view locally
 

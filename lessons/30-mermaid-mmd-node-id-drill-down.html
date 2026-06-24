@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>25 · SQLite、sqlite-vec、FTS、BM25 与混合搜索 / SQLite, sqlite-vec, FTS, BM25, and hybrid search - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第六部分 · Recall、Search 与 Store｜SQLite、sqlite-vec、FTS、BM25 与混合搜索 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>30 · Mermaid MMD 画布、node_id 与下钻恢复 / Mermaid MMD canvas, node_id, and drill-down recovery - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第七部分 · Context Offload：短期符号记忆｜Mermaid MMD 画布、node_id 与下钻恢复 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="25 · SQLite、sqlite-vec、FTS、BM25 与混合搜索 / SQLite, sqlite-vec, FTS, BM25, and hybrid search - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第六部分 · Recall、Search 与 Store｜SQLite、sqlite-vec、FTS、BM25 与混合搜索 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="30 · Mermaid MMD 画布、node_id 与下钻恢复 / Mermaid MMD canvas, node_id, and drill-down recovery - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第七部分 · Context Offload：短期符号记忆｜Mermaid MMD 画布、node_id 与下钻恢复 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="25 · SQLite、sqlite-vec、FTS、BM25 与混合搜索 / SQLite, sqlite-vec, FTS, BM25, and hybrid search - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第六部分 · Recall、Search 与 Store｜SQLite、sqlite-vec、FTS、BM25 与混合搜索 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="30 · Mermaid MMD 画布、node_id 与下钻恢复 / Mermaid MMD canvas, node_id, and drill-down recovery - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第七部分 · Context Offload：短期符号记忆｜Mermaid MMD 画布、node_id 与下钻恢复 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,233 +317,252 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第六部分 · Recall、Search 与 Store</span><span class="lang-en">Part 6 · Recall, search, and storage</span></span>
-    <span class="pill">25 / 30</span>
+    <span class="pill"><span class="lang-zh">第七部分 · Context Offload：短期符号记忆</span><span class="lang-en">Part 7 · Context Offload: short-term symbolic memory</span></span>
+    <span class="pill">30 / 30</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:83%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第六部分 · Recall、Search 与 Store</span><span class="lang-en">Part 6 · Recall, search, and storage</span></div>
-    <h1><span class="lang-zh">SQLite、sqlite-vec、FTS、BM25 与混合搜索</span><span class="lang-en">SQLite, sqlite-vec, FTS, BM25, and hybrid search</span></h1>
+    <div class="part"><span class="lang-zh">第七部分 · Context Offload：短期符号记忆</span><span class="lang-en">Part 7 · Context Offload: short-term symbolic memory</span></div>
+    <h1><span class="lang-zh">Mermaid MMD 画布、node_id 与下钻恢复</span><span class="lang-en">Mermaid MMD canvas, node_id, and drill-down recovery</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-本课把第 23 课的策略落到本地 SQLite store。<span class="inline">VectorStore</span> 在同一个
-<span class="inline">vectors.db</span> 里维护元数据表、FTS5 虚拟表和 <span class="inline">sqlite-vec</span>
-的 <span class="inline">vec0</span> 向量表：关键词召回用 FTS5/BM25，语义召回用 cosine distance，
-混合召回在客户端做 RRF-style merge：使用共享 helper 或调用路径中的本地等价实现合并排名。
+Mermaid MMD 不是为了好看，而是 Context Offload 的紧凑任务状态画布。Offload-L2 可以完整写入新的
+<span class="inline">.mmd</span> 文件，也可以按行修补已有画布；但无论是新节点还是补丁里的新工具条目，都必须拿到
+<span class="inline">node_id</span>。这个 ID 把注入到 prompt 的任务符号，重新连接回 offload JSONL 摘要行和
+<span class="inline">refs/*.md</span> 原始证据。
 </p>
 
 <div class="card analogy">
   <div class="tag">🧭 生活类比</div>
-  这像一个本地资料柜有三套索引：登记表记录每份材料的 id、时间和分类；关键词卡片按词找材料；
-  语义卡片按“意思相近”找材料。最后助理把两份候选清单做 RRF-style 融合，避免只相信一种索引。
+  把 MMD 当作项目作战地图：地图上一个节点写着“修复登录测试”。<span class="inline">node_id</span> 像坐标编号，
+  让你从地图坐标回到索引卡，再翻到证据夹里的原始日志。没有坐标，地图再漂亮也无法复盘证据。
 </div>
 
-<h2>本地 store 的四层结构</h2>
+<h2>MMD 是任务状态画布，不是装饰图</h2>
 <div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">metadata</span><span class="name">l1_records / l0_conversations</span></div><div class="ld">普通 SQLite 表保存可展示、可过滤、可追溯的字段：L1 content/type/priority/scene/timestamps，L0 session、role、message_text 与 recorded_at。</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">keyword</span><span class="name">l1_fts / l0_fts</span></div><div class="ld">FTS5 虚拟表保存分词后的索引列，并保留 original 文本用于展示；查询由 <span class="inline">buildFtsQuery()</span> 构造，结果按 <span class="inline">bm25()</span> rank 升序排列。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">vector</span><span class="name">l1_vec / l0_vec</span></div><div class="ld"><span class="inline">vec0</span> 表保存 embedding，使用 <span class="inline">distance_metric=cosine</span> 做近邻搜索；维度来自 embedding 配置。</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">embedding</span><span class="name">provider + model + dimensions</span></div><div class="ld">embedding service 记录 provider/model/dimensions。provider、model 或维度变化会让旧向量不可比；store 初始化结合 embedding metadata 判断并触发 drop vec tables + reindex 路径。</div></div>
-</div>
-
-<h2>写入路径：一个事务包住元数据、FTS 和向量</h2>
-<div class="flow">
-  <div class="node"><div class="nt">write L1</div><div class="nd">L1 writer 传入 record 与可选 embedding。</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">metadata insert</div><div class="nd"><span class="inline">l1_records</span> 用 <span class="inline">ON CONFLICT</span> 更新普通字段。</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">FTS tokenize</div><div class="nd"><span class="inline">tokenizeForFts()</span> 写 <span class="inline">l1_fts</span>；FTS 失败只降级关键词索引。</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">embedding</div><div class="nd">有可用向量时进入 vec0；无 embedding 时仍保留 metadata + FTS。</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">vector upsert</div><div class="nd"><span class="inline">vec0</span> 不支持 <span class="inline">ON CONFLICT</span>，所以先 delete 再 insert。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">canvas</span><span class="name">mmds/task.mmd</span></div><div class="ld">用 Mermaid 节点表达当前任务、等待项、已处理项和后续路径；L2 负责 <span class="inline">writeMmd</span> 完整写入或 <span class="inline">patchMmd</span> 行级修补。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">index</span><span class="name">offload JSONL rows</span></div><div class="ld">每行保存 tool_call_id、summary、result_ref、offloaded 和 <span class="inline">node_id</span>；<span class="inline">updateOffloadNodeIds</span> 把映射写回行。</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">evidence</span><span class="name">refs/*.md</span></div><div class="ld">完整工具输出、错误栈或搜索结果留在 refs markdown；prompt 里不需要常驻所有原始行。</div></div>
 </div>
 
 <p>
-<span class="inline">sqlite.ts</span> 使用手动 <span class="inline">BEGIN</span>/<span class="inline">COMMIT</span>，
-失败时 <span class="inline">ROLLBACK</span>，让 metadata、FTS 和 vector 尽量保持同一条记录的同步状态。
-数据库开启 WAL mode，读写可以更稳地并行；但要记住，FTS 与 vec0 是派生索引，metadata 表才是可追溯事实的主记录。
+因此评审 MMD 生成时，不应只问“图是否能渲染”。更重要的问题是：每个新工具证据是否被放到明确节点？
+节点 ID 是否符合 <span class="inline">MMD_NODE_ID_RE</span>？映射是否能被规范化后回填到 JSONL？
+如果任何一步断开，Offload-L3 注入的 active node 就只剩摘要，无法安全下钻。
 </p>
 
-<h2>三种召回列对比</h2>
-<div class="cols">
-  <div class="col"><h4>BM25 keyword recall</h4><p><span class="inline">buildFtsQuery(query)</span> 把用户输入变成可执行的 FTS5 查询；<span class="inline">bm25(l1_fts)</span> 或 <span class="inline">bm25(l0_fts)</span> 排名。适合精确术语、函数名、文件名、中文分词后关键词。</p></div>
-  <div class="col"><h4>Vector semantic recall</h4><p>查询先经过同一个 embedding provider 编码，再在 <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span> 上按 cosine distance 取最近邻。适合“换一种说法”的语义相似。</p></div>
-  <div class="col"><h4>RRF-style hybrid</h4><p>本地 SQLite 没有服务端原生 hybrid rank；工具层分别拿 FTS 和 vector 候选，再用共享 RRF helper 或调用路径中的本地等价实现按名次加权融合，得到更稳的候选顺序。</p></div>
+<h2>从 active 节点下钻恢复细节</h2>
+<div class="flow trace">
+  <div class="node hl"><div class="nt">active MMD node</div><div class="nd">例如 <span class="inline">027-N1</span>：当前任务地图上的一个节点。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">node_id</div><div class="nd">Offload-L3 只注入节点和少量周边上下文。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">matching JSONL entries</div><div class="nd"><span class="inline">getCurrentTaskNodeIds</span> 与 lookup map 找到相同行。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">ref markdown</div><div class="nd"><span class="inline">result_ref</span> 指向 refs 文件。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">recovered detail</div><div class="nd">需要时再读完整 stdout、diff、测试失败或搜索命中。</div></div>
+</div>
+
+<h2>node_id 生命周期</h2>
+<table class="t">
+  <tr><th>状态</th><th>含义</th><th>恢复能力</th></tr>
+  <tr><td class="mono">null</td><td>L1 刚写入的未分配行；还没有进入 MMD 画布。</td><td>能按时间或 tool_call_id 找到摘要和 ref，但不能从 MMD 节点直接定位。</td></tr>
+  <tr><td class="mono">wait</td><td>等待态或兜底映射；L2 尚未能归入稳定任务节点。</td><td>可保守保留，不应伪造具体节点；后续 L2 可再归一化。</td></tr>
+  <tr><td class="mono">027-N1</td><td>具体节点 ID，符合 MMD 节点命名规则并出现在 <span class="inline">node_mapping</span>。</td><td>MMD node -&gt; JSONL row -&gt; refs detail 的主下钻路径完整。</td></tr>
+  <tr><td class="mono">deleted / offloaded</td><td>行可能被标记为已 offload 或删除态；状态不等于丢失证据。</td><td>注入层可跳过或压缩显示，但仍应能通过索引和 ref 追溯历史。</td></tr>
+</table>
+
+<h2>写入、修补与映射回填</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>触发 L2</h4><p><span class="inline">checkL2Trigger</span> 看到未分配行数量、timeout 或 task switch 后启动 L2。</p><div class="mono">null entries / timeout / switch</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>生成或修补 MMD</h4><p>L2 可以用 <span class="inline">writeMmd</span> 写完整画布，也可以用 <span class="inline">patchMmd</span> 做行级更新；<span class="inline">readMmd</span> 和 <span class="inline">listMmds</span> 支持读取当前任务与候选画布。</p><div class="mono">full write or line patch</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>规范化 node mapping</h4><p><span class="inline">l2-prompt.ts</span> 要求输出 <span class="inline">node_mapping</span>；<span class="inline">l2-parser.ts</span> 解析后，pipeline 用 <span class="inline">MMD_NODE_ID_RE</span> 与映射规范化避免脏 ID。</p><div class="mono">tool_call_id -&gt; normalized node_id</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>回填 JSONL</h4><p><span class="inline">backfillNodeIds</span> 调用 <span class="inline">updateOffloadNodeIds</span>，让每个新工具条目都能从 MMD 节点返回证据行。</p><div class="mono">mapping -&gt; offload rows</div></div></div>
 </div>
 
 <h2>核心伪代码</h2>
-<pre class="code">writeMemory(record):
-    begin_transaction()
-    upsert(l1_records, record.metadata)
-    upsert(l1_fts, tokenize_for_fts(record.content))
-    if embedding_available:
-        delete(l1_vec where record_id = record.id)
-        insert(l1_vec, embed(record.content))
-    commit()
+<pre class="code">if checkL2Trigger(entries_without_node_id, active_task):
+    result = l2Generate(active_mmd, entries_without_node_id)
+    if result.full_mmd:
+        writeMmd(active_task, result.mmd)
+    else:
+        patchMmd(active_task, result.line_patches)
 
-hybrid(query):
-    ftsRanked = searchL1Fts(buildFtsQuery(query))
-    vecRanked = searchL1Vector(embed(query))
-    return rrf_style_merge_or_local_equivalent([ftsRanked, vecRanked])</pre>
+    mapping = normalize_node_mapping(result.node_mapping, MMD_NODE_ID_RE)
+    for entry in entries_without_node_id:
+        entry.node_id = mapping.get(entry.tool_call_id, "wait")
+    updateOffloadNodeIds(mapping)
 
-<h2>provider metadata 与 reindex</h2>
-<p>
-向量不是“纯文本索引”，它绑定了 provider、model 和 dimensions。同一段文字由不同模型生成的向量空间可能完全不同；
-维度不同则 <span class="inline">vec0</span> 表结构也不兼容。因此 <span class="inline">embedding_meta</span>
-检测到 provider/model/dimensions 改变时，要保留 <span class="inline">l1_records</span> 与
-<span class="inline">l0_conversations</span>，重建 <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span>，
-再按当前 embedding service 重新索引。local provider 可能需要 warmup；remote provider 是 HTTP 调用，但二者都必须产出与配置维度一致的向量。
-</p>
+active_ids = getCurrentTaskNodeIds(active_mmd)
+lookup = populateOffloadLookupMap(read_offload_jsonl())
+for node_id in active_ids:
+    for entry in lookup[node_id]:
+        detail = getOffloadEntry(entry.result_ref)</pre>
 
+<h2>源码锚点</h2>
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/store/sqlite.ts</span>：<span class="inline">VectorStore</span>、<span class="inline">buildFtsQuery</span>、<span class="inline">l1_records</span>/<span class="inline">l0_conversations</span>、FTS5 表、<span class="inline">vec0</span> 表、WAL、事务和 delete + insert upsert。</li>
-    <li><span class="inline">src/core/store/search-utils.ts</span>：提供共享 RRF helper，用 <span class="inline">1 / (k + rank + 1)</span> 合并多路排名；具体 recall/search 路径可能调用该 helper，也可能保留本地等价实现。</li>
-    <li><span class="inline">src/core/store/embedding.ts</span>：embedding provider info、dimensions、local/remote embedding service 与 not-ready 行为。</li>
-    <li><span class="inline">src/core/store/factory.ts</span>：创建本地 SQLite store bundle、接线 embedding service、确定 <span class="inline">vectors.db</span> 路径，并提供 store snapshot；embedding drift / reindex 判断由 store 初始化与 embedding metadata 处理。</li>
-    <li><span class="inline">src/core/tools/conversation-search.ts</span>：L0 对话搜索同时尝试 FTS5 与 vector，再把本地候选融合。</li>
+    <li>批准规格 Part 7 lesson 30 与 <span class="inline">node_id</span> 下钻要求：本课聚焦 MMD 画布、节点映射和证据恢复。</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>：<span class="inline">checkL2Trigger</span>、<span class="inline">backfillNodeIds</span>、<span class="inline">MMD_NODE_ID_RE</span> 与 node mapping 规范化。</li>
+    <li><span class="inline">src/offload/storage.ts</span>：<span class="inline">writeMmd</span>、<span class="inline">patchMmd</span>、<span class="inline">readMmd</span>、<span class="inline">listMmds</span>、<span class="inline">updateOffloadNodeIds</span>。</li>
+    <li><span class="inline">src/offload/mmd-injector.ts</span>：<span class="inline">injectMmdIntoMessages</span>、<span class="inline">maybeUpdateMmdInMessages</span> 与 <span class="inline">MMD_MESSAGE_MARKER</span> 管理 prompt 里的 MMD 片段。</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>：<span class="inline">getCurrentTaskNodeIds</span>、<span class="inline">populateOffloadLookupMap</span>、<span class="inline">getOffloadEntry</span> 支撑按节点下钻。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>：要求 L2 输出 <span class="inline">node_mapping</span>，否则不能可靠回填。</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  SQLite 本地 store 把“事实记录”和“检索索引”分开：metadata 表负责可追溯事实，FTS5/BM25 负责关键词召回，sqlite-vec/vec0 负责语义召回。
-  写入要用事务同步 metadata、FTS 与 vector；vec0 upsert 用 delete + insert；embedding provider 变化后旧向量不可比，通常需要 reindex。
+  MMD 是当前任务的紧凑地图，<span class="inline">node_id</span> 是从地图回到证据的索引。
+  L2 不只生成图，还负责完整写入或行级修补 MMD，并把每个新工具条目映射回 JSONL。
+  下钻恢复路径是 active MMD node -&gt; node_id -&gt; JSONL entries -&gt; refs markdown，不需要把每行原始日志常驻 prompt。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. SQLite 本地混合搜索为什么同时需要 FTS5 和 sqlite-vec？</div>
+  <div class="qn">1. 为什么 Lesson 30 强调每个新工具条目都必须获得 node_id？</div>
   <ol class="opts">
-    <li>BM25 只能搜索图片</li>
-    <li>sqlite-vec 会删除 FTS</li>
-    <li>FTS5/BM25 擅长关键词匹配，sqlite-vec 擅长语义相似，RRF 合并两者</li>
-    <li>两者都只负责生成 HTML</li>
+    <li>因为 Mermaid 没有 node_id 就不能显示任何颜色</li>
+    <li>因为有了 node_id 就不需要 refs markdown</li>
+    <li>因为 node_id 用来保存真实 API key</li>
+    <li>因为 node_id 把 MMD 任务节点连接回 JSONL 摘要行和 refs 证据，支持下钻恢复</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。关键词和语义召回互补，混合排序提高鲁棒性。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。MMD 是任务地图；node_id 是从地图回到证据的索引。没有它，Offload-L3 注入的活动节点无法可靠定位原始细节。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>为什么 embedding provider 变化后可能需要 reindex？</li>
+    <li>如果 MMD 节点存在但 JSONL 行的 node_id 仍为 null，你会如何恢复或补救下钻链路？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-This lesson grounds Lesson 23's strategies in the local SQLite store. <span class="inline">VectorStore</span> keeps metadata tables,
-FTS5 virtual tables, and <span class="inline">sqlite-vec</span> <span class="inline">vec0</span> vector tables in the same
-<span class="inline">vectors.db</span>: keyword recall uses FTS5/BM25, semantic recall uses cosine distance, and hybrid recall does an RRF-style client-side merge through a shared helper or a local equivalent in the calling path.
+Mermaid MMD is not a pretty diagram; it is Context Offload's compact task-state canvas. Offload-L2 may write a new
+<span class="inline">.mmd</span> file in full, or patch an existing canvas line by line. Either way, every new tool entry must receive a
+<span class="inline">node_id</span>. That ID connects injected task context back to offload JSONL summary rows and
+<span class="inline">refs/*.md</span> raw evidence.
 </p>
 
 <div class="card analogy">
   <div class="tag">🧭 Analogy</div>
-  Think of a local file cabinet with three indexes. A registry records each document's id, time, and category; keyword cards find documents by words; semantic cards find documents by nearby meaning. The assistant then fuses both candidate lists with an RRF-style merge instead of trusting only one index.
+  Treat MMD as a project operations map: one map node says “fix login tests.” The <span class="inline">node_id</span> is its coordinate,
+  letting you go from the map coordinate to the index card and then to the evidence folder with the original log. Without coordinates, a pretty map cannot recover evidence.
 </div>
 
-<h2>The four local store layers</h2>
+<h2>MMD is task-state canvas, not decoration</h2>
 <div class="layers">
-  <div class="layer l-core"><div class="lh"><span class="badge">metadata</span><span class="name">l1_records / l0_conversations</span></div><div class="ld">Ordinary SQLite tables store displayable, filterable, traceable fields: L1 content/type/priority/scene/timestamps, and L0 session, role, message_text, and recorded_at.</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">keyword</span><span class="name">l1_fts / l0_fts</span></div><div class="ld">FTS5 virtual tables store tokenized index columns plus original text for display; <span class="inline">buildFtsQuery()</span> builds the query and <span class="inline">bm25()</span> ranks results ascending by rank.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">vector</span><span class="name">l1_vec / l0_vec</span></div><div class="ld"><span class="inline">vec0</span> tables store embeddings and use <span class="inline">distance_metric=cosine</span> for nearest-neighbor search; dimensions come from embedding config.</div></div>
-  <div class="layer l-app"><div class="lh"><span class="badge">embedding</span><span class="name">provider + model + dimensions</span></div><div class="ld">The embedding service records provider/model/dimensions. Provider, model, or dimension changes make old vectors incomparable; store initialization uses embedding metadata to decide when to drop vec tables and reindex.</div></div>
-</div>
-
-<h2>Write path: one transaction around metadata, FTS, and vectors</h2>
-<div class="flow">
-  <div class="node"><div class="nt">write L1</div><div class="nd">The L1 writer passes a record and optional embedding.</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">metadata insert</div><div class="nd"><span class="inline">l1_records</span> uses <span class="inline">ON CONFLICT</span> to update normal fields.</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">FTS tokenize</div><div class="nd"><span class="inline">tokenizeForFts()</span> writes <span class="inline">l1_fts</span>; FTS failures only degrade keyword indexing.</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">embedding</div><div class="nd">When a usable vector exists, it enters vec0; without embedding, metadata + FTS still persist.</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">vector upsert</div><div class="nd"><span class="inline">vec0</span> does not support <span class="inline">ON CONFLICT</span>, so upsert is delete then insert.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">canvas</span><span class="name">mmds/task.mmd</span></div><div class="ld">Mermaid nodes express current work, wait items, processed items, and next paths; L2 owns full <span class="inline">writeMmd</span> writes and line-based <span class="inline">patchMmd</span> updates.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">index</span><span class="name">offload JSONL rows</span></div><div class="ld">Each row stores tool_call_id, summary, result_ref, offloaded, and <span class="inline">node_id</span>; <span class="inline">updateOffloadNodeIds</span> writes mappings back to rows.</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">evidence</span><span class="name">refs/*.md</span></div><div class="ld">Full tool output, stack traces, or search hits remain in refs markdown; the prompt does not need every original line resident.</div></div>
 </div>
 
 <p>
-<span class="inline">sqlite.ts</span> uses manual <span class="inline">BEGIN</span>/<span class="inline">COMMIT</span> and
-<span class="inline">ROLLBACK</span> on failure, keeping metadata, FTS, and vector rows synchronized for a record as much as possible.
-The database runs in WAL mode for safer concurrent reads and writes. Remember that FTS and vec0 are derived indexes; the metadata tables are the traceable source records.
+So MMD review should not ask only “does the diagram render?” The more important questions are: did every new tool evidence row land on a clear node?
+Does the node ID match <span class="inline">MMD_NODE_ID_RE</span>? Can the mapping be normalized and backfilled to JSONL?
+If any step breaks, the active node injected by Offload-L3 becomes only a summary, not a safe drill-down path.
 </p>
 
-<h2>Three recall columns</h2>
-<div class="cols">
-  <div class="col"><h4>BM25 keyword recall</h4><p><span class="inline">buildFtsQuery(query)</span> turns user input into an executable FTS5 query; <span class="inline">bm25(l1_fts)</span> or <span class="inline">bm25(l0_fts)</span> ranks matches. It is strong for exact terms, function names, file names, and tokenized Chinese keywords.</p></div>
-  <div class="col"><h4>Vector semantic recall</h4><p>The query is encoded by the same embedding provider, then nearest neighbors are searched in <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span> by cosine distance. This helps when users ask with different wording.</p></div>
-  <div class="col"><h4>RRF-style hybrid</h4><p>Local SQLite has no server-side native hybrid rank. Tool code collects FTS and vector candidates separately, then uses a shared RRF helper or a local equivalent in the calling path to fuse rankings into a more robust order.</p></div>
+<h2>Drill down from active node to recovered detail</h2>
+<div class="flow trace">
+  <div class="node hl"><div class="nt">active MMD node</div><div class="nd">For example <span class="inline">027-N1</span>: a node on the current task map.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">node_id</div><div class="nd">Offload-L3 injects only the node and small surrounding context.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">matching JSONL entries</div><div class="nd"><span class="inline">getCurrentTaskNodeIds</span> plus a lookup map finds rows with the same ID.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">ref markdown</div><div class="nd"><span class="inline">result_ref</span> points at the refs file.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">recovered detail</div><div class="nd">Read full stdout, diff, test failure, or search hits only when needed.</div></div>
+</div>
+
+<h2>node_id lifecycle</h2>
+<table class="t">
+  <tr><th>State</th><th>Meaning</th><th>Recovery ability</th></tr>
+  <tr><td class="mono">null</td><td>A newly written L1 row that has not entered the MMD canvas yet.</td><td>You can find the summary and ref by time or tool_call_id, but not directly from an MMD node.</td></tr>
+  <tr><td class="mono">wait</td><td>A wait-state or fallback mapping; L2 could not place it in a stable task node yet.</td><td>Preserve it conservatively; do not invent a concrete node. Later L2 runs can normalize it.</td></tr>
+  <tr><td class="mono">027-N1</td><td>A concrete node ID that matches the MMD naming rule and appears in <span class="inline">node_mapping</span>.</td><td>The main drill-down path MMD node -&gt; JSONL row -&gt; refs detail is complete.</td></tr>
+  <tr><td class="mono">deleted / offloaded</td><td>A row may be marked offloaded or deleted; status is not the same as lost evidence.</td><td>The injection layer may skip or compress display, while indexes and refs still preserve traceability.</td></tr>
+</table>
+
+<h2>Write, patch, and backfill mapping</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Trigger L2</h4><p><span class="inline">checkL2Trigger</span> starts L2 after enough unassigned rows, a timeout, or a task switch.</p><div class="mono">null entries / timeout / switch</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Generate or patch MMD</h4><p>L2 can write a full canvas with <span class="inline">writeMmd</span>, or make line-based updates with <span class="inline">patchMmd</span>; <span class="inline">readMmd</span> and <span class="inline">listMmds</span> support reading the active task and candidate canvases.</p><div class="mono">full write or line patch</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Normalize node mapping</h4><p><span class="inline">l2-prompt.ts</span> requires <span class="inline">node_mapping</span>; after <span class="inline">l2-parser.ts</span> parses it, the pipeline uses <span class="inline">MMD_NODE_ID_RE</span> and mapping normalization to reject dirty IDs.</p><div class="mono">tool_call_id -&gt; normalized node_id</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Backfill JSONL</h4><p><span class="inline">backfillNodeIds</span> calls <span class="inline">updateOffloadNodeIds</span> so every new tool entry can return from MMD node to evidence row.</p><div class="mono">mapping -&gt; offload rows</div></div></div>
 </div>
 
 <h2>Core pseudocode</h2>
-<pre class="code">writeMemory(record):
-    begin_transaction()
-    upsert(l1_records, record.metadata)
-    upsert(l1_fts, tokenize_for_fts(record.content))
-    if embedding_available:
-        delete(l1_vec where record_id = record.id)
-        insert(l1_vec, embed(record.content))
-    commit()
+<pre class="code">if checkL2Trigger(entries_without_node_id, active_task):
+    result = l2Generate(active_mmd, entries_without_node_id)
+    if result.full_mmd:
+        writeMmd(active_task, result.mmd)
+    else:
+        patchMmd(active_task, result.line_patches)
 
-hybrid(query):
-    ftsRanked = searchL1Fts(buildFtsQuery(query))
-    vecRanked = searchL1Vector(embed(query))
-    return rrf_style_merge_or_local_equivalent([ftsRanked, vecRanked])</pre>
+    mapping = normalize_node_mapping(result.node_mapping, MMD_NODE_ID_RE)
+    for entry in entries_without_node_id:
+        entry.node_id = mapping.get(entry.tool_call_id, "wait")
+    updateOffloadNodeIds(mapping)
 
-<h2>Provider metadata and reindexing</h2>
-<p>
-Vectors are not plain text indexes; they are bound to provider, model, and dimensions. The same text embedded by different models may live in incompatible vector spaces, and different dimensions make the <span class="inline">vec0</span> schema incompatible.
-So when <span class="inline">embedding_meta</span> detects provider/model/dimensions changes, the store preserves <span class="inline">l1_records</span> and <span class="inline">l0_conversations</span>, rebuilds <span class="inline">l1_vec</span>/<span class="inline">l0_vec</span>, and reindexes with the current embedding service. A local provider may need warmup; a remote provider is HTTP-based, but both must emit vectors matching configured dimensions.
-</p>
+active_ids = getCurrentTaskNodeIds(active_mmd)
+lookup = populateOffloadLookupMap(read_offload_jsonl())
+for node_id in active_ids:
+    for entry in lookup[node_id]:
+        detail = getOffloadEntry(entry.result_ref)</pre>
 
+<h2>Source anchors</h2>
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/store/sqlite.ts</span>: <span class="inline">VectorStore</span>, <span class="inline">buildFtsQuery</span>, <span class="inline">l1_records</span>/<span class="inline">l0_conversations</span>, FTS5 tables, <span class="inline">vec0</span> tables, WAL, transactions, and delete + insert upsert.</li>
-    <li><span class="inline">src/core/store/search-utils.ts</span>: contains the shared RRF helper for merging ranked lists with <span class="inline">1 / (k + rank + 1)</span>; individual recall/search paths may call that helper or keep a local equivalent.</li>
-    <li><span class="inline">src/core/store/embedding.ts</span>: embedding provider info, dimensions, local/remote embedding services, and not-ready behavior.</li>
-    <li><span class="inline">src/core/store/factory.ts</span>: creates the local SQLite store bundle, wires the embedding service, resolves the <span class="inline">vectors.db</span> path, and exposes the store snapshot; embedding drift / reindex decisions are handled by store initialization and embedding metadata.</li>
-    <li><span class="inline">src/core/tools/conversation-search.ts</span>: L0 conversation search tries FTS5 and vector search, then fuses local candidates.</li>
+    <li>Approved spec Part 7 lesson 30 and the <span class="inline">node_id</span> drill-down requirement: this lesson focuses on MMD canvas, node mapping, and evidence recovery.</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>: <span class="inline">checkL2Trigger</span>, <span class="inline">backfillNodeIds</span>, <span class="inline">MMD_NODE_ID_RE</span>, and node mapping normalization.</li>
+    <li><span class="inline">src/offload/storage.ts</span>: <span class="inline">writeMmd</span>, <span class="inline">patchMmd</span>, <span class="inline">readMmd</span>, <span class="inline">listMmds</span>, and <span class="inline">updateOffloadNodeIds</span>.</li>
+    <li><span class="inline">src/offload/mmd-injector.ts</span>: <span class="inline">injectMmdIntoMessages</span>, <span class="inline">maybeUpdateMmdInMessages</span>, and <span class="inline">MMD_MESSAGE_MARKER</span> manage the MMD fragment in prompt messages.</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>: <span class="inline">getCurrentTaskNodeIds</span>, <span class="inline">populateOffloadLookupMap</span>, and <span class="inline">getOffloadEntry</span> support node-based drill-down.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>: require L2 to output <span class="inline">node_mapping</span>; otherwise reliable backfill is impossible.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  The local SQLite store separates source records from retrieval indexes: metadata tables keep traceable facts, FTS5/BM25 handles keyword recall, and sqlite-vec/vec0 handles semantic recall.
-  Writes synchronize metadata, FTS, and vectors inside a transaction; vec0 upsert is delete + insert; after an embedding provider change, old vectors are not comparable and usually need reindexing.
+  MMD is the compact map of the current task, and <span class="inline">node_id</span> is the index from map back to evidence.
+  L2 does more than generate a diagram: it writes full MMD files or applies line-based patches, then maps every new tool entry back to JSONL.
+  Drill-down recovery is active MMD node -&gt; node_id -&gt; JSONL entries -&gt; refs markdown, without keeping every original log line in prompt.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. Why does local SQLite hybrid search need both FTS5 and sqlite-vec?</div>
+  <div class="qn">1. Why does Lesson 30 emphasize that every new tool entry must receive a node_id?</div>
   <ol class="opts">
-    <li>BM25 can only search images</li>
-    <li>sqlite-vec deletes FTS</li>
-    <li>FTS5/BM25 handles keyword matches, sqlite-vec handles semantic similarity, and RRF merges both</li>
-    <li>Both only generate HTML</li>
+    <li>Because Mermaid cannot display any color without node_id</li>
+    <li>Because node_id removes the need for refs markdown</li>
+    <li>Because node_id stores real API keys</li>
+    <li>Because node_id connects MMD task nodes back to JSONL summary rows and refs evidence for drill-down recovery</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. Keyword and semantic recall complement each other, and hybrid ranking improves robustness.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. MMD is the task map; node_id is the index from the map back to evidence. Without it, an active node injected by Offload-L3 cannot reliably locate raw detail.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>Why might changing the embedding provider require reindexing?</li>
+    <li>If an MMD node exists but the JSONL row still has node_id null, how would you recover or repair the drill-down chain?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="24-l2-navigation-l3-persona-injection.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">L2 导航与 L3 Persona 注入</span><span class="lang-en">L2 navigation plus L3 persona injection</span></div></a><a class="next" href="26-tencent-vectordb-embedding.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">腾讯云 VectorDB 后端与 Embedding 服务</span><span class="lang-en">Tencent Cloud VectorDB backend and embedding services</span></div></a></div>
+  <div class="footnav"><a class="prev" href="29-l1-l15-l2-local-llm-pipelines.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">L1 / L1.5 / L2 本地 LLM 管线</span><span class="lang-en">L1 / L1.5 / L2 local LLM pipelines</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

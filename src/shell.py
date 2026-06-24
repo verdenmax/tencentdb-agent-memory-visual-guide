@@ -104,6 +104,8 @@ PAGES = [
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
     ("29-l1-l15-l2-local-llm-pipelines.html", "L1 / L1.5 / L2 本地 LLM 管线", "L1 / L1.5 / L2 local LLM pipelines",
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
+    ("30-mermaid-mmd-node-id-drill-down.html", "Mermaid MMD 画布、node_id 与下钻恢复", "Mermaid MMD canvas, node_id, and drill-down recovery",
+     "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
 ]
 
 def bi(zh, en):
@@ -595,6 +597,8 @@ SUBTITLES = {
                                              "tool results enter a buffer, then become refs evidence and JSONL summaries"),
     "29-l1-l15-l2-local-llm-pipelines.html": ("摘要、任务边界判断与 MMD 生成是三条不同的本地模型调用",
                                            "summarization, task-boundary judgment, and MMD generation are three distinct local model calls"),
+    "30-mermaid-mmd-node-id-drill-down.html": ("MMD 是任务地图，node_id 是从地图回到证据的索引",
+                                          "MMD is the task map, and node_id is the index from map back to evidence"),
 }
 
 def index_page(lesson_prefix="lessons/"):
