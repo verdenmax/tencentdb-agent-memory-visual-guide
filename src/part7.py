@@ -28,11 +28,17 @@ Context Offload 不是替代 L0-L3 长期记忆，而是在当前任务内把这
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">refs</div><div class="nd">完整证据写入 <span class="inline">refs/</span>，保留可回看路径。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">offload JSONL</div><div class="nd"><span class="inline">OffloadEntry</span> 保存 summary、result_ref、tool_call_id、node_id。</div></div>
+  <div class="node"><div class="nt">Offload-L1 JSONL</div><div class="nd"><span class="inline">OffloadEntry</span> 保存 summary、result_ref、tool_call_id、node_id。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">Mermaid MMD</div><div class="nd">L2 把 JSONL 行组织成任务节点和状态画布。</div></div>
+  <div class="node"><div class="nt">Mermaid MMD</div><div class="nd">Offload-L2 把 JSONL 行组织成任务节点和状态画布。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">L3 injected context</div><div class="nd">只注入当前任务需要的节点符号，而不是整段工具日志。</div></div>
+  <div class="node hl"><div class="nt">Offload-L3 injected context</div><div class="nd">只注入当前任务需要的节点符号，而不是整段工具日志。</div></div>
+</div>
+
+<div class="card detail">
+  <div class="tag">⚠️ 名称边界</div>
+  Offload 内部的 <span class="inline">Offload-L1/L2/L3</span> 是短期流水线阶段，不等于长期记忆的 L0-L3：
+  Offload-L1 约等于摘要，Offload-L2 约等于 Mermaid 任务画布，Offload-L3 约等于下一轮注入上下文。长期 L2/L3 仍然指场景块和 persona/profile。
 </div>
 
 <h2>长期 L0-L3 与短期 Context Offload</h2>
@@ -46,7 +52,7 @@ Context Offload 不是替代 L0-L3 长期记忆，而是在当前任务内把这
 <div class="layers">
   <div class="layer l-main"><div class="lh"><span class="badge">live</span><span class="name">prompt window</span></div><div class="ld">LLM 当前能直接看到的消息、系统提示、少量 active symbols 和必要 MMD 片段。</div></div>
   <div class="layer l-part"><div class="lh"><span class="badge">local files</span><span class="name">~/.openclaw/context-offload</span></div><div class="ld"><span class="inline">DEFAULT_DATA_ROOT</span> 下按 agent/session 隔离；包含 <span class="inline">refs/</span>、<span class="inline">mmds/</span>、<span class="inline">offload-&lt;sessionId&gt;.jsonl</span> 与 state。</div></div>
-  <div class="layer l-core"><div class="lh"><span class="badge">guide</span><span class="name">generated lesson page</span></div><div class="ld">本页把实现路径解释成学习模型：证据文件、JSONL 符号、MMD 画布、L3 注入。</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">guide</span><span class="name">generated lesson page</span></div><div class="ld">本页把实现路径解释成学习模型：证据文件、JSONL 符号、MMD 画布、Offload-L3 注入。</div></div>
 </div>
 
 <h2>核心伪代码</h2>
@@ -63,14 +69,14 @@ Context Offload 不是替代 L0-L3 长期记忆，而是在当前任务内把这
     <li>批准规格 Part 7：Context Offload 的目的，是解释长任务和工具日志压缩这条第二记忆主线。</li>
     <li><span class="inline">src/offload/index.ts</span>：<span class="inline">registerOffload</span> 注册入口，配置 <span class="inline">OffloadContextEngine</span>，选择 <span class="inline">BackendClient</span> 或 <span class="inline">LocalLlmClient</span>，并连接 hook / context engine 路径。</li>
     <li><span class="inline">src/offload/storage.ts</span>：<span class="inline">DEFAULT_DATA_ROOT</span> 指向 <span class="inline">~/.openclaw/context-offload</span>；<span class="inline">createStorageContext</span> 生成 per-agent / per-session 的 refs、mmds、offload JSONL 和 state 路径。</li>
-    <li><span class="inline">src/offload/types.ts</span>：<span class="inline">OffloadEntry</span> 定义 summary、result_ref、tool_call_id、node_id；<span class="inline">PLUGIN_DEFAULTS</span> 定义 L1/L2/L3 阈值和压缩比例。</li>
+    <li><span class="inline">src/offload/types.ts</span>：<span class="inline">OffloadEntry</span> 定义 summary、result_ref、tool_call_id、node_id；<span class="inline">PLUGIN_DEFAULTS</span> 定义 Offload-L1/L2/L3 阈值和 token-budget trigger ratios。</li>
     <li><span class="inline">src/offload/context-token-tracker.ts</span>：<span class="inline">ContextSnapshot</span> 与 <span class="inline">buildTiktokenContextSnapshot</span> 记录 stage、totalTokens、messageCount 等 token 快照。</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  Context Offload 是当前任务的短期符号记忆：把臃肿工具日志变成 refs 证据、JSONL 摘要、Mermaid 节点和少量 L3 注入。
+  Context Offload 是当前任务的短期符号记忆：把臃肿工具日志变成 refs 证据、JSONL 摘要、Mermaid 节点和少量 Offload-L3 注入。
   L0-L3 长期记忆负责未来会话的事实、场景和画像；Offload 负责当前长任务的导航、下钻和 token 预算。
 </div>
 """,
@@ -100,11 +106,17 @@ task state is rendered as Mermaid MMD, and the next turn injects only the symbol
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">refs</div><div class="nd">Full evidence is written under <span class="inline">refs/</span> with a recoverable path.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">offload JSONL</div><div class="nd"><span class="inline">OffloadEntry</span> stores summary, result_ref, tool_call_id, and node_id.</div></div>
+  <div class="node"><div class="nt">Offload-L1 JSONL</div><div class="nd"><span class="inline">OffloadEntry</span> stores summary, result_ref, tool_call_id, and node_id.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">Mermaid MMD</div><div class="nd">L2 organizes JSONL rows into task nodes and status canvas.</div></div>
+  <div class="node"><div class="nt">Mermaid MMD</div><div class="nd">Offload-L2 organizes JSONL rows into task nodes and status canvas.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">L3 injected context</div><div class="nd">Only active task symbols are injected, not the whole tool log.</div></div>
+  <div class="node hl"><div class="nt">Offload-L3 injected context</div><div class="nd">Only active task symbols are injected, not the whole tool log.</div></div>
+</div>
+
+<div class="card detail">
+  <div class="tag">⚠️ Naming boundary</div>
+  Context Offload's internal <span class="inline">Offload-L1/L2/L3</span> stages are short-term pipeline stages, separate from long-term L0-L3 memory:
+  Offload-L1 roughly means summarization, Offload-L2 means the Mermaid task canvas, and Offload-L3 means context injected into the next turn. Long-term L2/L3 still mean scene blocks and persona/profile.
 </div>
 
 <h2>Long-term L0-L3 versus short-term Context Offload</h2>
@@ -118,7 +130,7 @@ task state is rendered as Mermaid MMD, and the next turn injects only the symbol
 <div class="layers">
   <div class="layer l-main"><div class="lh"><span class="badge">live</span><span class="name">prompt window</span></div><div class="ld">The messages, system prompt, a few active symbols, and necessary MMD fragments directly visible to the LLM now.</div></div>
   <div class="layer l-part"><div class="lh"><span class="badge">local files</span><span class="name">~/.openclaw/context-offload</span></div><div class="ld">Under <span class="inline">DEFAULT_DATA_ROOT</span>, storage is isolated by agent and session; it contains <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;sessionId&gt;.jsonl</span>, and state.</div></div>
-  <div class="layer l-core"><div class="lh"><span class="badge">guide</span><span class="name">generated lesson page</span></div><div class="ld">This page turns the implementation path into a learning model: evidence files, JSONL symbols, MMD canvas, and L3 injection.</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">guide</span><span class="name">generated lesson page</span></div><div class="ld">This page turns the implementation path into a learning model: evidence files, JSONL symbols, MMD canvas, and Offload-L3 injection.</div></div>
 </div>
 
 <h2>Core pseudocode</h2>
@@ -135,14 +147,14 @@ task state is rendered as Mermaid MMD, and the next turn injects only the symbol
     <li>Approved spec Part 7: Context Offload exists to explain the second memory spine for long tasks and tool-log compression.</li>
     <li><span class="inline">src/offload/index.ts</span>: <span class="inline">registerOffload</span> is the entry point, configures <span class="inline">OffloadContextEngine</span>, chooses <span class="inline">BackendClient</span> or <span class="inline">LocalLlmClient</span>, and wires hook / context-engine registration paths.</li>
     <li><span class="inline">src/offload/storage.ts</span>: <span class="inline">DEFAULT_DATA_ROOT</span> points to <span class="inline">~/.openclaw/context-offload</span>; <span class="inline">createStorageContext</span> builds per-agent / per-session refs, mmds, offload JSONL, and state paths.</li>
-    <li><span class="inline">src/offload/types.ts</span>: <span class="inline">OffloadEntry</span> defines summary, result_ref, tool_call_id, and node_id; <span class="inline">PLUGIN_DEFAULTS</span> defines L1/L2/L3 thresholds and compression ratios.</li>
+    <li><span class="inline">src/offload/types.ts</span>: <span class="inline">OffloadEntry</span> defines summary, result_ref, tool_call_id, and node_id; <span class="inline">PLUGIN_DEFAULTS</span> defines Offload-L1/L2/L3 thresholds and token-budget trigger ratios.</li>
     <li><span class="inline">src/offload/context-token-tracker.ts</span>: <span class="inline">ContextSnapshot</span> and <span class="inline">buildTiktokenContextSnapshot</span> capture stage, totalTokens, messageCount, and related token snapshots.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Context Offload is short-term symbolic memory for the current task: bulky tool logs become refs evidence, JSONL summaries, Mermaid nodes, and small L3 injections.
+  Context Offload is short-term symbolic memory for the current task: bulky tool logs become refs evidence, JSONL summaries, Mermaid nodes, and small Offload-L3 injections.
   L0-L3 long-term memory serves future-session facts, scenes, and profiles; Offload serves current long-task navigation, drill-down, and token budget.
 </div>
 """,
