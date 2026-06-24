@@ -1,0 +1,74 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build static site artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build generated HTML
+        run: |
+          python3 src/build.py
+          python3 src/build_print.py
+          python3 src/check_html.py
+          python3 src/check_links.py
+
+      - name: Prepare Pages artifact
+        run: |
+          python3 - <<'PY'
+          import shutil
+          from pathlib import Path
+
+          root = Path.cwd()
+          site = root / "_site"
+          if site.exists():
+              shutil.rmtree(site)
+          site.mkdir()
+          shutil.copy2(root / "index.html", site / "index.html")
+          shutil.copy2(root / "print_zh.html", site / "print_zh.html")
+          shutil.copy2(root / "print_en.html", site / "print_en.html")
+          for name in ("LICENSE", "LICENSE-CONTENT"):
+              source = root / name
+              if source.exists():
+                  shutil.copy2(source, site / name)
+          shutil.copytree(root / "lessons", site / "lessons")
+          print("Prepared _site with generated guide pages.")
+          PY
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
