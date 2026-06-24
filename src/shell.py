@@ -106,6 +106,8 @@ PAGES = [
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
     ("30-mermaid-mmd-node-id-drill-down.html", "Mermaid MMD 画布、node_id 与下钻恢复", "Mermaid MMD canvas, node_id, and drill-down recovery",
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
+    ("31-l3-context-injection-emergency-compression.html", "L3 上下文注入与紧急压缩", "L3 context injection and emergency compression",
+     "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
 ]
 
 def bi(zh, en):
@@ -599,6 +601,8 @@ SUBTITLES = {
                                            "summarization, task-boundary judgment, and MMD generation are three distinct local model calls"),
     "30-mermaid-mmd-node-id-drill-down.html": ("MMD 是任务地图，node_id 是从地图回到证据的索引",
                                           "MMD is the task map, and node_id is the index from map back to evidence"),
+    "31-l3-context-injection-emergency-compression.html": ("先注入任务地图，再按 token 压力进行温和、激进和紧急压缩",
+                                                      "inject the task map first, then apply mild, aggressive, and emergency compression by token pressure"),
 }
 
 def index_page(lesson_prefix="lessons/"):

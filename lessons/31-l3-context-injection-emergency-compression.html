@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>30 · Mermaid MMD 画布、node_id 与下钻恢复 / Mermaid MMD canvas, node_id, and drill-down recovery - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第七部分 · Context Offload：短期符号记忆｜Mermaid MMD 画布、node_id 与下钻恢复 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>31 · L3 上下文注入与紧急压缩 / L3 context injection and emergency compression - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第七部分 · Context Offload：短期符号记忆｜L3 上下文注入与紧急压缩 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="30 · Mermaid MMD 画布、node_id 与下钻恢复 / Mermaid MMD canvas, node_id, and drill-down recovery - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第七部分 · Context Offload：短期符号记忆｜Mermaid MMD 画布、node_id 与下钻恢复 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="31 · L3 上下文注入与紧急压缩 / L3 context injection and emergency compression - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第七部分 · Context Offload：短期符号记忆｜L3 上下文注入与紧急压缩 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="30 · Mermaid MMD 画布、node_id 与下钻恢复 / Mermaid MMD canvas, node_id, and drill-down recovery - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第七部分 · Context Offload：短期符号记忆｜Mermaid MMD 画布、node_id 与下钻恢复 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="31 · L3 上下文注入与紧急压缩 / L3 context injection and emergency compression - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第七部分 · Context Offload：短期符号记忆｜L3 上下文注入与紧急压缩 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -318,257 +318,285 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
     <span class="pill"><span class="lang-zh">第七部分 · Context Offload：短期符号记忆</span><span class="lang-en">Part 7 · Context Offload: short-term symbolic memory</span></span>
-    <span class="pill">30 / 31</span>
+    <span class="pill">31 / 31</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:96%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
     <div class="part"><span class="lang-zh">第七部分 · Context Offload：短期符号记忆</span><span class="lang-en">Part 7 · Context Offload: short-term symbolic memory</span></div>
-    <h1><span class="lang-zh">Mermaid MMD 画布、node_id 与下钻恢复</span><span class="lang-en">Mermaid MMD canvas, node_id, and drill-down recovery</span></h1>
+    <h1><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Mermaid MMD 不是为了好看，而是 Context Offload 的紧凑任务状态画布。Offload-L2 可以完整写入新的
-<span class="inline">.mmd</span> 文件，也可以按行修补已有画布；但无论是新节点还是补丁里的新工具条目，都必须拿到
-<span class="inline">node_id</span>。这个 ID 把注入到 prompt 的任务符号，重新连接回 offload JSONL 摘要行和
-<span class="inline">refs/*.md</span> 原始证据。
+L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先在 prompt 构建前注入当前 active MMD，
+再把已经确认 offload 的旧工具区域按确定性快路径替换掉，随后用精确 token 快照判断是否需要温和、激进或紧急压缩。
+目标不是“尽量删”，而是在不破坏当前任务、最新用户消息和工具调用结构的前提下，把模型输入压回安全窗口。
 </p>
 
 <div class="card analogy">
   <div class="tag">🧭 生活类比</div>
-  把 MMD 当作项目作战地图：地图上一个节点写着“修复登录测试”。<span class="inline">node_id</span> 像坐标编号，
-  让你从地图坐标回到索引卡，再翻到证据夹里的原始日志。没有坐标，地图再漂亮也无法复盘证据。
+  像飞机起飞前的配载检查：任务地图先放进驾驶舱；已托运的旧行李用行李票替代；如果重量仍超标，先取下低优先级包，
+  再把旧箱子移到货舱清单，最后才启动紧急减载。乘客、驾驶指令和安全联络不能被扔掉。
 </div>
 
-<h2>MMD 是任务状态画布，不是装饰图</h2>
-<div class="layers">
-  <div class="layer l-main"><div class="lh"><span class="badge">canvas</span><span class="name">mmds/task.mmd</span></div><div class="ld">用 Mermaid 节点表达当前任务、等待项、已处理项和后续路径；L2 负责 <span class="inline">writeMmd</span> 完整写入或 <span class="inline">patchMmd</span> 行级修补。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">index</span><span class="name">offload JSONL rows</span></div><div class="ld">每行保存 tool_call_id、summary、result_ref、offloaded 和 <span class="inline">node_id</span>；当前 pipeline 通过 <span class="inline">backfillNodeIds</span> 进入 <span class="inline">rewriteAllOffloadEntries</span> 重写行。</div></div>
-  <div class="layer l-core"><div class="lh"><span class="badge">evidence</span><span class="name">refs/*.md</span></div><div class="ld">完整工具输出、错误栈或搜索结果留在 refs markdown；prompt 里不需要常驻所有原始行。</div></div>
+<h2>最后一圈发生在模型调用前</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>before prompt</h4><p><span class="inline">before-prompt-build.ts</span> 跳过内部 memory-pipeline session，读取 active MMD，并准备已确认 offload 的快路径。</p><div class="mono">skip internal pipeline; load active MMD</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> 用 marker 管理注入片段，避免重复追加；任务地图优先进入上下文。</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>token snapshot</h4><p><span class="inline">context-token-tracker.ts</span> 与 <span class="inline">l3-token-counter.ts</span> 计算当前消息的 token 使用，而不是凭字符长度猜测。</p><div class="mono">messages -&gt; precise token count</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>mild replacement</h4><p><span class="inline">compressByScoreCascade</span> 优先替换低分、旧的、已 offload 区域，保留可通过 JSONL 与 refs 恢复的摘要。</p><div class="mono">old tool detail -&gt; compact offload marker</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive / emergency</h4><p>压力仍高时删除旧 offloaded 区域并注入历史 MMD；溢出或仍超阈值时进入 <span class="inline">emergencyCompress</span>。</p><div class="mono">history MMD -&gt; emergency trim</div></div></div>
 </div>
 
-<p>
-因此评审 MMD 生成时，不应只问“图是否能渲染”。更重要的问题是：每个新工具证据是否被放到明确节点？
-节点 ID 是否符合 <span class="inline">MMD_NODE_ID_RE</span>？映射是否能被规范化后回填到 JSONL？
-如果任何一步断开，Offload-L3 注入的 active node 就只剩摘要，无法安全下钻。
-</p>
-
-<h2>从 active 节点下钻恢复细节</h2>
-<div class="flow trace">
-  <div class="node hl"><div class="nt">active MMD node</div><div class="nd">例如 <span class="inline">027-N1</span>：当前任务地图上的一个节点。</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">node_id</div><div class="nd">Offload-L3 只注入节点和少量周边上下文。</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">matching JSONL entries</div><div class="nd"><span class="inline">getCurrentTaskNodeIds</span> 与 lookup map 找到相同行。</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">ref markdown</div><div class="nd"><span class="inline">result_ref</span> 指向 refs 文件。</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">recovered detail</div><div class="nd">需要时再读完整 stdout、diff、测试失败或搜索命中。</div></div>
+<h2>三档压缩策略</h2>
+<div class="cols">
+  <div class="col"><h4>温和：score cascade</h4><p><b>触发</b>：token 接近阈值但仍可控。<br><b>动作</b>：按 score、年龄和 offload 状态替换旧工具结果。<br><b>恢复证据</b>：保留 tool_call_id、node_id、result_ref 与摘要。</p></div>
+  <div class="col"><h4>激进：删除旧 offload 区域</h4><p><b>触发</b>：温和替换后仍超预算。<br><b>动作</b>：<span class="inline">aggressiveCompressUntilBelowThreshold</span> 删除更老的已 offload 消息块，并补入 history MMD。<br><b>恢复证据</b>：从历史 MMD 节点回 JSONL，再回 refs。</p></div>
+  <div class="col"><h4>紧急：overflow 兜底</h4><p><b>触发</b>：token 压力仍高，或 <span class="inline">isTokenOverflowError</span> 检测到入口溢出。<br><b>动作</b>：<span class="inline">emergencyCompress</span> 只保留安全骨架、最新用户消息、有效工具对和必要任务地图。<br><b>恢复证据</b>：依赖 active/history MMD 与 JSONL 状态标记。</p></div>
 </div>
 
-<h2>node_id 生命周期</h2>
+<h2>快路径为什么要标记 JSONL 状态</h2>
 <table class="t">
-  <tr><th>状态</th><th>含义</th><th>恢复能力</th></tr>
-  <tr><td class="mono">null</td><td>L1 刚写入的未分配行；还没有进入 MMD 画布。</td><td>能按时间或 tool_call_id 找到摘要和 ref，但不能从 MMD 节点直接定位。</td></tr>
-  <tr><td class="mono">wait</td><td>等待态或兜底映射；L2 尚未能归入稳定任务节点。</td><td>可保守保留，不应伪造具体节点；后续 L2 可再归一化。</td></tr>
-  <tr><td class="mono">027-N1</td><td>具体节点 ID，符合 MMD 节点命名规则并出现在 <span class="inline">node_mapping</span>。</td><td>MMD node -&gt; JSONL row -&gt; refs detail 的主下钻路径完整。</td></tr>
-  <tr><td class="mono">deleted / offloaded</td><td>行可能被标记为已 offload 或删除态；状态不等于丢失证据。</td><td>注入层可跳过或压缩显示，但仍应能通过索引和 ref 追溯历史。</td></tr>
+  <tr><th>状态</th><th>含义</th><th>下一轮行为</th></tr>
+  <tr><td class="mono">offloaded: true</td><td><span class="inline">markOffloadStatus</span> 记录这段工具结果已经被安全替换为符号摘要。</td><td>before-prompt-build 可确定性重放替换，不需要重新推断是否压缩。</td></tr>
+  <tr><td class="mono">offloaded: "deleted"</td><td>激进压缩已把旧的 live 区域移出上下文，但 JSONL 行和 refs 证据仍可追溯。</td><td>L3 注入层跳过原始区域，改用 history MMD 和节点索引恢复语义。</td></tr>
+  <tr><td class="mono">node_id + result_ref</td><td>把 MMD 节点、JSONL 摘要和 refs 原文连接起来。</td><td>即使内容被删除，也能从任务地图下钻。</td></tr>
 </table>
 
-<h2>写入、修补与映射回填</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>触发 L2</h4><p><span class="inline">checkL2Trigger</span> 负责未分配行数量和 timeout；task switch 走单独的强制 L2 flush（<span class="inline">task_switch_flush</span>）。</p><div class="mono">null entries / timeout; forced switch flush</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>生成或修补 MMD</h4><p>L2 可以用 <span class="inline">writeMmd</span> 写完整画布，也可以用 <span class="inline">patchMmd</span> 做行级更新；<span class="inline">readMmd</span> 和 <span class="inline">listMmds</span> 支持读取当前任务与候选画布。</p><div class="mono">full write or line patch</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>规范化 node mapping</h4><p><span class="inline">l2-prompt.ts</span> 要求输出 <span class="inline">node_mapping</span>；<span class="inline">l2-parser.ts</span> 解析后，pipeline 用 <span class="inline">MMD_NODE_ID_RE</span> 与映射规范化避免脏 ID。</p><div class="mono">tool_call_id -&gt; normalized node_id</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>回填 JSONL</h4><p><span class="inline">backfillNodeIds</span> 在当前路径中调用 <span class="inline">rewriteAllOffloadEntries</span>，让每个新工具条目都能从 MMD 节点返回证据行。</p><div class="mono">mapping -&gt; rewrite all offload rows</div></div></div>
+<h2>一次 LLM 调用的 hook 时间线</h2>
+<div class="timeline">
+  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">跳过内部 memory-pipeline session；注入 active MMD；重放 <span class="inline">offloaded: true</span> 的确定性替换；写 token guard 快照。</div></div>
+  <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> 用精确计数决定 <span class="inline">compressByScoreCascade</span>、<span class="inline">aggressiveCompressUntilBelowThreshold</span> 或 <span class="inline">emergencyCompress</span>。</div></div>
+  <div class="tl"><div class="tm">model call</div><div class="td">如果入口抛出 token overflow，<span class="inline">isTokenOverflowError</span> 把它转成紧急压缩信号，而不是盲目重试同一份超大输入。</div></div>
+  <div class="tl"><div class="tm">after_tool_call</div><div class="td">工具返回后刷新 active MMD，报告 patch effectiveness，并让下一轮知道哪些替换真正节省了 token。</div></div>
+</div>
+
+<h2>安全规则：压缩不能破坏对话结构</h2>
+<div class="card warn">
+  <div class="tag">⚠️ Safety rules</div>
+  <ul>
+    <li>保留最新用户消息：它定义当前意图，不能为了省 token 删除。</li>
+    <li>保持 tool-use / tool-result 成对有效：不能只删 tool-use 或只删 tool-result，避免宿主协议损坏。</li>
+    <li>保护当前任务节点：<span class="inline">l3-helpers.ts</span> 的 current-task node 保护，避免把 active MMD 指向的证据刚好删掉。</li>
+    <li>JSONL 写清状态：使用 <span class="inline">markOffloadStatus</span> 标记 <span class="inline">true</span> 和 <span class="inline">"deleted"</span>，让快路径可重复。</li>
+    <li>跳过内部 memory-pipeline session：记忆流水线自己的压缩/生成不应递归触发 Context Offload。</li>
+  </ul>
 </div>
 
 <h2>核心伪代码</h2>
-<pre class="code">if checkL2Trigger(entries_without_node_id, active_task):
-    result = l2Generate(active_mmd, entries_without_node_id)
-    if result.full_mmd:
-        writeMmd(active_task, result.mmd)
-    else:
-        patchMmd(active_task, result.line_patches)
+<pre class="code">on_before_prompt_build(messages, session):
+    if is_internal_memory_pipeline_session(session):
+        return messages
+    active_mmd = read_active_mmd(session)
+    messages = injectMmdIntoMessages(messages, active_mmd)
+    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])
+    snapshot = build_precise_token_snapshot(messages)
+    return messages, snapshot
 
-    mapping = normalize_node_mapping(result.node_mapping, MMD_NODE_ID_RE)
-    backfillNodeIds(ctx, mapping, wait_ids, logger, options)
-    # backfillNodeIds persists via rewriteAllOffloadEntries
+on_llm_input_l3(messages, snapshot):
+    if snapshot.total_tokens &lt; mild_threshold:
+        return messages
 
-if task_switch_detected:
-    task_switch_flush(active_task)
+    messages = compressByScoreCascade(messages, protect_latest_user=True)
+    if count_tokens(messages) &lt; target_threshold:
+        markOffloadStatus(replaced_entries, true)
+        return messages
 
-active_ids = getCurrentTaskNodeIds(active_mmd)
-entries = read_offload_jsonl()
-lookup = populateOffloadLookupMap(entries)  # for getOffloadEntry(lookup, toolCallId)
-for entry in entries:
-    if entry.node_id in active_ids:
-        detail = readRefMd(ctx, entry.result_ref)</pre>
+    messages = aggressiveCompressUntilBelowThreshold(messages, inject_history_mmd=True)
+    markOffloadStatus(deleted_entries, "deleted")
+    if count_tokens(messages) &lt; hard_threshold:
+        return messages
+
+    return emergencyCompress(messages,
+        preserve_latest_user=True,
+        preserve_valid_tool_pairs=True,
+        preserve_current_task_nodes=True)
+
+on_model_error(error, messages):
+    if isTokenOverflowError(error):
+        return emergencyCompress(messages)
+    raise error</pre>
 
 <h2>源码锚点</h2>
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li>批准规格 Part 7 lesson 30 与 <span class="inline">node_id</span> 下钻要求：本课聚焦 MMD 画布、节点映射和证据恢复。</li>
-    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>：<span class="inline">checkL2Trigger</span>、<span class="inline">backfillNodeIds</span>、<span class="inline">MMD_NODE_ID_RE</span> 与 node mapping 规范化；task switch 是单独的强制 L2 flush。</li>
-    <li><span class="inline">src/offload/storage.ts</span>：<span class="inline">writeMmd</span>、<span class="inline">patchMmd</span>、<span class="inline">readMmd</span>、<span class="inline">listMmds</span>、<span class="inline">rewriteAllOffloadEntries</span>、<span class="inline">readRefMd</span>。</li>
-    <li><span class="inline">src/offload/mmd-injector.ts</span>：<span class="inline">injectMmdIntoMessages</span>、<span class="inline">maybeUpdateMmdInMessages</span> 与 <span class="inline">MMD_MESSAGE_MARKER</span> 管理 prompt 里的 MMD 片段。</li>
-    <li><span class="inline">src/offload/l3-helpers.ts</span>：<span class="inline">getCurrentTaskNodeIds</span>、按 <span class="inline">tool_call_id</span> 建索引的 <span class="inline">populateOffloadLookupMap</span>、<span class="inline">getOffloadEntry(map, toolCallId)</span> 支撑按节点下钻。</li>
-    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>：要求 L2 输出 <span class="inline">node_mapping</span>，否则不能可靠回填。</li>
+    <li>批准规格 Part 7 lesson 31：本课收束 Context Offload 在模型调用前的最终运行时循环。</li>
+    <li><span class="inline">src/offload/hooks/before-prompt-build.ts</span>：实现 fast-path re-apply、token guard，以及 prompt build 前的 MMD injection。</li>
+    <li><span class="inline">src/offload/hooks/llm-input-l3.ts</span>：<span class="inline">createLlmInputL3Handler</span> 编排 <span class="inline">compressByScoreCascade</span>、<span class="inline">aggressiveCompressUntilBelowThreshold</span>、<span class="inline">emergencyCompress</span> 与 <span class="inline">isTokenOverflowError</span>。</li>
+    <li><span class="inline">src/offload/mmd-injector.ts</span>：active MMD 插入、marker 识别和重复注入处理。</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>：替换 helper、lookup map 和 current-task node protection。</li>
+    <li><span class="inline">src/offload/hooks/after-tool-call.ts</span>：工具循环内刷新 active MMD，并报告 patch effectiveness。</li>
+    <li><span class="inline">src/offload/context-token-tracker.ts</span> 与 <span class="inline">src/offload/l3-token-counter.ts</span>：记录 token snapshot 并做 L3 计数。</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  MMD 是当前任务的紧凑地图，<span class="inline">node_id</span> 是从地图回到证据的索引。
-  L2 不只生成图，还负责完整写入或行级修补 MMD，并把每个新工具条目映射回 JSONL。
-  下钻恢复路径是 active MMD node -&gt; node_id -&gt; JSONL entries -&gt; refs markdown，不需要把每行原始日志常驻 prompt。
+  L3 的正确顺序是：先注入 active MMD 和重放确认 offload，再用精确 token 计数决定压缩等级。
+  温和替换、激进删除和紧急压缩都必须保留最新用户消息、有效工具对和当前任务节点；
+  <span class="inline">markOffloadStatus</span> 的 <span class="inline">true</span> / <span class="inline">"deleted"</span> 状态让下一轮可以确定性快路径重放。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. 为什么 Lesson 30 强调每个新工具条目都必须获得 node_id？</div>
+  <div class="qn">1. L3 在真正调用模型前为什么先注入 active MMD，再按 token 压力分层压缩？</div>
   <ol class="opts">
-    <li>因为 Mermaid 没有 node_id 就不能显示任何颜色</li>
-    <li>因为有了 node_id 就不需要 refs markdown</li>
-    <li>因为 node_id 用来保存真实 API key</li>
-    <li>因为 node_id 把 MMD 任务节点连接回 JSONL 摘要行和 refs 证据，支持下钻恢复</li>
+    <li>因为 emergencyCompress 会永久删除所有 refs 文件</li>
+    <li>因为 tool-use/tool-result 对可以随意拆开</li>
+    <li>因为任务地图是恢复路径，先放入地图再决定压缩哪些旧证据，能保护当前任务语义</li>
+    <li>因为 token 计数只能在模型回答之后计算</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。MMD 是任务地图；node_id 是从地图回到证据的索引。没有它，Offload-L3 注入的活动节点无法可靠定位原始细节。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。before_prompt_build 先准备 active MMD 和确认 offload 的快路径；llm_input_l3 再用精确 token 快照决定温和、激进或紧急压缩，同时保护最新用户消息和工具对结构。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>如果 MMD 节点存在但 JSONL 行的 node_id 仍为 null，你会如何恢复或补救下钻链路？</li>
+    <li>如果模型入口仍然报 token overflow，你会怎样判断该进入 emergency compression，且哪些消息绝不能被删？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Mermaid MMD is not a pretty diagram; it is Context Offload's compact task-state canvas. Offload-L2 may write a new
-<span class="inline">.mmd</span> file in full, or patch an existing canvas line by line. Either way, every new tool entry must receive a
-<span class="inline">node_id</span>. That ID connects injected task context back to offload JSONL summary rows and
-<span class="inline">refs/*.md</span> raw evidence.
+L3 is the last runtime loop before Context Offload enters the model call. It first injects the current active MMD before prompt build,
+then deterministically re-applies replacements for already confirmed offloads, then uses precise token snapshots to decide whether to run mild,
+aggressive, or emergency compression. The goal is not “delete as much as possible”; it is to return model input to a safe window without breaking the current task,
+the latest user message, or tool-call structure.
 </p>
 
 <div class="card analogy">
   <div class="tag">🧭 Analogy</div>
-  Treat MMD as a project operations map: one map node says “fix login tests.” The <span class="inline">node_id</span> is its coordinate,
-  letting you go from the map coordinate to the index card and then to the evidence folder with the original log. Without coordinates, a pretty map cannot recover evidence.
+  Think of an aircraft weight check before takeoff: the task map goes into the cockpit first; old checked luggage is represented by claim tickets;
+  if weight is still high, low-priority bags are moved first, then older boxes become cargo-manifest entries, and only then does emergency shedding start.
+  Passengers, flight instructions, and safety communications cannot be thrown away.
 </div>
 
-<h2>MMD is task-state canvas, not decoration</h2>
-<div class="layers">
-  <div class="layer l-main"><div class="lh"><span class="badge">canvas</span><span class="name">mmds/task.mmd</span></div><div class="ld">Mermaid nodes express current work, wait items, processed items, and next paths; L2 owns full <span class="inline">writeMmd</span> writes and line-based <span class="inline">patchMmd</span> updates.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">index</span><span class="name">offload JSONL rows</span></div><div class="ld">Each row stores tool_call_id, summary, result_ref, offloaded, and <span class="inline">node_id</span>; the current pipeline goes through <span class="inline">backfillNodeIds</span> into <span class="inline">rewriteAllOffloadEntries</span> to rewrite rows.</div></div>
-  <div class="layer l-core"><div class="lh"><span class="badge">evidence</span><span class="name">refs/*.md</span></div><div class="ld">Full tool output, stack traces, or search hits remain in refs markdown; the prompt does not need every original line resident.</div></div>
+<h2>The final loop before the model call</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>before prompt</h4><p><span class="inline">before-prompt-build.ts</span> skips internal memory-pipeline sessions, reads the active MMD, and prepares the confirmed-offload fast path.</p><div class="mono">skip internal pipeline; load active MMD</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> manages injected fragments with a marker so the task map enters context first without duplicate appends.</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>token snapshot</h4><p><span class="inline">context-token-tracker.ts</span> and <span class="inline">l3-token-counter.ts</span> count actual message tokens instead of guessing by character length.</p><div class="mono">messages -&gt; precise token count</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>mild replacement</h4><p><span class="inline">compressByScoreCascade</span> first replaces low-score, older, already offloaded regions while keeping summaries recoverable through JSONL and refs.</p><div class="mono">old tool detail -&gt; compact offload marker</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive / emergency</h4><p>If pressure remains high, old offloaded regions are deleted and history MMD is injected; overflow or continued high pressure enters <span class="inline">emergencyCompress</span>.</p><div class="mono">history MMD -&gt; emergency trim</div></div></div>
 </div>
 
-<p>
-So MMD review should not ask only “does the diagram render?” The more important questions are: did every new tool evidence row land on a clear node?
-Does the node ID match <span class="inline">MMD_NODE_ID_RE</span>? Can the mapping be normalized and backfilled to JSONL?
-If any step breaks, the active node injected by Offload-L3 becomes only a summary, not a safe drill-down path.
-</p>
-
-<h2>Drill down from active node to recovered detail</h2>
-<div class="flow trace">
-  <div class="node hl"><div class="nt">active MMD node</div><div class="nd">For example <span class="inline">027-N1</span>: a node on the current task map.</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">node_id</div><div class="nd">Offload-L3 injects only the node and small surrounding context.</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">matching JSONL entries</div><div class="nd"><span class="inline">getCurrentTaskNodeIds</span> plus a lookup map finds rows with the same ID.</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">ref markdown</div><div class="nd"><span class="inline">result_ref</span> points at the refs file.</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">recovered detail</div><div class="nd">Read full stdout, diff, test failure, or search hits only when needed.</div></div>
+<h2>Three compression tiers</h2>
+<div class="cols">
+  <div class="col"><h4>Mild: score cascade</h4><p><b>Trigger</b>: token usage approaches the threshold but is still manageable.<br><b>Action</b>: replace old tool results by score, age, and offload state.<br><b>Evidence recovery</b>: keep tool_call_id, node_id, result_ref, and summary.</p></div>
+  <div class="col"><h4>Aggressive: delete old offloaded regions</h4><p><b>Trigger</b>: mild replacement still misses the budget.<br><b>Action</b>: <span class="inline">aggressiveCompressUntilBelowThreshold</span> removes older offloaded message blocks and injects history MMD.<br><b>Evidence recovery</b>: go from history MMD nodes to JSONL, then to refs.</p></div>
+  <div class="col"><h4>Emergency: overflow fallback</h4><p><b>Trigger</b>: token pressure remains high, or <span class="inline">isTokenOverflowError</span> detects an entry overflow.<br><b>Action</b>: <span class="inline">emergencyCompress</span> keeps only the safe skeleton, latest user message, valid tool pairs, and necessary task map.<br><b>Evidence recovery</b>: rely on active/history MMD plus JSONL status markers.</p></div>
 </div>
 
-<h2>node_id lifecycle</h2>
+<h2>Why the fast path marks JSONL status</h2>
 <table class="t">
-  <tr><th>State</th><th>Meaning</th><th>Recovery ability</th></tr>
-  <tr><td class="mono">null</td><td>A newly written L1 row that has not entered the MMD canvas yet.</td><td>You can find the summary and ref by time or tool_call_id, but not directly from an MMD node.</td></tr>
-  <tr><td class="mono">wait</td><td>A wait-state or fallback mapping; L2 could not place it in a stable task node yet.</td><td>Preserve it conservatively; do not invent a concrete node. Later L2 runs can normalize it.</td></tr>
-  <tr><td class="mono">027-N1</td><td>A concrete node ID that matches the MMD naming rule and appears in <span class="inline">node_mapping</span>.</td><td>The main drill-down path MMD node -&gt; JSONL row -&gt; refs detail is complete.</td></tr>
-  <tr><td class="mono">deleted / offloaded</td><td>A row may be marked offloaded or deleted; status is not the same as lost evidence.</td><td>The injection layer may skip or compress display, while indexes and refs still preserve traceability.</td></tr>
+  <tr><th>Status</th><th>Meaning</th><th>Next-turn behavior</th></tr>
+  <tr><td class="mono">offloaded: true</td><td><span class="inline">markOffloadStatus</span> records that this tool result was safely replaced by a symbolic summary.</td><td>before-prompt-build can deterministically replay the replacement without re-guessing compression.</td></tr>
+  <tr><td class="mono">offloaded: "deleted"</td><td>Aggressive compression moved an old live region out of context, while the JSONL row and refs evidence remain traceable.</td><td>The L3 injection layer skips the raw region and recovers meaning through history MMD and node indexes.</td></tr>
+  <tr><td class="mono">node_id + result_ref</td><td>Connects the MMD node, JSONL summary, and original refs text.</td><td>Even deleted content can be drilled down from the task map.</td></tr>
 </table>
 
-<h2>Write, patch, and backfill mapping</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Trigger L2</h4><p><span class="inline">checkL2Trigger</span> covers unassigned-row count and timeout; task switch uses a separate forced L2 flush (<span class="inline">task_switch_flush</span>).</p><div class="mono">null entries / timeout; forced switch flush</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Generate or patch MMD</h4><p>L2 can write a full canvas with <span class="inline">writeMmd</span>, or make line-based updates with <span class="inline">patchMmd</span>; <span class="inline">readMmd</span> and <span class="inline">listMmds</span> support reading the active task and candidate canvases.</p><div class="mono">full write or line patch</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Normalize node mapping</h4><p><span class="inline">l2-prompt.ts</span> requires <span class="inline">node_mapping</span>; after <span class="inline">l2-parser.ts</span> parses it, the pipeline uses <span class="inline">MMD_NODE_ID_RE</span> and mapping normalization to reject dirty IDs.</p><div class="mono">tool_call_id -&gt; normalized node_id</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>Backfill JSONL</h4><p>In the current path, <span class="inline">backfillNodeIds</span> calls <span class="inline">rewriteAllOffloadEntries</span> so every new tool entry can return from MMD node to evidence row.</p><div class="mono">mapping -&gt; rewrite all offload rows</div></div></div>
+<h2>Timeline of one LLM call</h2>
+<div class="timeline">
+  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">Skip internal memory-pipeline sessions; inject active MMD; replay deterministic replacements for <span class="inline">offloaded: true</span>; write the token guard snapshot.</div></div>
+  <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> uses precise counts to choose <span class="inline">compressByScoreCascade</span>, <span class="inline">aggressiveCompressUntilBelowThreshold</span>, or <span class="inline">emergencyCompress</span>.</div></div>
+  <div class="tl"><div class="tm">model call</div><div class="td">If the entry throws token overflow, <span class="inline">isTokenOverflowError</span> turns it into an emergency-compression signal instead of blindly retrying the same oversized input.</div></div>
+  <div class="tl"><div class="tm">after_tool_call</div><div class="td">After a tool returns, active MMD is refreshed, patch effectiveness is reported, and the next turn knows which replacements actually saved tokens.</div></div>
+</div>
+
+<h2>Safety rules: compression must not corrupt conversation structure</h2>
+<div class="card warn">
+  <div class="tag">⚠️ Safety rules</div>
+  <ul>
+    <li>Preserve the latest user message: it defines the current intent and must not be deleted to save tokens.</li>
+    <li>Keep tool-use / tool-result pairs valid: never delete only one side of a pair, or the host protocol can break.</li>
+    <li>Protect current-task nodes: <span class="inline">l3-helpers.ts</span> current-task node protection prevents deleting evidence targeted by the active MMD.</li>
+    <li>Write JSONL status clearly: use <span class="inline">markOffloadStatus</span> with <span class="inline">true</span> and <span class="inline">"deleted"</span> so the fast path is repeatable.</li>
+    <li>Skip internal memory-pipeline sessions: the memory pipeline's own compression/generation should not recursively trigger Context Offload.</li>
+  </ul>
 </div>
 
 <h2>Core pseudocode</h2>
-<pre class="code">if checkL2Trigger(entries_without_node_id, active_task):
-    result = l2Generate(active_mmd, entries_without_node_id)
-    if result.full_mmd:
-        writeMmd(active_task, result.mmd)
-    else:
-        patchMmd(active_task, result.line_patches)
+<pre class="code">on_before_prompt_build(messages, session):
+    if is_internal_memory_pipeline_session(session):
+        return messages
+    active_mmd = read_active_mmd(session)
+    messages = injectMmdIntoMessages(messages, active_mmd)
+    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])
+    snapshot = build_precise_token_snapshot(messages)
+    return messages, snapshot
 
-    mapping = normalize_node_mapping(result.node_mapping, MMD_NODE_ID_RE)
-    backfillNodeIds(ctx, mapping, wait_ids, logger, options)
-    # backfillNodeIds persists via rewriteAllOffloadEntries
+on_llm_input_l3(messages, snapshot):
+    if snapshot.total_tokens &lt; mild_threshold:
+        return messages
 
-if task_switch_detected:
-    task_switch_flush(active_task)
+    messages = compressByScoreCascade(messages, protect_latest_user=True)
+    if count_tokens(messages) &lt; target_threshold:
+        markOffloadStatus(replaced_entries, true)
+        return messages
 
-active_ids = getCurrentTaskNodeIds(active_mmd)
-entries = read_offload_jsonl()
-lookup = populateOffloadLookupMap(entries)  # for getOffloadEntry(lookup, toolCallId)
-for entry in entries:
-    if entry.node_id in active_ids:
-        detail = readRefMd(ctx, entry.result_ref)</pre>
+    messages = aggressiveCompressUntilBelowThreshold(messages, inject_history_mmd=True)
+    markOffloadStatus(deleted_entries, "deleted")
+    if count_tokens(messages) &lt; hard_threshold:
+        return messages
+
+    return emergencyCompress(messages,
+        preserve_latest_user=True,
+        preserve_valid_tool_pairs=True,
+        preserve_current_task_nodes=True)
+
+on_model_error(error, messages):
+    if isTokenOverflowError(error):
+        return emergencyCompress(messages)
+    raise error</pre>
 
 <h2>Source anchors</h2>
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li>Approved spec Part 7 lesson 30 and the <span class="inline">node_id</span> drill-down requirement: this lesson focuses on MMD canvas, node mapping, and evidence recovery.</li>
-    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>: <span class="inline">checkL2Trigger</span>, <span class="inline">backfillNodeIds</span>, <span class="inline">MMD_NODE_ID_RE</span>, and node mapping normalization; task switch is a separate forced L2 flush.</li>
-    <li><span class="inline">src/offload/storage.ts</span>: <span class="inline">writeMmd</span>, <span class="inline">patchMmd</span>, <span class="inline">readMmd</span>, <span class="inline">listMmds</span>, <span class="inline">rewriteAllOffloadEntries</span>, and <span class="inline">readRefMd</span>.</li>
-    <li><span class="inline">src/offload/mmd-injector.ts</span>: <span class="inline">injectMmdIntoMessages</span>, <span class="inline">maybeUpdateMmdInMessages</span>, and <span class="inline">MMD_MESSAGE_MARKER</span> manage the MMD fragment in prompt messages.</li>
-    <li><span class="inline">src/offload/l3-helpers.ts</span>: <span class="inline">getCurrentTaskNodeIds</span>, <span class="inline">populateOffloadLookupMap</span> keyed by <span class="inline">tool_call_id</span>, and <span class="inline">getOffloadEntry(map, toolCallId)</span> support node-based drill-down.</li>
-    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>: require L2 to output <span class="inline">node_mapping</span>; otherwise reliable backfill is impossible.</li>
+    <li>Approved spec Part 7 lesson 31: this lesson closes the final Context Offload runtime loop before model calls.</li>
+    <li><span class="inline">src/offload/hooks/before-prompt-build.ts</span>: implements fast-path re-apply, token guard, and MMD injection before prompt build.</li>
+    <li><span class="inline">src/offload/hooks/llm-input-l3.ts</span>: <span class="inline">createLlmInputL3Handler</span> orchestrates <span class="inline">compressByScoreCascade</span>, <span class="inline">aggressiveCompressUntilBelowThreshold</span>, <span class="inline">emergencyCompress</span>, and <span class="inline">isTokenOverflowError</span>.</li>
+    <li><span class="inline">src/offload/mmd-injector.ts</span>: active MMD insertion, marker recognition, and duplicate-injection handling.</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>: replacement helpers, lookup maps, and current-task node protection.</li>
+    <li><span class="inline">src/offload/hooks/after-tool-call.ts</span>: refreshes active MMD inside the tool loop and reports patch effectiveness.</li>
+    <li><span class="inline">src/offload/context-token-tracker.ts</span> and <span class="inline">src/offload/l3-token-counter.ts</span>: record token snapshots and count L3 input.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  MMD is the compact map of the current task, and <span class="inline">node_id</span> is the index from map back to evidence.
-  L2 does more than generate a diagram: it writes full MMD files or applies line-based patches, then maps every new tool entry back to JSONL.
-  Drill-down recovery is active MMD node -&gt; node_id -&gt; JSONL entries -&gt; refs markdown, without keeping every original log line in prompt.
+  The correct L3 order is: inject active MMD and replay confirmed offloads first, then use precise token counts to choose the compression tier.
+  Mild replacement, aggressive deletion, and emergency compression must all preserve the latest user message, valid tool pairs, and current-task nodes.
+  <span class="inline">markOffloadStatus</span> values <span class="inline">true</span> / <span class="inline">"deleted"</span> make deterministic fast-path replay possible on the next turn.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. Why does Lesson 30 emphasize that every new tool entry must receive a node_id?</div>
+  <div class="qn">1. Why does L3 inject the active MMD before applying tiered compression by token pressure?</div>
   <ol class="opts">
-    <li>Because Mermaid cannot display any color without node_id</li>
-    <li>Because node_id removes the need for refs markdown</li>
-    <li>Because node_id stores real API keys</li>
-    <li>Because node_id connects MMD task nodes back to JSONL summary rows and refs evidence for drill-down recovery</li>
+    <li>Because emergencyCompress permanently deletes all refs files</li>
+    <li>Because tool-use/tool-result pairs can be split freely</li>
+    <li>Because the task map is the recovery path; injecting it first lets compression remove old evidence while preserving current-task meaning</li>
+    <li>Because token counts can only be computed after the model responds</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. MMD is the task map; node_id is the index from the map back to evidence. Without it, an active node injected by Offload-L3 cannot reliably locate raw detail.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. before_prompt_build prepares the active MMD and confirmed-offload fast path first; llm_input_l3 then uses precise token snapshots for mild, aggressive, or emergency compression while protecting the latest user message and valid tool-pair structure.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>If an MMD node exists but the JSONL row still has node_id null, how would you recover or repair the drill-down chain?</li>
+    <li>If the model entry still reports token overflow, how would you decide to enter emergency compression, and which messages must never be removed?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="29-l1-l15-l2-local-llm-pipelines.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">L1 / L1.5 / L2 本地 LLM 管线</span><span class="lang-en">L1 / L1.5 / L2 local LLM pipelines</span></div></a><a class="next" href="31-l3-context-injection-emergency-compression.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></div></a></div>
+  <div class="footnav"><a class="prev" href="30-mermaid-mmd-node-id-drill-down.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Mermaid MMD 画布、node_id 与下钻恢复</span><span class="lang-en">Mermaid MMD canvas, node_id, and drill-down recovery</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

@@ -38,4 +38,5 @@ CONTENT = {
     "28-after-tool-call-refs-offload-jsonl.html": part7.LESSON_28,
     "29-l1-l15-l2-local-llm-pipelines.html": part7.LESSON_29,
     "30-mermaid-mmd-node-id-drill-down.html": part7.LESSON_30,
+    "31-l3-context-injection-emergency-compression.html": part7.LESSON_31,
 }

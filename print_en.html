@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 30 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">30 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 31 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">31 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -362,6 +362,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">after-tool-call、refs 与 offload JSONL</span><span class="lang-en">after-tool-call, refs, and offload JSONL</span></li>
   <li><span class="lang-zh">L1 / L1.5 / L2 本地 LLM 管线</span><span class="lang-en">L1 / L1.5 / L2 local LLM pipelines</span></li>
   <li><span class="lang-zh">Mermaid MMD 画布、node_id 与下钻恢复</span><span class="lang-en">Mermaid MMD canvas, node_id, and drill-down recovery</span></li>
+  <li><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -3725,6 +3726,145 @@ for entry in entries:
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>If an MMD node exists but the JSONL row still has node_id null, how would you recover or repair the drill-down chain?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+L3 is the last runtime loop before Context Offload enters the model call. It first injects the current active MMD before prompt build,
+then deterministically re-applies replacements for already confirmed offloads, then uses precise token snapshots to decide whether to run mild,
+aggressive, or emergency compression. The goal is not “delete as much as possible”; it is to return model input to a safe window without breaking the current task,
+the latest user message, or tool-call structure.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Think of an aircraft weight check before takeoff: the task map goes into the cockpit first; old checked luggage is represented by claim tickets;
+  if weight is still high, low-priority bags are moved first, then older boxes become cargo-manifest entries, and only then does emergency shedding start.
+  Passengers, flight instructions, and safety communications cannot be thrown away.
+</div>
+
+<h2>The final loop before the model call</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>before prompt</h4><p><span class="inline">before-prompt-build.ts</span> skips internal memory-pipeline sessions, reads the active MMD, and prepares the confirmed-offload fast path.</p><div class="mono">skip internal pipeline; load active MMD</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> manages injected fragments with a marker so the task map enters context first without duplicate appends.</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>token snapshot</h4><p><span class="inline">context-token-tracker.ts</span> and <span class="inline">l3-token-counter.ts</span> count actual message tokens instead of guessing by character length.</p><div class="mono">messages -&gt; precise token count</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>mild replacement</h4><p><span class="inline">compressByScoreCascade</span> first replaces low-score, older, already offloaded regions while keeping summaries recoverable through JSONL and refs.</p><div class="mono">old tool detail -&gt; compact offload marker</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive / emergency</h4><p>If pressure remains high, old offloaded regions are deleted and history MMD is injected; overflow or continued high pressure enters <span class="inline">emergencyCompress</span>.</p><div class="mono">history MMD -&gt; emergency trim</div></div></div>
+</div>
+
+<h2>Three compression tiers</h2>
+<div class="cols">
+  <div class="col"><h4>Mild: score cascade</h4><p><b>Trigger</b>: token usage approaches the threshold but is still manageable.<br><b>Action</b>: replace old tool results by score, age, and offload state.<br><b>Evidence recovery</b>: keep tool_call_id, node_id, result_ref, and summary.</p></div>
+  <div class="col"><h4>Aggressive: delete old offloaded regions</h4><p><b>Trigger</b>: mild replacement still misses the budget.<br><b>Action</b>: <span class="inline">aggressiveCompressUntilBelowThreshold</span> removes older offloaded message blocks and injects history MMD.<br><b>Evidence recovery</b>: go from history MMD nodes to JSONL, then to refs.</p></div>
+  <div class="col"><h4>Emergency: overflow fallback</h4><p><b>Trigger</b>: token pressure remains high, or <span class="inline">isTokenOverflowError</span> detects an entry overflow.<br><b>Action</b>: <span class="inline">emergencyCompress</span> keeps only the safe skeleton, latest user message, valid tool pairs, and necessary task map.<br><b>Evidence recovery</b>: rely on active/history MMD plus JSONL status markers.</p></div>
+</div>
+
+<h2>Why the fast path marks JSONL status</h2>
+<table class="t">
+  <tr><th>Status</th><th>Meaning</th><th>Next-turn behavior</th></tr>
+  <tr><td class="mono">offloaded: true</td><td><span class="inline">markOffloadStatus</span> records that this tool result was safely replaced by a symbolic summary.</td><td>before-prompt-build can deterministically replay the replacement without re-guessing compression.</td></tr>
+  <tr><td class="mono">offloaded: "deleted"</td><td>Aggressive compression moved an old live region out of context, while the JSONL row and refs evidence remain traceable.</td><td>The L3 injection layer skips the raw region and recovers meaning through history MMD and node indexes.</td></tr>
+  <tr><td class="mono">node_id + result_ref</td><td>Connects the MMD node, JSONL summary, and original refs text.</td><td>Even deleted content can be drilled down from the task map.</td></tr>
+</table>
+
+<h2>Timeline of one LLM call</h2>
+<div class="timeline">
+  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">Skip internal memory-pipeline sessions; inject active MMD; replay deterministic replacements for <span class="inline">offloaded: true</span>; write the token guard snapshot.</div></div>
+  <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> uses precise counts to choose <span class="inline">compressByScoreCascade</span>, <span class="inline">aggressiveCompressUntilBelowThreshold</span>, or <span class="inline">emergencyCompress</span>.</div></div>
+  <div class="tl"><div class="tm">model call</div><div class="td">If the entry throws token overflow, <span class="inline">isTokenOverflowError</span> turns it into an emergency-compression signal instead of blindly retrying the same oversized input.</div></div>
+  <div class="tl"><div class="tm">after_tool_call</div><div class="td">After a tool returns, active MMD is refreshed, patch effectiveness is reported, and the next turn knows which replacements actually saved tokens.</div></div>
+</div>
+
+<h2>Safety rules: compression must not corrupt conversation structure</h2>
+<div class="card warn">
+  <div class="tag">⚠️ Safety rules</div>
+  <ul>
+    <li>Preserve the latest user message: it defines the current intent and must not be deleted to save tokens.</li>
+    <li>Keep tool-use / tool-result pairs valid: never delete only one side of a pair, or the host protocol can break.</li>
+    <li>Protect current-task nodes: <span class="inline">l3-helpers.ts</span> current-task node protection prevents deleting evidence targeted by the active MMD.</li>
+    <li>Write JSONL status clearly: use <span class="inline">markOffloadStatus</span> with <span class="inline">true</span> and <span class="inline">"deleted"</span> so the fast path is repeatable.</li>
+    <li>Skip internal memory-pipeline sessions: the memory pipeline's own compression/generation should not recursively trigger Context Offload.</li>
+  </ul>
+</div>
+
+<h2>Core pseudocode</h2>
+<pre class="code">on_before_prompt_build(messages, session):
+    if is_internal_memory_pipeline_session(session):
+        return messages
+    active_mmd = read_active_mmd(session)
+    messages = injectMmdIntoMessages(messages, active_mmd)
+    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])
+    snapshot = build_precise_token_snapshot(messages)
+    return messages, snapshot
+
+on_llm_input_l3(messages, snapshot):
+    if snapshot.total_tokens &lt; mild_threshold:
+        return messages
+
+    messages = compressByScoreCascade(messages, protect_latest_user=True)
+    if count_tokens(messages) &lt; target_threshold:
+        markOffloadStatus(replaced_entries, true)
+        return messages
+
+    messages = aggressiveCompressUntilBelowThreshold(messages, inject_history_mmd=True)
+    markOffloadStatus(deleted_entries, "deleted")
+    if count_tokens(messages) &lt; hard_threshold:
+        return messages
+
+    return emergencyCompress(messages,
+        preserve_latest_user=True,
+        preserve_valid_tool_pairs=True,
+        preserve_current_task_nodes=True)
+
+on_model_error(error, messages):
+    if isTokenOverflowError(error):
+        return emergencyCompress(messages)
+    raise error</pre>
+
+<h2>Source anchors</h2>
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li>Approved spec Part 7 lesson 31: this lesson closes the final Context Offload runtime loop before model calls.</li>
+    <li><span class="inline">src/offload/hooks/before-prompt-build.ts</span>: implements fast-path re-apply, token guard, and MMD injection before prompt build.</li>
+    <li><span class="inline">src/offload/hooks/llm-input-l3.ts</span>: <span class="inline">createLlmInputL3Handler</span> orchestrates <span class="inline">compressByScoreCascade</span>, <span class="inline">aggressiveCompressUntilBelowThreshold</span>, <span class="inline">emergencyCompress</span>, and <span class="inline">isTokenOverflowError</span>.</li>
+    <li><span class="inline">src/offload/mmd-injector.ts</span>: active MMD insertion, marker recognition, and duplicate-injection handling.</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>: replacement helpers, lookup maps, and current-task node protection.</li>
+    <li><span class="inline">src/offload/hooks/after-tool-call.ts</span>: refreshes active MMD inside the tool loop and reports patch effectiveness.</li>
+    <li><span class="inline">src/offload/context-token-tracker.ts</span> and <span class="inline">src/offload/l3-token-counter.ts</span>: record token snapshots and count L3 input.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  The correct L3 order is: inject active MMD and replay confirmed offloads first, then use precise token counts to choose the compression tier.
+  Mild replacement, aggressive deletion, and emergency compression must all preserve the latest user message, valid tool pairs, and current-task nodes.
+  <span class="inline">markOffloadStatus</span> values <span class="inline">true</span> / <span class="inline">"deleted"</span> make deterministic fast-path replay possible on the next turn.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Why does L3 inject the active MMD before applying tiered compression by token pressure?</div>
+  <ol class="opts">
+    <li>Because emergencyCompress permanently deletes all refs files</li>
+    <li>Because tool-use/tool-result pairs can be split freely</li>
+    <li>Because the task map is the recovery path; injecting it first lets compression remove old evidence while preserving current-task meaning</li>
+    <li>Because token counts can only be computed after the model responds</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. before_prompt_build prepares the active MMD and confirmed-offload fast path first; llm_input_l3 then uses precise token snapshots for mild, aggressive, or emergency compression while protecting the latest user message and valid tool-pair structure.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>If the model entry still reports token overflow, how would you decide to enter emergency compression, and which messages must never be removed?</li>
   </ul>
 </div>
 </div>

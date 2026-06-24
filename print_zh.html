@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 30 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">30 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 31 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">31 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -362,6 +362,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">after-tool-call、refs 与 offload JSONL</span><span class="lang-en">after-tool-call, refs, and offload JSONL</span></li>
   <li><span class="lang-zh">L1 / L1.5 / L2 本地 LLM 管线</span><span class="lang-en">L1 / L1.5 / L2 local LLM pipelines</span></li>
   <li><span class="lang-zh">Mermaid MMD 画布、node_id 与下钻恢复</span><span class="lang-en">Mermaid MMD canvas, node_id, and drill-down recovery</span></li>
+  <li><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -3737,6 +3738,143 @@ for entry in entries:
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>如果 MMD 节点存在但 JSONL 行的 node_id 仍为 null，你会如何恢复或补救下钻链路？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先在 prompt 构建前注入当前 active MMD，
+再把已经确认 offload 的旧工具区域按确定性快路径替换掉，随后用精确 token 快照判断是否需要温和、激进或紧急压缩。
+目标不是“尽量删”，而是在不破坏当前任务、最新用户消息和工具调用结构的前提下，把模型输入压回安全窗口。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  像飞机起飞前的配载检查：任务地图先放进驾驶舱；已托运的旧行李用行李票替代；如果重量仍超标，先取下低优先级包，
+  再把旧箱子移到货舱清单，最后才启动紧急减载。乘客、驾驶指令和安全联络不能被扔掉。
+</div>
+
+<h2>最后一圈发生在模型调用前</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>before prompt</h4><p><span class="inline">before-prompt-build.ts</span> 跳过内部 memory-pipeline session，读取 active MMD，并准备已确认 offload 的快路径。</p><div class="mono">skip internal pipeline; load active MMD</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> 用 marker 管理注入片段，避免重复追加；任务地图优先进入上下文。</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>token snapshot</h4><p><span class="inline">context-token-tracker.ts</span> 与 <span class="inline">l3-token-counter.ts</span> 计算当前消息的 token 使用，而不是凭字符长度猜测。</p><div class="mono">messages -&gt; precise token count</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>mild replacement</h4><p><span class="inline">compressByScoreCascade</span> 优先替换低分、旧的、已 offload 区域，保留可通过 JSONL 与 refs 恢复的摘要。</p><div class="mono">old tool detail -&gt; compact offload marker</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive / emergency</h4><p>压力仍高时删除旧 offloaded 区域并注入历史 MMD；溢出或仍超阈值时进入 <span class="inline">emergencyCompress</span>。</p><div class="mono">history MMD -&gt; emergency trim</div></div></div>
+</div>
+
+<h2>三档压缩策略</h2>
+<div class="cols">
+  <div class="col"><h4>温和：score cascade</h4><p><b>触发</b>：token 接近阈值但仍可控。<br><b>动作</b>：按 score、年龄和 offload 状态替换旧工具结果。<br><b>恢复证据</b>：保留 tool_call_id、node_id、result_ref 与摘要。</p></div>
+  <div class="col"><h4>激进：删除旧 offload 区域</h4><p><b>触发</b>：温和替换后仍超预算。<br><b>动作</b>：<span class="inline">aggressiveCompressUntilBelowThreshold</span> 删除更老的已 offload 消息块，并补入 history MMD。<br><b>恢复证据</b>：从历史 MMD 节点回 JSONL，再回 refs。</p></div>
+  <div class="col"><h4>紧急：overflow 兜底</h4><p><b>触发</b>：token 压力仍高，或 <span class="inline">isTokenOverflowError</span> 检测到入口溢出。<br><b>动作</b>：<span class="inline">emergencyCompress</span> 只保留安全骨架、最新用户消息、有效工具对和必要任务地图。<br><b>恢复证据</b>：依赖 active/history MMD 与 JSONL 状态标记。</p></div>
+</div>
+
+<h2>快路径为什么要标记 JSONL 状态</h2>
+<table class="t">
+  <tr><th>状态</th><th>含义</th><th>下一轮行为</th></tr>
+  <tr><td class="mono">offloaded: true</td><td><span class="inline">markOffloadStatus</span> 记录这段工具结果已经被安全替换为符号摘要。</td><td>before-prompt-build 可确定性重放替换，不需要重新推断是否压缩。</td></tr>
+  <tr><td class="mono">offloaded: "deleted"</td><td>激进压缩已把旧的 live 区域移出上下文，但 JSONL 行和 refs 证据仍可追溯。</td><td>L3 注入层跳过原始区域，改用 history MMD 和节点索引恢复语义。</td></tr>
+  <tr><td class="mono">node_id + result_ref</td><td>把 MMD 节点、JSONL 摘要和 refs 原文连接起来。</td><td>即使内容被删除，也能从任务地图下钻。</td></tr>
+</table>
+
+<h2>一次 LLM 调用的 hook 时间线</h2>
+<div class="timeline">
+  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">跳过内部 memory-pipeline session；注入 active MMD；重放 <span class="inline">offloaded: true</span> 的确定性替换；写 token guard 快照。</div></div>
+  <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> 用精确计数决定 <span class="inline">compressByScoreCascade</span>、<span class="inline">aggressiveCompressUntilBelowThreshold</span> 或 <span class="inline">emergencyCompress</span>。</div></div>
+  <div class="tl"><div class="tm">model call</div><div class="td">如果入口抛出 token overflow，<span class="inline">isTokenOverflowError</span> 把它转成紧急压缩信号，而不是盲目重试同一份超大输入。</div></div>
+  <div class="tl"><div class="tm">after_tool_call</div><div class="td">工具返回后刷新 active MMD，报告 patch effectiveness，并让下一轮知道哪些替换真正节省了 token。</div></div>
+</div>
+
+<h2>安全规则：压缩不能破坏对话结构</h2>
+<div class="card warn">
+  <div class="tag">⚠️ Safety rules</div>
+  <ul>
+    <li>保留最新用户消息：它定义当前意图，不能为了省 token 删除。</li>
+    <li>保持 tool-use / tool-result 成对有效：不能只删 tool-use 或只删 tool-result，避免宿主协议损坏。</li>
+    <li>保护当前任务节点：<span class="inline">l3-helpers.ts</span> 的 current-task node 保护，避免把 active MMD 指向的证据刚好删掉。</li>
+    <li>JSONL 写清状态：使用 <span class="inline">markOffloadStatus</span> 标记 <span class="inline">true</span> 和 <span class="inline">"deleted"</span>，让快路径可重复。</li>
+    <li>跳过内部 memory-pipeline session：记忆流水线自己的压缩/生成不应递归触发 Context Offload。</li>
+  </ul>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">on_before_prompt_build(messages, session):
+    if is_internal_memory_pipeline_session(session):
+        return messages
+    active_mmd = read_active_mmd(session)
+    messages = injectMmdIntoMessages(messages, active_mmd)
+    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])
+    snapshot = build_precise_token_snapshot(messages)
+    return messages, snapshot
+
+on_llm_input_l3(messages, snapshot):
+    if snapshot.total_tokens &lt; mild_threshold:
+        return messages
+
+    messages = compressByScoreCascade(messages, protect_latest_user=True)
+    if count_tokens(messages) &lt; target_threshold:
+        markOffloadStatus(replaced_entries, true)
+        return messages
+
+    messages = aggressiveCompressUntilBelowThreshold(messages, inject_history_mmd=True)
+    markOffloadStatus(deleted_entries, "deleted")
+    if count_tokens(messages) &lt; hard_threshold:
+        return messages
+
+    return emergencyCompress(messages,
+        preserve_latest_user=True,
+        preserve_valid_tool_pairs=True,
+        preserve_current_task_nodes=True)
+
+on_model_error(error, messages):
+    if isTokenOverflowError(error):
+        return emergencyCompress(messages)
+    raise error</pre>
+
+<h2>源码锚点</h2>
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li>批准规格 Part 7 lesson 31：本课收束 Context Offload 在模型调用前的最终运行时循环。</li>
+    <li><span class="inline">src/offload/hooks/before-prompt-build.ts</span>：实现 fast-path re-apply、token guard，以及 prompt build 前的 MMD injection。</li>
+    <li><span class="inline">src/offload/hooks/llm-input-l3.ts</span>：<span class="inline">createLlmInputL3Handler</span> 编排 <span class="inline">compressByScoreCascade</span>、<span class="inline">aggressiveCompressUntilBelowThreshold</span>、<span class="inline">emergencyCompress</span> 与 <span class="inline">isTokenOverflowError</span>。</li>
+    <li><span class="inline">src/offload/mmd-injector.ts</span>：active MMD 插入、marker 识别和重复注入处理。</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>：替换 helper、lookup map 和 current-task node protection。</li>
+    <li><span class="inline">src/offload/hooks/after-tool-call.ts</span>：工具循环内刷新 active MMD，并报告 patch effectiveness。</li>
+    <li><span class="inline">src/offload/context-token-tracker.ts</span> 与 <span class="inline">src/offload/l3-token-counter.ts</span>：记录 token snapshot 并做 L3 计数。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  L3 的正确顺序是：先注入 active MMD 和重放确认 offload，再用精确 token 计数决定压缩等级。
+  温和替换、激进删除和紧急压缩都必须保留最新用户消息、有效工具对和当前任务节点；
+  <span class="inline">markOffloadStatus</span> 的 <span class="inline">true</span> / <span class="inline">"deleted"</span> 状态让下一轮可以确定性快路径重放。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. L3 在真正调用模型前为什么先注入 active MMD，再按 token 压力分层压缩？</div>
+  <ol class="opts">
+    <li>因为 emergencyCompress 会永久删除所有 refs 文件</li>
+    <li>因为 tool-use/tool-result 对可以随意拆开</li>
+    <li>因为任务地图是恢复路径，先放入地图再决定压缩哪些旧证据，能保护当前任务语义</li>
+    <li>因为 token 计数只能在模型回答之后计算</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。before_prompt_build 先准备 active MMD 和确认 offload 的快路径；llm_input_l3 再用精确 token 快照决定温和、激进或紧急压缩，同时保护最新用户消息和工具对结构。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>如果模型入口仍然报 token overflow，你会怎样判断该进入 emergency compression，且哪些消息绝不能被删？</li>
   </ul>
 </div>
 </div>

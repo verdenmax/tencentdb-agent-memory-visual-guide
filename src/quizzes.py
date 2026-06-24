@@ -521,6 +521,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果 MMD 节点存在但 JSONL 行的 node_id 仍为 null，你会如何恢复或补救下钻链路？", "en": "If an MMD node exists but the JSONL row still has node_id null, how would you recover or repair the drill-down chain?"}],
     },
+    "31-l3-context-injection-emergency-compression.html": {
+        "mcq": [{
+            "q": {"zh": "L3 在真正调用模型前为什么先注入 active MMD，再按 token 压力分层压缩？", "en": "Why does L3 inject the active MMD before applying tiered compression by token pressure?"},
+            "opts": [
+                {"zh": "因为任务地图是恢复路径，先放入地图再决定压缩哪些旧证据，能保护当前任务语义", "en": "Because the task map is the recovery path; injecting it first lets compression remove old evidence while preserving current-task meaning"},
+                {"zh": "因为 emergencyCompress 会永久删除所有 refs 文件", "en": "Because emergencyCompress permanently deletes all refs files"},
+                {"zh": "因为 token 计数只能在模型回答之后计算", "en": "Because token counts can only be computed after the model responds"},
+                {"zh": "因为 tool-use/tool-result 对可以随意拆开", "en": "Because tool-use/tool-result pairs can be split freely"},
+            ],
+            "answer": 0,
+            "why": {"zh": "before_prompt_build 先准备 active MMD 和确认 offload 的快路径；llm_input_l3 再用精确 token 快照决定温和、激进或紧急压缩，同时保护最新用户消息和工具对结构。", "en": "before_prompt_build prepares the active MMD and confirmed-offload fast path first; llm_input_l3 then uses precise token snapshots for mild, aggressive, or emergency compression while protecting the latest user message and valid tool-pair structure."},
+        }],
+        "open": [{"zh": "如果模型入口仍然报 token overflow，你会怎样判断该进入 emergency compression，且哪些消息绝不能被删？", "en": "If the model entry still reports token overflow, how would you decide to enter emergency compression, and which messages must never be removed?"}],
+    },
 }
 
 
