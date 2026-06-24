@@ -32,8 +32,8 @@ Hermes / direct Gateway 用户走的是外部 HTTP 路径：请求先进入 <spa
 <h2>server.ts：路由不是核心，边界才是重点</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>create server</h4><p>Gateway 先创建 HTTP server，并把 route table、request parser、错误响应和关闭流程放在同一个入口附近，便于运维检查。</p><div class="mono">createHttpServer(config)</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>public health</h4><p><span class="inline">GET /health</span> 绕过鉴权，用于 liveness / readiness，只返回 <span class="inline">ok</span> 或 <span class="inline">degraded</span> 这类安全状态；Gateway 没有单独的 status route。</p><div class="mono">GET /health -&gt; ok | degraded</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>validate memory request</h4><p>受保护的 memory surface 是 <span class="inline">POST /recall</span>、<span class="inline">/capture</span>、<span class="inline">/search/memories</span>、<span class="inline">/search/conversations</span>、<span class="inline">/session/end</span> 和 <span class="inline">/seed</span>；委托前检查方法、路径、content-type、JSON schema、CORS 和可选 bearer auth。</p><div class="mono">reject early before TdaiCore</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>CORS, preflight, health</h4><p>Gateway 先给响应套 CORS 头：origin 不在 allow-list 就省略这些头，由浏览器拦截跨源调用，而不是服务端直接拒绝。<span class="inline">OPTIONS</span> 预检不鉴权直接回 <span class="inline">204</span>；<span class="inline">GET /health</span> 同样绕过鉴权，只返回 <span class="inline">ok</span> 或 <span class="inline">degraded</span>，Gateway 没有单独的 status route。</p><div class="mono">CORS headers -&gt; OPTIONS 204 -&gt; /health</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>auth, then validate memory request</h4><p>受保护的 memory surface 是 <span class="inline">POST /recall</span>、<span class="inline">/capture</span>、<span class="inline">/search/memories</span>、<span class="inline">/search/conversations</span>、<span class="inline">/session/end</span> 和 <span class="inline">/seed</span>；在 CORS 之后先过 bearer auth gate，再按方法、路径解析 JSON body 并校验每条路由的必填字段，更深的 <span class="inline">validateAndNormalizeRaw</span> 归一化只用于 <span class="inline">/seed</span>。</p><div class="mono">reject early before TdaiCore</div></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>delegate safely</h4><p>通过 standalone host adapter 构造宿主上下文，让 HTTP 层不直接知道 OpenClaw hook 细节，也不把外部请求对象泄漏到核心。</p><div class="mono">HTTP request -&gt; HostAdapter -&gt; TdaiCore</div></div></div>
 </div>
 
@@ -75,18 +75,28 @@ on_request(req):
     route = match_gateway_route(req.method, req.path)
     if route is None:
         return not_found()
-    if route.name == "health":
-        return health_response(ok_or_degraded())
-    if route.requires_auth:
-        require_bearer_token(req.headers, config.auth_token_placeholder)
+
+    # CORS headers first: omit them when origin is not allow-listed,
+    # so the browser blocks cross-origin use (no server-side rejection).
     origin = req.headers.get("origin")
-    enforce_allowed_origin(origin, config.allowed_origins)
-    body = read_json_body(req)
-    validate_memory_payload(route.name, body)
+    cors_headers = build_cors_headers(origin, config.allowed_origins)
+
+    if req.method == "OPTIONS":
+        return preflight_204(cors_headers)                  # preflight, no auth
+    if route.name == "health":
+        return health_response(ok_or_degraded(), cors_headers)  # GET /health bypasses auth
+
+    if route.requires_auth:                                 # auth gate after CORS + health
+        require_bearer_token(req.headers, config.auth_token_placeholder)
+
+    body = read_json_body(req)                              # parse JSON
+    validate_required_fields(route.name, body)              # per-route required fields
+    if route.name == "seed":
+        body = validateAndNormalizeRaw(body)                # deeper checks only for /seed
 
     context = adapter.build_context(req.headers, body)
     result = tdai_core.handle(route.operation, context)
-    return json_response(redact_secrets(result))</pre>
+    return json_response(redact_secrets(result), cors_headers)</pre>
 
 <h2>运维检查清单</h2>
 <div class="timeline">
@@ -147,8 +157,8 @@ hand the request to the standalone host adapter and then to the host-neutral <sp
 <h2>server.ts: routes matter less than the boundary</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>create server</h4><p>The Gateway creates the HTTP server and keeps the route table, request parser, error responses, and shutdown flow near one entry point for operational review.</p><div class="mono">createHttpServer(config)</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>public health</h4><p><span class="inline">GET /health</span> bypasses auth for liveness / readiness and only returns safe states such as <span class="inline">ok</span> or <span class="inline">degraded</span>; the Gateway has no separate status route.</p><div class="mono">GET /health -&gt; ok | degraded</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>validate memory request</h4><p>The protected memory surface is <span class="inline">POST /recall</span>, <span class="inline">/capture</span>, <span class="inline">/search/memories</span>, <span class="inline">/search/conversations</span>, <span class="inline">/session/end</span>, and <span class="inline">/seed</span>; check method, path, content-type, JSON schema, CORS, and optional bearer auth before delegation.</p><div class="mono">reject early before TdaiCore</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>CORS, preflight, health</h4><p>The Gateway applies CORS headers first: a disallowed origin simply gets those headers omitted, so the browser blocks the cross-origin call rather than the server rejecting it. <span class="inline">OPTIONS</span> preflight returns <span class="inline">204</span> without auth, and <span class="inline">GET /health</span> also bypasses auth, returning only <span class="inline">ok</span> or <span class="inline">degraded</span>; the Gateway has no separate status route.</p><div class="mono">CORS headers -&gt; OPTIONS 204 -&gt; /health</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>auth, then validate memory request</h4><p>The protected memory surface is <span class="inline">POST /recall</span>, <span class="inline">/capture</span>, <span class="inline">/search/memories</span>, <span class="inline">/search/conversations</span>, <span class="inline">/session/end</span>, and <span class="inline">/seed</span>; after CORS it runs the bearer auth gate, then matches method and path, parses the JSON body, and checks the per-route required fields, with the deeper <span class="inline">validateAndNormalizeRaw</span> normalization applied only to <span class="inline">/seed</span>.</p><div class="mono">reject early before TdaiCore</div></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>delegate safely</h4><p>The standalone host adapter builds host context so the HTTP layer does not know OpenClaw hook details and does not leak external request objects into core.</p><div class="mono">HTTP request -&gt; HostAdapter -&gt; TdaiCore</div></div></div>
 </div>
 
@@ -190,18 +200,28 @@ on_request(req):
     route = match_gateway_route(req.method, req.path)
     if route is None:
         return not_found()
-    if route.name == "health":
-        return health_response(ok_or_degraded())
-    if route.requires_auth:
-        require_bearer_token(req.headers, config.auth_token_placeholder)
+
+    # CORS headers first: omit them when origin is not allow-listed,
+    # so the browser blocks cross-origin use (no server-side rejection).
     origin = req.headers.get("origin")
-    enforce_allowed_origin(origin, config.allowed_origins)
-    body = read_json_body(req)
-    validate_memory_payload(route.name, body)
+    cors_headers = build_cors_headers(origin, config.allowed_origins)
+
+    if req.method == "OPTIONS":
+        return preflight_204(cors_headers)                  # preflight, no auth
+    if route.name == "health":
+        return health_response(ok_or_degraded(), cors_headers)  # GET /health bypasses auth
+
+    if route.requires_auth:                                 # auth gate after CORS + health
+        require_bearer_token(req.headers, config.auth_token_placeholder)
+
+    body = read_json_body(req)                              # parse JSON
+    validate_required_fields(route.name, body)              # per-route required fields
+    if route.name == "seed":
+        body = validateAndNormalizeRaw(body)                # deeper checks only for /seed
 
     context = adapter.build_context(req.headers, body)
     result = tdai_core.handle(route.operation, context)
-    return json_response(redact_secrets(result))</pre>
+    return json_response(redact_secrets(result), cors_headers)</pre>
 
 <h2>Operations checklist</h2>
 <div class="timeline">

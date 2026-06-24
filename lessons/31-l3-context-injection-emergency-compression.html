@@ -330,8 +330,8 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先在 prompt 构建前注入当前 active MMD，
-再把已经确认 offload 的旧工具区域按确定性快路径替换掉，随后用精确 token 快照判断压缩档位：中等压力只跑温和替换，
+L3 是 Context Offload 真正进入模型前的最后一道运行时循环：before-prompt-build 先按确定性快路径重放已确认 offload 的旧工具区域替换，
+再写 token guard 快照，最后才注入当前 active MMD；进入 llm_input_l3 后用精确 token 计数判断压缩档位：中等压力只跑温和替换，
 达到更高激进阈值时先激进删除，再做温和清理，最后才按需紧急压缩。目标不是“尽量删”，而是在不破坏当前任务、最新用户消息和工具调用结构的前提下，把模型输入压回安全窗口。
 </p>
 
@@ -343,16 +343,16 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
 
 <h2>最后一圈发生在模型调用前</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>before prompt</h4><p><span class="inline">before-prompt-build.ts</span> 跳过内部 memory-pipeline session，读取 active MMD，并准备已确认 offload 的快路径。</p><div class="mono">skip internal pipeline; load active MMD</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> 用 marker 管理注入片段，避免重复追加；任务地图优先进入上下文。</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>token snapshot</h4><p><span class="inline">context-token-tracker.ts</span> 与 <span class="inline">l3-token-counter.ts</span> 计算当前消息的 token 使用，而不是凭字符长度猜测。</p><div class="mono">messages -&gt; precise token count</div></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>fast-path reapply</h4><p><span class="inline">before-prompt-build.ts</span> 跳过内部 memory-pipeline session，再按确定性快路径重放已确认 offload（<span class="inline">true</span> / <span class="inline">"deleted"</span>）的替换。</p><div class="mono">skip internal pipeline; reapply offloads</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>token guard</h4><p><span class="inline">context-token-tracker.ts</span> 与 <span class="inline">l3-token-counter.ts</span> 写下精确 token 快照作为 token guard，而不是凭字符长度猜测。</p><div class="mono">messages -&gt; token guard snapshot</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> 在快路径与 token guard 之后用 marker 管理注入片段，避免重复追加；任务地图最后进入上下文。</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>tier gate</h4><p>精确计数低于温和阈值则不动；50-85 一类中等压力只跑 <span class="inline">compressByScoreCascade</span>，达到更高激进阈值时先跑激进删除。</p><div class="mono">mild threshold &lt; aggressive threshold</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive -&gt; mild -&gt; emergency</h4><p><span class="inline">aggressiveCompressUntilBelowThreshold</span> 先删除旧 offloaded 区域并注入 history MMD；随后温和清理最高可替代分区域，仍超紧急阈值才进入 <span class="inline">emergencyCompress</span>。</p><div class="mono">history MMD -&gt; high-score replacement -&gt; emergency trim</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive -&gt; mild -&gt; emergency</h4><p><span class="inline">aggressiveCompressUntilBelowThreshold</span> 先按旧前缀删除更老的区域（通常已 offload）、标记为 <span class="inline">deleted</span> 并注入 history MMD；随后温和清理最高可替代分区域，仍超紧急阈值才进入 <span class="inline">emergencyCompress</span>。</p><div class="mono">history MMD -&gt; high-score replacement -&gt; emergency trim</div></div></div>
 </div>
 
 <h2>三档压缩策略</h2>
 <div class="cols">
-  <div class="col"><h4>激进：删除旧 offload 区域</h4><p><b>触发</b>：token 达到高于温和线的激进阈值。<br><b>动作</b>：<span class="inline">aggressiveCompressUntilBelowThreshold</span> 先删除更老的已 offload 消息块，并补入 history MMD。<br><b>恢复证据</b>：从历史 MMD 节点回 JSONL，再回 refs。</p></div>
+  <div class="col"><h4>激进：删除旧前缀区域</h4><p><b>触发</b>：token 达到高于温和线的激进阈值。<br><b>动作</b>：<span class="inline">aggressiveCompressUntilBelowThreshold</span> 先按旧前缀删除更老的消息块（通常已 offload），把它们标记为 <span class="inline">deleted</span>，并补入 history MMD。<br><b>恢复证据</b>：从历史 MMD 节点回 JSONL，再回 refs。</p></div>
   <div class="col"><h4>温和：score cascade</h4><p><b>触发</b>：token 达到温和阈值；若先跑过激进删除，也继续作为清理步骤。<br><b>动作</b>：<span class="inline">compressByScoreCascade</span> 按可替代分降序替换旧工具结果，高分先替换，低分/难总结证据保留更久。<br><b>恢复证据</b>：保留 tool_call_id、node_id、result_ref 与摘要。</p></div>
   <div class="col"><h4>紧急：overflow 兜底</h4><p><b>触发</b>：激进和温和清理后 token 压力仍高，或上一轮入口溢出设置了 <span class="inline">_forceEmergencyNext</span>。<br><b>动作</b>：<span class="inline">emergencyCompress</span> 只保留安全骨架、最新用户消息、有效工具对、MMD task-map 消息和最小保留集。<br><b>恢复证据</b>：依赖 active/history MMD 与 JSONL 状态标记。</p></div>
 </div>
@@ -367,7 +367,7 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
 
 <h2>一次 LLM 调用的 hook 时间线</h2>
 <div class="timeline">
-  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">跳过内部 memory-pipeline session；注入 active MMD；重放 <span class="inline">offloaded: true</span> 的确定性替换；写 token guard 快照。</div></div>
+  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">跳过内部 memory-pipeline session；按确定性快路径重放 <span class="inline">offloaded: true</span> / <span class="inline">"deleted"</span> 的替换；写 token guard 快照；最后注入 active MMD。</div></div>
   <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> 用精确计数按真实顺序执行：超过激进阈值先 <span class="inline">aggressiveCompressUntilBelowThreshold</span>，再用 <span class="inline">compressByScoreCascade</span> 清理；中等压力只跑温和替换；最后才 <span class="inline">emergencyCompress</span>。</div></div>
   <div class="tl"><div class="tm">model call</div><div class="td">如果入口抛出 token overflow，<span class="inline">isTokenOverflowError</span> 设置 <span class="inline">_forceEmergencyNext</span>，让下一次越过 below-mild gate 的 L3 pass 走紧急压缩，而不是在错误处理里直接内联返回。</div></div>
   <div class="tl"><div class="tm">after_tool_call</div><div class="td">工具返回后刷新 active MMD，报告 patch effectiveness，并让下一轮知道哪些替换真正节省了 token。</div></div>
@@ -380,7 +380,7 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
     <li>保留最新用户消息：它定义当前意图，不能为了省 token 删除。</li>
     <li>保持 tool-use / tool-result 成对有效：不能只删 tool-use 或只删 tool-result，避免宿主协议损坏。</li>
     <li>温和阶段保护当前任务节点：<span class="inline">compressByScoreCascade</span> / <span class="inline">l3-helpers.ts</span> 使用 <span class="inline">currentTaskNodeIds</span>，避免把 active MMD 指向的证据刚好替换掉。</li>
-    <li>激进/紧急阶段保护结构边界：激进删除按旧 offloaded 区域前缀推进；紧急保留 MMD task-map 消息、最新用户消息、有效工具对和最小保留集，而不是继续做节点级 current-task 过滤。</li>
+    <li>激进/紧急阶段保护结构边界：激进删除按旧前缀推进（更老/已 offload 区域优先）并标记 <span class="inline">deleted</span>；紧急保留 MMD task-map 消息、最新用户消息、有效工具对和最小保留集，而不是继续做节点级 current-task 过滤。</li>
     <li>JSONL 写清状态：使用 <span class="inline">markOffloadStatus</span> 标记 <span class="inline">true</span> 和 <span class="inline">"deleted"</span>，让快路径可重复。</li>
     <li>跳过内部 memory-pipeline session：记忆流水线自己的压缩/生成不应递归触发 Context Offload。</li>
   </ul>
@@ -390,10 +390,10 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
 <pre class="code">on_before_prompt_build(messages, session):
     if is_internal_memory_pipeline_session(session):
         return messages
+    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])  # fast path
+    snapshot = build_precise_token_snapshot(messages)  # token guard
     active_mmd = read_active_mmd(session)
-    messages = injectMmdIntoMessages(messages, active_mmd)
-    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])
-    snapshot = build_precise_token_snapshot(messages)
+    messages = injectMmdIntoMessages(messages, active_mmd)  # inject MMD last
     return messages, snapshot
 
 on_llm_input_l3(messages, snapshot, state):
@@ -446,7 +446,7 @@ except error:
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  L3 的正确顺序是：先注入 active MMD 和重放确认 offload，再用精确 token 计数决定压缩等级。
+  L3 的正确顺序是：before-prompt-build 先按快路径重放确认 offload，再写 token guard，最后注入 active MMD；随后 llm_input_l3 用精确 token 计数决定压缩等级。
   激进阈值高于温和阈值：中等压力只跑温和替换，高压力先激进删除再温和清理；温和替换按可替代分降序处理，高分先替换。安全不变量仍保留最新用户消息和有效工具对结构。
   <span class="inline">markOffloadStatus</span> 的 <span class="inline">true</span> / <span class="inline">"deleted"</span> 状态让下一轮可以确定性快路径重放。
 </div>
@@ -474,8 +474,8 @@ except error:
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-L3 is the last runtime loop before Context Offload enters the model call. It first injects the current active MMD before prompt build,
-then deterministically re-applies replacements for already confirmed offloads, then uses precise token snapshots to choose the tier: medium pressure runs only mild replacement,
+L3 is the last runtime loop before Context Offload enters the model call. In before-prompt-build it first deterministically re-applies replacements for the already confirmed offload regions via the fast path,
+then writes the token guard snapshot, and only then injects the current active MMD; the llm_input_l3 pass then uses precise token counts to choose the tier: medium pressure runs only mild replacement,
 while pressure at the higher aggressive threshold runs aggressive deletion first, then mild cleanup, and only then emergency compression if needed. The goal is not “delete as much as possible”; it is to return model input to a safe window without breaking the current task,
 the latest user message, or tool-call structure.
 </p>
@@ -489,16 +489,16 @@ the latest user message, or tool-call structure.
 
 <h2>The final loop before the model call</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>before prompt</h4><p><span class="inline">before-prompt-build.ts</span> skips internal memory-pipeline sessions, reads the active MMD, and prepares the confirmed-offload fast path.</p><div class="mono">skip internal pipeline; load active MMD</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> manages injected fragments with a marker so the task map enters context first without duplicate appends.</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>token snapshot</h4><p><span class="inline">context-token-tracker.ts</span> and <span class="inline">l3-token-counter.ts</span> count actual message tokens instead of guessing by character length.</p><div class="mono">messages -&gt; precise token count</div></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>fast-path reapply</h4><p><span class="inline">before-prompt-build.ts</span> skips internal memory-pipeline sessions, then deterministically replays replacements for already confirmed offloads (<span class="inline">true</span> / <span class="inline">"deleted"</span>).</p><div class="mono">skip internal pipeline; reapply offloads</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>token guard</h4><p><span class="inline">context-token-tracker.ts</span> and <span class="inline">l3-token-counter.ts</span> write a precise token snapshot as the token guard instead of guessing by character length.</p><div class="mono">messages -&gt; token guard snapshot</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> runs after the fast path and token guard, using a marker to avoid duplicate appends so the task map enters context last.</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>tier gate</h4><p>Precise counts below the mild threshold do nothing; medium pressure such as 50-85 runs only <span class="inline">compressByScoreCascade</span>, while the higher aggressive threshold runs deletion first.</p><div class="mono">mild threshold &lt; aggressive threshold</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive -&gt; mild -&gt; emergency</h4><p><span class="inline">aggressiveCompressUntilBelowThreshold</span> first deletes old offloaded regions and injects history MMD; mild cleanup then replaces the highest replaceability-score regions, and <span class="inline">emergencyCompress</span> runs only if still above the emergency threshold.</p><div class="mono">history MMD -&gt; high-score replacement -&gt; emergency trim</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive -&gt; mild -&gt; emergency</h4><p><span class="inline">aggressiveCompressUntilBelowThreshold</span> first deletes the older message prefix (regions that tend to be already offloaded), marks them <span class="inline">deleted</span>, and injects history MMD; mild cleanup then replaces the highest replaceability-score regions, and <span class="inline">emergencyCompress</span> runs only if still above the emergency threshold.</p><div class="mono">history MMD -&gt; high-score replacement -&gt; emergency trim</div></div></div>
 </div>
 
 <h2>Three compression tiers</h2>
 <div class="cols">
-  <div class="col"><h4>Aggressive: delete old offloaded regions</h4><p><b>Trigger</b>: token usage reaches the aggressive threshold, which is higher than the mild threshold.<br><b>Action</b>: <span class="inline">aggressiveCompressUntilBelowThreshold</span> first removes older offloaded message blocks and injects history MMD.<br><b>Evidence recovery</b>: go from history MMD nodes to JSONL, then to refs.</p></div>
+  <div class="col"><h4>Aggressive: delete the old prefix</h4><p><b>Trigger</b>: token usage reaches the aggressive threshold, which is higher than the mild threshold.<br><b>Action</b>: <span class="inline">aggressiveCompressUntilBelowThreshold</span> deletes the older message prefix (regions that tend to already be offloaded), marks them <span class="inline">deleted</span>, and injects history MMD.<br><b>Evidence recovery</b>: go from history MMD nodes to JSONL, then to refs.</p></div>
   <div class="col"><h4>Mild: score cascade</h4><p><b>Trigger</b>: token usage reaches the mild threshold; after aggressive deletion, it also runs as the cleanup step.<br><b>Action</b>: <span class="inline">compressByScoreCascade</span> replaces old tool results by descending replaceability score, so high-score regions go first and lower-replaceability / hard-to-summarize evidence survives longer.<br><b>Evidence recovery</b>: keep tool_call_id, node_id, result_ref, and summary.</p></div>
   <div class="col"><h4>Emergency: overflow fallback</h4><p><b>Trigger</b>: token pressure remains high after aggressive plus mild cleanup, or the previous entry overflow set <span class="inline">_forceEmergencyNext</span>.<br><b>Action</b>: <span class="inline">emergencyCompress</span> keeps only the safe skeleton, latest user message, valid tool pairs, MMD task-map messages, and the minimum keep set.<br><b>Evidence recovery</b>: rely on active/history MMD plus JSONL status markers.</p></div>
 </div>
@@ -513,7 +513,7 @@ the latest user message, or tool-call structure.
 
 <h2>Timeline of one LLM call</h2>
 <div class="timeline">
-  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">Skip internal memory-pipeline sessions; inject active MMD; replay deterministic replacements for <span class="inline">offloaded: true</span>; write the token guard snapshot.</div></div>
+  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">Skip internal memory-pipeline sessions; replay deterministic replacements for <span class="inline">offloaded: true</span> / <span class="inline">"deleted"</span> via the fast path; write the token guard snapshot; finally inject active MMD.</div></div>
   <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> uses precise counts in the real order: above the aggressive threshold it runs <span class="inline">aggressiveCompressUntilBelowThreshold</span> first, then <span class="inline">compressByScoreCascade</span>; medium pressure runs only mild replacement; <span class="inline">emergencyCompress</span> is last.</div></div>
   <div class="tl"><div class="tm">model call</div><div class="td">If the entry throws token overflow, <span class="inline">isTokenOverflowError</span> sets <span class="inline">_forceEmergencyNext</span> so the next L3 pass that proceeds past the below-mild gate runs emergency compression, rather than returning inline emergency output from the error handler.</div></div>
   <div class="tl"><div class="tm">after_tool_call</div><div class="td">After a tool returns, active MMD is refreshed, patch effectiveness is reported, and the next turn knows which replacements actually saved tokens.</div></div>
@@ -526,7 +526,7 @@ the latest user message, or tool-call structure.
     <li>Preserve the latest user message: it defines the current intent and must not be deleted to save tokens.</li>
     <li>Keep tool-use / tool-result pairs valid: never delete only one side of a pair, or the host protocol can break.</li>
     <li>Protect current-task nodes during the mild stage: <span class="inline">compressByScoreCascade</span> / <span class="inline">l3-helpers.ts</span> use <span class="inline">currentTaskNodeIds</span> to avoid replacing evidence targeted by the active MMD.</li>
-    <li>Protect structural boundaries during aggressive/emergency stages: aggressive deletion advances by old offloaded-region prefixes; emergency keeps MMD task-map messages, the latest user message, valid tool pairs, and the minimum keep set rather than continuing node-level current-task filtering.</li>
+    <li>Protect structural boundaries during aggressive/emergency stages: aggressive deletion advances by the old message prefix (older/offloaded regions) and marks them <span class="inline">deleted</span>; emergency keeps MMD task-map messages, the latest user message, valid tool pairs, and the minimum keep set rather than continuing node-level current-task filtering.</li>
     <li>Write JSONL status clearly: use <span class="inline">markOffloadStatus</span> with <span class="inline">true</span> and <span class="inline">"deleted"</span> so the fast path is repeatable.</li>
     <li>Skip internal memory-pipeline sessions: the memory pipeline's own compression/generation should not recursively trigger Context Offload.</li>
   </ul>
@@ -536,10 +536,10 @@ the latest user message, or tool-call structure.
 <pre class="code">on_before_prompt_build(messages, session):
     if is_internal_memory_pipeline_session(session):
         return messages
+    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])  # fast path
+    snapshot = build_precise_token_snapshot(messages)  # token guard
     active_mmd = read_active_mmd(session)
-    messages = injectMmdIntoMessages(messages, active_mmd)
-    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])
-    snapshot = build_precise_token_snapshot(messages)
+    messages = injectMmdIntoMessages(messages, active_mmd)  # inject MMD last
     return messages, snapshot
 
 on_llm_input_l3(messages, snapshot, state):
@@ -592,7 +592,7 @@ except error:
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  The correct L3 order is: inject active MMD and replay confirmed offloads first, then use precise token counts to choose the compression tier.
+  The correct L3 order is: before-prompt-build replays confirmed offloads via the fast path, then writes the token guard, and injects active MMD last; the llm_input_l3 pass then uses precise token counts to choose the compression tier.
   The aggressive threshold is higher than the mild threshold: medium pressure runs only mild replacement, while high pressure runs aggressive deletion before mild cleanup; mild replacement sorts replaceability score descending, so high-score regions go first. Safety invariants still preserve latest-user and valid tool-pair structure.
   <span class="inline">markOffloadStatus</span> values <span class="inline">true</span> / <span class="inline">"deleted"</span> make deterministic fast-path replay possible on the next turn.
 </div>

@@ -3749,8 +3749,8 @@ for entry in entries:
 <h1><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></h1>
 
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先在 prompt 构建前注入当前 active MMD，
-再把已经确认 offload 的旧工具区域按确定性快路径替换掉，随后用精确 token 快照判断压缩档位：中等压力只跑温和替换，
+L3 是 Context Offload 真正进入模型前的最后一道运行时循环：before-prompt-build 先按确定性快路径重放已确认 offload 的旧工具区域替换，
+再写 token guard 快照，最后才注入当前 active MMD；进入 llm_input_l3 后用精确 token 计数判断压缩档位：中等压力只跑温和替换，
 达到更高激进阈值时先激进删除，再做温和清理，最后才按需紧急压缩。目标不是“尽量删”，而是在不破坏当前任务、最新用户消息和工具调用结构的前提下，把模型输入压回安全窗口。
 </p>
 
@@ -3762,16 +3762,16 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
 
 <h2>最后一圈发生在模型调用前</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>before prompt</h4><p><span class="inline">before-prompt-build.ts</span> 跳过内部 memory-pipeline session，读取 active MMD，并准备已确认 offload 的快路径。</p><div class="mono">skip internal pipeline; load active MMD</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> 用 marker 管理注入片段，避免重复追加；任务地图优先进入上下文。</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>token snapshot</h4><p><span class="inline">context-token-tracker.ts</span> 与 <span class="inline">l3-token-counter.ts</span> 计算当前消息的 token 使用，而不是凭字符长度猜测。</p><div class="mono">messages -&gt; precise token count</div></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>fast-path reapply</h4><p><span class="inline">before-prompt-build.ts</span> 跳过内部 memory-pipeline session，再按确定性快路径重放已确认 offload（<span class="inline">true</span> / <span class="inline">"deleted"</span>）的替换。</p><div class="mono">skip internal pipeline; reapply offloads</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>token guard</h4><p><span class="inline">context-token-tracker.ts</span> 与 <span class="inline">l3-token-counter.ts</span> 写下精确 token 快照作为 token guard，而不是凭字符长度猜测。</p><div class="mono">messages -&gt; token guard snapshot</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> 在快路径与 token guard 之后用 marker 管理注入片段，避免重复追加；任务地图最后进入上下文。</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>tier gate</h4><p>精确计数低于温和阈值则不动；50-85 一类中等压力只跑 <span class="inline">compressByScoreCascade</span>，达到更高激进阈值时先跑激进删除。</p><div class="mono">mild threshold &lt; aggressive threshold</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive -&gt; mild -&gt; emergency</h4><p><span class="inline">aggressiveCompressUntilBelowThreshold</span> 先删除旧 offloaded 区域并注入 history MMD；随后温和清理最高可替代分区域，仍超紧急阈值才进入 <span class="inline">emergencyCompress</span>。</p><div class="mono">history MMD -&gt; high-score replacement -&gt; emergency trim</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive -&gt; mild -&gt; emergency</h4><p><span class="inline">aggressiveCompressUntilBelowThreshold</span> 先按旧前缀删除更老的区域（通常已 offload）、标记为 <span class="inline">deleted</span> 并注入 history MMD；随后温和清理最高可替代分区域，仍超紧急阈值才进入 <span class="inline">emergencyCompress</span>。</p><div class="mono">history MMD -&gt; high-score replacement -&gt; emergency trim</div></div></div>
 </div>
 
 <h2>三档压缩策略</h2>
 <div class="cols">
-  <div class="col"><h4>激进：删除旧 offload 区域</h4><p><b>触发</b>：token 达到高于温和线的激进阈值。<br><b>动作</b>：<span class="inline">aggressiveCompressUntilBelowThreshold</span> 先删除更老的已 offload 消息块，并补入 history MMD。<br><b>恢复证据</b>：从历史 MMD 节点回 JSONL，再回 refs。</p></div>
+  <div class="col"><h4>激进：删除旧前缀区域</h4><p><b>触发</b>：token 达到高于温和线的激进阈值。<br><b>动作</b>：<span class="inline">aggressiveCompressUntilBelowThreshold</span> 先按旧前缀删除更老的消息块（通常已 offload），把它们标记为 <span class="inline">deleted</span>，并补入 history MMD。<br><b>恢复证据</b>：从历史 MMD 节点回 JSONL，再回 refs。</p></div>
   <div class="col"><h4>温和：score cascade</h4><p><b>触发</b>：token 达到温和阈值；若先跑过激进删除，也继续作为清理步骤。<br><b>动作</b>：<span class="inline">compressByScoreCascade</span> 按可替代分降序替换旧工具结果，高分先替换，低分/难总结证据保留更久。<br><b>恢复证据</b>：保留 tool_call_id、node_id、result_ref 与摘要。</p></div>
   <div class="col"><h4>紧急：overflow 兜底</h4><p><b>触发</b>：激进和温和清理后 token 压力仍高，或上一轮入口溢出设置了 <span class="inline">_forceEmergencyNext</span>。<br><b>动作</b>：<span class="inline">emergencyCompress</span> 只保留安全骨架、最新用户消息、有效工具对、MMD task-map 消息和最小保留集。<br><b>恢复证据</b>：依赖 active/history MMD 与 JSONL 状态标记。</p></div>
 </div>
@@ -3786,7 +3786,7 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
 
 <h2>一次 LLM 调用的 hook 时间线</h2>
 <div class="timeline">
-  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">跳过内部 memory-pipeline session；注入 active MMD；重放 <span class="inline">offloaded: true</span> 的确定性替换；写 token guard 快照。</div></div>
+  <div class="tl"><div class="tm">before_prompt_build</div><div class="td">跳过内部 memory-pipeline session；按确定性快路径重放 <span class="inline">offloaded: true</span> / <span class="inline">"deleted"</span> 的替换；写 token guard 快照；最后注入 active MMD。</div></div>
   <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> 用精确计数按真实顺序执行：超过激进阈值先 <span class="inline">aggressiveCompressUntilBelowThreshold</span>，再用 <span class="inline">compressByScoreCascade</span> 清理；中等压力只跑温和替换；最后才 <span class="inline">emergencyCompress</span>。</div></div>
   <div class="tl"><div class="tm">model call</div><div class="td">如果入口抛出 token overflow，<span class="inline">isTokenOverflowError</span> 设置 <span class="inline">_forceEmergencyNext</span>，让下一次越过 below-mild gate 的 L3 pass 走紧急压缩，而不是在错误处理里直接内联返回。</div></div>
   <div class="tl"><div class="tm">after_tool_call</div><div class="td">工具返回后刷新 active MMD，报告 patch effectiveness，并让下一轮知道哪些替换真正节省了 token。</div></div>
@@ -3799,7 +3799,7 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
     <li>保留最新用户消息：它定义当前意图，不能为了省 token 删除。</li>
     <li>保持 tool-use / tool-result 成对有效：不能只删 tool-use 或只删 tool-result，避免宿主协议损坏。</li>
     <li>温和阶段保护当前任务节点：<span class="inline">compressByScoreCascade</span> / <span class="inline">l3-helpers.ts</span> 使用 <span class="inline">currentTaskNodeIds</span>，避免把 active MMD 指向的证据刚好替换掉。</li>
-    <li>激进/紧急阶段保护结构边界：激进删除按旧 offloaded 区域前缀推进；紧急保留 MMD task-map 消息、最新用户消息、有效工具对和最小保留集，而不是继续做节点级 current-task 过滤。</li>
+    <li>激进/紧急阶段保护结构边界：激进删除按旧前缀推进（更老/已 offload 区域优先）并标记 <span class="inline">deleted</span>；紧急保留 MMD task-map 消息、最新用户消息、有效工具对和最小保留集，而不是继续做节点级 current-task 过滤。</li>
     <li>JSONL 写清状态：使用 <span class="inline">markOffloadStatus</span> 标记 <span class="inline">true</span> 和 <span class="inline">"deleted"</span>，让快路径可重复。</li>
     <li>跳过内部 memory-pipeline session：记忆流水线自己的压缩/生成不应递归触发 Context Offload。</li>
   </ul>
@@ -3809,10 +3809,10 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
 <pre class="code">on_before_prompt_build(messages, session):
     if is_internal_memory_pipeline_session(session):
         return messages
+    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])  # fast path
+    snapshot = build_precise_token_snapshot(messages)  # token guard
     active_mmd = read_active_mmd(session)
-    messages = injectMmdIntoMessages(messages, active_mmd)
-    messages = reapply_confirmed_offloads(messages, statuses=[true, "deleted"])
-    snapshot = build_precise_token_snapshot(messages)
+    messages = injectMmdIntoMessages(messages, active_mmd)  # inject MMD last
     return messages, snapshot
 
 on_llm_input_l3(messages, snapshot, state):
@@ -3865,7 +3865,7 @@ except error:
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  L3 的正确顺序是：先注入 active MMD 和重放确认 offload，再用精确 token 计数决定压缩等级。
+  L3 的正确顺序是：before-prompt-build 先按快路径重放确认 offload，再写 token guard，最后注入 active MMD；随后 llm_input_l3 用精确 token 计数决定压缩等级。
   激进阈值高于温和阈值：中等压力只跑温和替换，高压力先激进删除再温和清理；温和替换按可替代分降序处理，高分先替换。安全不变量仍保留最新用户消息和有效工具对结构。
   <span class="inline">markOffloadStatus</span> 的 <span class="inline">true</span> / <span class="inline">"deleted"</span> 状态让下一轮可以确定性快路径重放。
 </div>
@@ -3925,8 +3925,8 @@ Hermes / direct Gateway 用户走的是外部 HTTP 路径：请求先进入 <spa
 <h2>server.ts：路由不是核心，边界才是重点</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>create server</h4><p>Gateway 先创建 HTTP server，并把 route table、request parser、错误响应和关闭流程放在同一个入口附近，便于运维检查。</p><div class="mono">createHttpServer(config)</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>public health</h4><p><span class="inline">GET /health</span> 绕过鉴权，用于 liveness / readiness，只返回 <span class="inline">ok</span> 或 <span class="inline">degraded</span> 这类安全状态；Gateway 没有单独的 status route。</p><div class="mono">GET /health -&gt; ok | degraded</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>validate memory request</h4><p>受保护的 memory surface 是 <span class="inline">POST /recall</span>、<span class="inline">/capture</span>、<span class="inline">/search/memories</span>、<span class="inline">/search/conversations</span>、<span class="inline">/session/end</span> 和 <span class="inline">/seed</span>；委托前检查方法、路径、content-type、JSON schema、CORS 和可选 bearer auth。</p><div class="mono">reject early before TdaiCore</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>CORS, preflight, health</h4><p>Gateway 先给响应套 CORS 头：origin 不在 allow-list 就省略这些头，由浏览器拦截跨源调用，而不是服务端直接拒绝。<span class="inline">OPTIONS</span> 预检不鉴权直接回 <span class="inline">204</span>；<span class="inline">GET /health</span> 同样绕过鉴权，只返回 <span class="inline">ok</span> 或 <span class="inline">degraded</span>，Gateway 没有单独的 status route。</p><div class="mono">CORS headers -&gt; OPTIONS 204 -&gt; /health</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>auth, then validate memory request</h4><p>受保护的 memory surface 是 <span class="inline">POST /recall</span>、<span class="inline">/capture</span>、<span class="inline">/search/memories</span>、<span class="inline">/search/conversations</span>、<span class="inline">/session/end</span> 和 <span class="inline">/seed</span>；在 CORS 之后先过 bearer auth gate，再按方法、路径解析 JSON body 并校验每条路由的必填字段，更深的 <span class="inline">validateAndNormalizeRaw</span> 归一化只用于 <span class="inline">/seed</span>。</p><div class="mono">reject early before TdaiCore</div></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>delegate safely</h4><p>通过 standalone host adapter 构造宿主上下文，让 HTTP 层不直接知道 OpenClaw hook 细节，也不把外部请求对象泄漏到核心。</p><div class="mono">HTTP request -&gt; HostAdapter -&gt; TdaiCore</div></div></div>
 </div>
 
@@ -3968,18 +3968,28 @@ on_request(req):
     route = match_gateway_route(req.method, req.path)
     if route is None:
         return not_found()
-    if route.name == "health":
-        return health_response(ok_or_degraded())
-    if route.requires_auth:
-        require_bearer_token(req.headers, config.auth_token_placeholder)
+
+    # CORS headers first: omit them when origin is not allow-listed,
+    # so the browser blocks cross-origin use (no server-side rejection).
     origin = req.headers.get("origin")
-    enforce_allowed_origin(origin, config.allowed_origins)
-    body = read_json_body(req)
-    validate_memory_payload(route.name, body)
+    cors_headers = build_cors_headers(origin, config.allowed_origins)
+
+    if req.method == "OPTIONS":
+        return preflight_204(cors_headers)                  # preflight, no auth
+    if route.name == "health":
+        return health_response(ok_or_degraded(), cors_headers)  # GET /health bypasses auth
+
+    if route.requires_auth:                                 # auth gate after CORS + health
+        require_bearer_token(req.headers, config.auth_token_placeholder)
+
+    body = read_json_body(req)                              # parse JSON
+    validate_required_fields(route.name, body)              # per-route required fields
+    if route.name == "seed":
+        body = validateAndNormalizeRaw(body)                # deeper checks only for /seed
 
     context = adapter.build_context(req.headers, body)
     result = tdai_core.handle(route.operation, context)
-    return json_response(redact_secrets(result))</pre>
+    return json_response(redact_secrets(result), cors_headers)</pre>
 
 <h2>运维检查清单</h2>
 <div class="timeline">
