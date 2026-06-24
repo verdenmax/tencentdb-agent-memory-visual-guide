@@ -547,10 +547,10 @@ L1 是把 L0 原始消息整理成“原子记忆”的抽取层。<span class="
   <thead><tr><th>字段</th><th>含义</th><th>质量作用</th></tr></thead>
   <tbody>
     <tr><td><span class="inline">type</span></td><td>支持的记忆类型：<span class="inline">persona</span>、<span class="inline">episodic</span>、<span class="inline">instruction</span></td><td>偏好归入 persona；决定、计划和事件归入 episodic；长期行为规则归入 instruction</td></tr>
-    <tr><td><span class="inline">content</span></td><td>抽取后的最小可复用结论</td><td>避免把整段对话搬进长期记忆，只保存稳定含义</td></tr>
+    <tr><td><span class="inline">content</span></td><td>归一化后的最小可复用记忆陈述，不是原文逐字复制</td><td>避免把整段对话搬进长期记忆，只保存稳定含义</td></tr>
     <tr><td><span class="inline">priority</span></td><td>重要度或保留价值</td><td>帮助排序、筛选和后续压缩</td></tr>
     <tr><td><span class="inline">source_message_ids</span></td><td>贡献该记忆的 L0 消息 ID 列表</td><td>保留从 L1 回到 L0 的审计链路</td></tr>
-    <tr><td><span class="inline">metadata</span></td><td>场景、置信度、标签、时间等辅助信息</td><td>给 writer、去重和检索更多上下文，但不替代正文证据</td></tr>
+    <tr><td><span class="inline">metadata</span></td><td>主要是 episodic 的活动时间字段（<span class="inline">activity_start_time</span> / <span class="inline">activity_end_time</span>）；其他类型通常为 <span class="inline">{}</span>，如需辅助字段应遵循 schema</td><td>补充可用的时间范围等上下文；<span class="inline">scene</span> 属于上层分段，不是每条记忆的 metadata 字段</td></tr>
   </tbody>
 </table>
 
@@ -621,10 +621,10 @@ does not promote every chat line into permanent memory. It first uses <span clas
   <thead><tr><th>Field</th><th>Meaning</th><th>Quality role</th></tr></thead>
   <tbody>
     <tr><td><span class="inline">type</span></td><td>Supported memory type: <span class="inline">persona</span>, <span class="inline">episodic</span>, or <span class="inline">instruction</span></td><td>Preferences fold into persona; decisions, plans, and events into episodic; durable behavior rules into instruction</td></tr>
-    <tr><td><span class="inline">content</span></td><td>The smallest reusable conclusion extracted from the conversation</td><td>Avoids copying whole dialogue into long-term memory</td></tr>
+    <tr><td><span class="inline">content</span></td><td>The smallest normalized reusable memory statement, not a verbatim source copy</td><td>Avoids copying whole dialogue into long-term memory</td></tr>
     <tr><td><span class="inline">priority</span></td><td>Importance or retention value</td><td>Helps sorting, filtering, and later compression</td></tr>
     <tr><td><span class="inline">source_message_ids</span></td><td>List of L0 message IDs that contributed to the memory</td><td>Preserves the audit trail from L1 back to L0</td></tr>
-    <tr><td><span class="inline">metadata</span></td><td>Scene, confidence, tags, time, and other auxiliary data</td><td>Gives writer, dedup, and retrieval extra context without replacing evidence</td></tr>
+    <tr><td><span class="inline">metadata</span></td><td>Mainly episodic timing fields (<span class="inline">activity_start_time</span> / <span class="inline">activity_end_time</span>); other types usually use <span class="inline">{}</span>, and additional auxiliary fields should follow the schema</td><td>Adds time-range context when available; <span class="inline">scene</span> belongs to the segment level, not each memory's metadata</td></tr>
   </tbody>
 </table>
 

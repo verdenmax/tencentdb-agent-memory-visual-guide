@@ -1916,10 +1916,10 @@ does not promote every chat line into permanent memory. It first uses <span clas
   <thead><tr><th>Field</th><th>Meaning</th><th>Quality role</th></tr></thead>
   <tbody>
     <tr><td><span class="inline">type</span></td><td>Supported memory type: <span class="inline">persona</span>, <span class="inline">episodic</span>, or <span class="inline">instruction</span></td><td>Preferences fold into persona; decisions, plans, and events into episodic; durable behavior rules into instruction</td></tr>
-    <tr><td><span class="inline">content</span></td><td>The smallest reusable conclusion extracted from the conversation</td><td>Avoids copying whole dialogue into long-term memory</td></tr>
+    <tr><td><span class="inline">content</span></td><td>The smallest normalized reusable memory statement, not a verbatim source copy</td><td>Avoids copying whole dialogue into long-term memory</td></tr>
     <tr><td><span class="inline">priority</span></td><td>Importance or retention value</td><td>Helps sorting, filtering, and later compression</td></tr>
     <tr><td><span class="inline">source_message_ids</span></td><td>List of L0 message IDs that contributed to the memory</td><td>Preserves the audit trail from L1 back to L0</td></tr>
-    <tr><td><span class="inline">metadata</span></td><td>Scene, confidence, tags, time, and other auxiliary data</td><td>Gives writer, dedup, and retrieval extra context without replacing evidence</td></tr>
+    <tr><td><span class="inline">metadata</span></td><td>Mainly episodic timing fields (<span class="inline">activity_start_time</span> / <span class="inline">activity_end_time</span>); other types usually use <span class="inline">{}</span>, and additional auxiliary fields should follow the schema</td><td>Adds time-range context when available; <span class="inline">scene</span> belongs to the segment level, not each memory's metadata</td></tr>
   </tbody>
 </table>
 
