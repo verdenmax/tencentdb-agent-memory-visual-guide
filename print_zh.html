@@ -3184,13 +3184,20 @@ store.init():
     createCollection(database + "_l0_conversations", dense_vector_1024, sparse_vector, filters)
     createCollection(database + "_profiles", dummy_vector_dimension_1, metadata_only)
 
-recall_hybrid(query):
-    return collection.hybridSearch({
-        ann: { fieldName: "text", data: query.text },
-        match: { field: "sparse_vector", data: bm25(query.text) },
-        rerank: { method: "rrf", k: 60 },
-        filter: buildFilters(query)
-    })</pre>
+recall_hybrid(queryText, sparseVector, topK):
+    ann = [{ fieldName: "text", data: [queryText], limit: topK }]
+    match = [{ fieldName: "sparse_vector", data: [sparseVector], limit: topK }]
+    params = {
+        ann,
+        match,
+        outputFields: [...],
+        rerank: { method: "rrf", k: 60 }
+    }
+    return collection.hybridSearch(params)</pre>
+
+<p>
+这里的伪代码对应简化的 <span class="inline">searchL1HybridAsync</span> 路径：L1/L0 集合仍会创建 filter indexes，其他查询路径也可以使用 filters；但这个 hybrid recall sketch 不传 <span class="inline">filter</span>。
+</p>
 
 <h2>降级、迁移与导出</h2>
 <p>
@@ -3213,7 +3220,7 @@ recall_hybrid(query):
     <li><span class="inline">src/core/store/embedding.ts</span>：embedding service contract 与 <span class="inline">NoopEmbeddingService</span> 行为。</li>
     <li><span class="inline">src/core/store/factory.ts</span>：backend selection、TCVDB store bundle 创建，以及 <span class="inline">NoopEmbeddingService</span> return。</li>
     <li><span class="inline">scripts/migrate-sqlite-to-tcvdb/sqlite-to-tcvdb.ts</span>：从 SQLite 迁移到 TCVDB 的路径。</li>
-    <li><span class="inline">scripts/export-tencent-vdb/export-tencent-vdb.ts</span>：从 Tencent VectorDB 导出的路径。</li>
+    <li><span class="inline">scripts/export-tencent-vdb/export-tencent-vdb.ts</span>：从 Tencent Cloud VectorDB 导出的路径。</li>
   </ul>
 </div>
 
