@@ -3,6 +3,7 @@ import part1
 import part2
 import part3
 import part4
+import part5
 
 CONTENT = {
     "01-why-agent-memory.html": part1.LESSON_01,
@@ -21,4 +22,5 @@ CONTENT = {
     "14-checkpoints-races.html": part4.LESSON_14,
     "15-l1-extraction.html": part4.LESSON_15,
     "16-l1-dedup-write.html": part4.LESSON_16,
+    "17-why-l2-scene-blocks.html": part5.LESSON_17,
 }

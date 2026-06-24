@@ -78,6 +78,8 @@ PAGES = [
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
     ("16-l1-dedup-write.html", "L1 去重、冲突检测与写入", "L1 dedup, conflict detection, and write path",
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
+    ("17-why-l2-scene-blocks.html", "为什么需要 L2 Scene Blocks", "Why L2 scene blocks exist",
+     "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
 ]
 
 def bi(zh, en):
@@ -543,6 +545,8 @@ SUBTITLES = {
                               "quality gate, background window, scene segments, LLM JSON, source_message_ids"),
     "16-l1-dedup-write.html": ("batchDedup、向量候选、JSONL 写入、store upsert、召回降级",
                                "batchDedup, vector candidates, JSONL write, store upsert, recall fallback"),
+    "17-why-l2-scene-blocks.html": ("把零散 L1 原子组织成可导航、可追溯、可增长的情境块",
+                                    "organize scattered L1 atoms into navigable, traceable, growing scene blocks"),
 }
 
 def index_page(lesson_prefix="lessons/"):

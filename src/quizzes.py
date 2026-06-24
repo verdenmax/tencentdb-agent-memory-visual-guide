@@ -324,6 +324,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果向量召回与 FTS 召回都不可用，batchDedup 会怎样处理这批新记忆？", "en": "If neither vector recall nor FTS recall is available, how does batchDedup handle the new batch?"}],
     },
+    "17-why-l2-scene-blocks.html": {
+        "mcq": [{
+            "q": {"zh": "L2 Scene Block 主要解决什么问题？", "en": "What problem do L2 scene blocks mainly solve?"},
+            "opts": [
+                {"zh": "把零散 L1 原子组织成可阅读、可导航、可追溯的情境", "en": "They organize scattered L1 atoms into readable, navigable, traceable contexts"},
+                {"zh": "删除所有 L0 原文", "en": "They delete all raw L0 text"},
+                {"zh": "替代 README", "en": "They replace the README"},
+                {"zh": "强制每轮都调用远程数据库", "en": "They force every turn to call a remote database"},
+            ],
+            "answer": 0,
+            "why": {"zh": "L2 聚合相关 L1，并保留证据线索，供 L3 与 recall 继续使用。", "en": "L2 clusters related L1 atoms and keeps evidence links for L3 and recall."},
+        }],
+        "open": [{"zh": "什么信息适合停留在 L1，什么信息应该进入 L2 场景？", "en": "What information should stay in L1, and what should become an L2 scene?"}],
+    },
 }
 
 
