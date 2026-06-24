@@ -37,8 +37,6 @@ jobs:
       - name: Check guide invariants
         run: |
           python3 - <<'PY'
-          import importlib.util
-          import os
           import re
           import sys
           from pathlib import Path
@@ -103,15 +101,32 @@ jobs:
               "migration": "33-seed-cli-migration-export-read.html",
               "glossary": "34-debug-tests-contribution-glossary.html",
           }
+          glossary_row_pattern = re.compile(
+              r'<tr><td class="mono">(?P<term>.*?)</td>.*?href="(?P<href>.*?)"',
+              re.S,
+          )
+          glossary_rows = glossary_row_pattern.findall(glossary_html)
+          glossary_term_counts = {}
+          glossary_term_hrefs = {}
+          for term, href in glossary_rows:
+              glossary_term_counts[term] = glossary_term_counts.get(term, 0) + 1
+              glossary_term_hrefs.setdefault(term, []).append(href)
+
           for term, lesson_target in required_glossary_links.items():
-              if f'<td class="mono">{term}</td>' not in glossary_html:
-                  failures.append(f"lesson 34 glossary missing term label: {term}")
-              if f'href="{lesson_target}"' not in glossary_html:
-                  failures.append(f"lesson 34 glossary missing link for {term}: {lesson_target}")
+              term_count = glossary_term_counts.get(term, 0)
+              if term_count != 2:
+                  failures.append(
+                      f"lesson 34 glossary term {term} appears {term_count} times, expected 2 (zh + en rows)"
+                  )
+              for href in glossary_term_hrefs.get(term, []):
+                  if href != lesson_target:
+                      failures.append(
+                          f"lesson 34 glossary term {term} links to {href}, expected {lesson_target}"
+                      )
               if not (root / "lessons" / lesson_target).is_file():
                   failures.append(f"lesson 34 glossary target does not exist for {term}: {lesson_target}")
 
-          glossary_row_count = len(re.findall(r'<tr><td class="mono">', glossary_html))
+          glossary_row_count = len(glossary_rows)
           if glossary_row_count != len(required_glossary_links) * 2:
               failures.append(
                   f"lesson 34 glossary has {glossary_row_count} bilingual term rows, "
