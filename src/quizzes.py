@@ -553,15 +553,15 @@ QUIZZES = {
         "mcq": [{
             "q": {"zh": "运行 seed 或 SQLite 到 Tencent VectorDB 迁移前，最安全的默认顺序是什么？", "en": "Before running seed or SQLite to Tencent VectorDB migration, what is the safest default order?"},
             "opts": [
-                {"zh": "先读文档，备份，dry run，检查 manifest / export，再 apply 并只读验证", "en": "Read docs, back up, dry run, inspect manifest / export, then apply and verify with read-only checks"},
-                {"zh": "直接 apply，因为脚本会自动知道 operator 的意图", "en": "Apply directly because scripts automatically know the operator's intent"},
+                {"zh": "先读文档，备份，dry run，检查 manifest / export，再用明确提交命令写入并只读验证", "en": "Read docs, back up, dry run, inspect manifest / export, then write with an explicit commit command and verify with read-only checks"},
+                {"zh": "直接写入，因为脚本会自动知道 operator 的意图", "en": "Write directly because scripts automatically know the operator's intent"},
                 {"zh": "把真实 endpoint 和 token 写进教程，方便复制", "en": "Write real endpoints and tokens into the guide for easy copying"},
                 {"zh": "在 live recall 超时时顺便迁移，节省一次命令", "en": "Migrate inside a live recall timeout to save one command"},
             ],
             "answer": 0,
             "why": {"zh": "这些脚本是 live loop 外的运维动作。dry run、备份、manifest、占位配置和只读验证能把风险从“不可见副作用”变成可审计、可回滚的变更。", "en": "These scripts are operational actions outside the live loop. Dry runs, backups, manifests, placeholder config, and read-only verification turn hidden side effects into auditable, reversible changes."},
         }],
-        "open": [{"zh": "设计一次从本地 SQLite 到 Tencent VectorDB 的迁移演练：你会备份哪些文件，manifest 记录哪些字段，apply 后怎样验证 recall/search 没有退化？", "en": "Design a rehearsal for migrating local SQLite to Tencent VectorDB: which files would you back up, which manifest fields would you record, and how would you verify recall/search after apply?"}],
+        "open": [{"zh": "设计一次从本地 SQLite 到 Tencent VectorDB 的迁移演练：你会备份哪些文件，manifest 记录哪些字段，提交写入后怎样验证 recall/search 没有退化？", "en": "Design a rehearsal for migrating local SQLite to Tencent VectorDB: which files would you back up, which manifest fields would you record, and how would you verify recall/search after commit?"}],
     },
 }
 
