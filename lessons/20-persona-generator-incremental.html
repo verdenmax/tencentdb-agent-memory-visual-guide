@@ -355,7 +355,7 @@ PersonaGenerator 把 L2 scene blocks 提炼成 L3 <span class="inline">persona.m
 
 <h2>第一次生成 vs 增量更新</h2>
 <div class="cols">
-  <div class="col"><h4>First generation</h4><p>当没有已有 persona，prompt 输入主要是可用场景、场景索引和生成要求。模型需要从 L2 中总结长期偏好、工作方式、项目背景和稳定约束，写出一个可读的 <span class="inline">persona.md</span>。</p></div>
+  <div class="col"><h4>First generation</h4><p>当没有已有 persona，prompt 输入主要是工程已预加载的可用场景内容、场景总数/变化场景数和生成规则；scene index 由工程代码读取并汇总成这些输入。模型需要从 L2 场景内容中总结长期偏好、工作方式、项目背景和稳定约束，写出一个可读的 <span class="inline">persona.md</span>。</p></div>
   <div class="col"><h4>Incremental update</h4><p>当已有 persona，工程代码先用 <span class="inline">stripSceneNavigation</span> 去掉旧导航，再把现有画像与变化场景一起交给 prompt。模型应保留仍成立的稳定信息，只吸收新证据支持的变化。</p></div>
 </div>
 
@@ -365,53 +365,52 @@ PersonaGenerator 把 L2 scene blocks 提炼成 L3 <span class="inline">persona.m
 过滤出“自上次 persona 生成后变化过”的场景。这样 L3 不需要每轮重扫所有场景，也不会因为一次局部活动把长期画像全部重写。
 </p>
 
-<h2>generateLocalPersona 的执行流</h2>
+<h2>Persona generation pipeline boundaries</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>读取 checkpoint</h4><p>读取 <span class="inline">last_persona_time</span> 与处理计数，决定是否有足够新变化需要生成。</p><div class="mono">read checkpoint</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>加载旧 persona</h4><p>读取 <span class="inline">persona.md</span>，先去掉旧 Scene Navigation，避免导航重复或过期。</p><div class="mono">load persona -&gt; strip navigation</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>选择变化场景</h4><p>用 <span class="inline">scene.updated &gt; last_persona_time</span> 过滤 scene index，增量模式只优先分析这些场景。</p><div class="mono">select changed scenes</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>备份并让 LLM 写入</h4><p>写入前备份 <span class="inline">persona.md</span>；tool-enabled LLM 只在数据目录工作区写目标文件。</p><div class="mono">backup -&gt; LLM write</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>清洗、追加导航、推进游标</h4><p>重新读取 persona，执行 <span class="inline">escapeXmlTags</span> 与 <span class="inline">stripSceneNavigation</span>，追加新导航；只有写入成功后才调用 <span class="inline">markPersonaGenerated</span>。</p><div class="mono">sanitize -&gt; append navigation -&gt; checkpoint</div></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>触发决策在外层</h4><p><span class="inline">PersonaTrigger.shouldGenerate()</span> 先读取 checkpoint、persona 状态和场景文件，决定本轮是否进入 L3；这个判断不属于 <span class="inline">generateLocalPersona()</span>。</p><div class="mono">trigger.shouldGenerate()</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>可选拉取远端 profile</h4><p>如果启用了支持 profile 的 store，pipeline 在生成前把远端 L2/L3 拉到本地，建立后续同步的 baseline。</p><div class="mono">pullProfilesToLocal()</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>本地生成只负责写 persona</h4><p><span class="inline">generateLocalPersona()</span> 读取 checkpoint、加载旧 persona、按 <span class="inline">scene.updated &gt; last_persona_time</span> 选择场景、备份、运行 LLM、清洗并追加 Scene Navigation；它返回是否成功更新，但不推进 checkpoint。</p><div class="mono">generator.generateLocalPersona(reason)</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>可选同步 profile/storage</h4><p>本地写入成功后，pipeline 可把变化后的 L2 scenes 和 L3 persona 同步回 profile store；这是存储同步，不是运行时注入。</p><div class="mono">syncLocalProfilesToStore()</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>成功后才推进 checkpoint</h4><p>外层 L3 runner 在生成与可选同步成功后调用 <span class="inline">markPersonaGenerated</span>；兼容包装 <span class="inline">generate()</span> 也会在 <span class="inline">generateLocalPersona()</span> 成功后推进。</p><div class="mono">markPersonaGenerated()</div></div></div>
 </div>
 
 <h2>工程代码与 LLM 的边界</h2>
 <div class="cols">
-  <div class="col"><h4>Engineering code</h4><p>负责 checkpoint、scene index 过滤、备份、runner 工作区、后处理、Scene Navigation 追加和 <span class="inline">markPersonaGenerated</span>。这些状态更新必须在成功写入后发生。</p></div>
-  <div class="col"><h4>LLM writer</h4><p>负责根据 first 或 incremental prompt 改写 <span class="inline">persona.md</span> 正文。它可以整理表达，但不拥有 checkpoint、索引或“哪些场景算变化”的判断。</p></div>
+  <div class="col"><h4>Engineering pipeline</h4><p>负责触发判断、profile 拉取/同步、checkpoint 推进，以及 <span class="inline">generateLocalPersona()</span> 内部的 scene index 过滤、备份、runner 工作区、后处理和 Scene Navigation 追加。checkpoint 只能在成功写入后由外层推进。</p></div>
+  <div class="col"><h4>LLM writer</h4><p>负责根据 first 或 incremental prompt 改写 <span class="inline">persona.md</span> 正文。它可以整理表达，但不拥有触发决策、checkpoint、索引或“哪些场景算变化”的判断。</p></div>
 </div>
 
 <h2>核心伪代码</h2>
-<pre class="code">cp = checkpoint.read()
-existing = stripSceneNavigation(read(persona.md))
-changed = sceneIndex.filter(scene.updated &gt; cp.last_persona_time)
-mode = existing ? "incremental" : "first"
-backup(persona.md)
-llm.run(buildPersonaPrompt(mode, changed, existing), workspaceDir=dataDir)
-persona = escapeXmlTags(stripSceneNavigation(read(persona.md)))
-write(persona.md, persona + generateSceneNavigation(sceneIndex))
-checkpoint.markPersonaGenerated(cp.total_processed)</pre>
+<pre class="code">decision = PersonaTrigger(dataDir).shouldGenerate()
+if decision.should:
+    baseline = pullProfilesToLocal(dataDir)  # optional profile store
+    updated = generator.generateLocalPersona(decision.reason)
+    if updated:
+        syncLocalProfilesToStore(dataDir, baseline)  # optional
+        checkpoint.markPersonaGenerated(total_processed)</pre>
 
 <p>
-注意最后一行的顺序：只有 <span class="inline">persona.md</span> 写入、清洗和导航追加都成功后，
-checkpoint 才能前进。否则下一轮仍会看到同一批变化场景，避免“画像没有落盘但游标已经跳过”的数据丢失。
+注意边界：<span class="inline">generateLocalPersona()</span> 会读 checkpoint 来选择变化场景，但不会推进它。只有 <span class="inline">persona.md</span> 写入、清洗和导航追加都成功后，外层 runner 或兼容包装 <span class="inline">generate()</span> 才能前进 checkpoint。否则下一轮仍会看到同一批变化场景，避免“画像没有落盘但游标已经跳过”的数据丢失。
 </p>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>：<span class="inline">PersonaGenerator.generateLocalPersona</span> 与 <span class="inline">generate</span> 编排读取场景、备份、LLM 写入、后处理和 checkpoint 推进。</li>
-    <li><span class="inline">src/core/prompts/persona-generation.ts</span>：first 与 incremental prompt 输入不同；增量 prompt 带已有 persona 和变化场景。</li>
-    <li><span class="inline">src/core/persona/persona-trigger.ts</span>：封装是否触发 persona 更新的决策辅助逻辑。</li>
-    <li><span class="inline">src/core/profile/profile-sync.ts</span>：说明生成后的 profile/persona 同步路径，帮助理解 L3 如何被运行时消费。</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>：保存 <span class="inline">last_persona_time</span>，并通过 <span class="inline">markPersonaGenerated</span> 在成功写入后推进 persona checkpoint。</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>：<span class="inline">generateLocalPersona</span> 读取 checkpoint、选择场景、备份、LLM 写入和后处理但不推进 checkpoint；兼容包装 <span class="inline">generate</span> 会在成功后推进。</li>
+    <li><span class="inline">src/core/prompts/persona-generation.ts</span>：first 与 incremental prompt 输入不同；prompt 接收场景内容、统计计数和规则，增量模式还带已有 persona。</li>
+    <li><span class="inline">src/core/persona/persona-trigger.ts</span>：<span class="inline">PersonaTrigger.shouldGenerate()</span> 在 pipeline 中先于生成执行，封装是否触发 persona 更新的决策。</li>
+    <li><span class="inline">src/core/profile/profile-sync.ts</span>：说明 L2/L3 profile 的拉取、校验、本地落盘和同步回存储路径。</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：运行时读取 persona 与 Scene Navigation，并把它们注入 agent context 供消费。</li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>：L3 runner 串起 trigger、<span class="inline">generateLocalPersona</span>、可选 profile sync，以及成功后的 <span class="inline">markPersonaGenerated</span>。</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：保存 <span class="inline">last_persona_time</span>，并通过 <span class="inline">markPersonaGenerated</span> 推进 persona checkpoint。</li>
     <li><span class="inline">src/utils/sanitize.ts</span>：<span class="inline">escapeXmlTags</span> 清洗 persona 文本，避免注入型标签进入后续上下文。</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  PersonaGenerator 把 L2 场景提炼为稳定 L3 persona；第一次生成建立画像，增量更新读取变化场景并保留已有稳定信息。
-  写入前备份，写入后清洗并重新追加 Scene Navigation；checkpoint 只在成功落盘后推进。persona 是注入上下文，不是不可变事实源。
+  PersonaGenerator 把 L2 场景提炼为稳定 L3 persona；第一次生成根据可用场景内容和统计计数建立画像，增量更新读取变化场景并保留已有稳定信息。
+  触发决策发生在生成前；<span class="inline">generateLocalPersona()</span> 只负责本地写入与后处理，profile 同步和 checkpoint 推进由外层成功路径完成。persona 是注入上下文，不是不可变事实源。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
@@ -462,7 +461,7 @@ while later incremental updates prioritize scenes changed since the last persona
 
 <h2>First generation vs incremental update</h2>
 <div class="cols">
-  <div class="col"><h4>First generation</h4><p>When there is no existing persona, the prompt primarily receives available scenes, the scene index, and generation rules. The model summarizes long-term preferences, work style, project background, and stable constraints into a readable <span class="inline">persona.md</span>.</p></div>
+  <div class="col"><h4>First generation</h4><p>When there is no existing persona, the prompt primarily receives preloaded available scene contents, scene counts/changed-scene counts, and generation rules; engineering code reads the scene index and summarizes it into those inputs. The model summarizes long-term preferences, work style, project background, and stable constraints from L2 scene content into a readable <span class="inline">persona.md</span>.</p></div>
   <div class="col"><h4>Incremental update</h4><p>When persona already exists, code first removes old navigation with <span class="inline">stripSceneNavigation</span>, then sends the existing profile plus changed scenes to the prompt. The model should keep still-valid stable information and absorb only changes supported by new evidence.</p></div>
 </div>
 
@@ -473,54 +472,52 @@ The key cursor for incremental mode is <span class="inline">last_persona_time</s
 and a local activity does not cause the whole long-term profile to be rewritten.
 </p>
 
-<h2>generateLocalPersona flow</h2>
+<h2>Persona generation pipeline boundaries</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>Read checkpoint</h4><p>Read <span class="inline">last_persona_time</span> and processed counts to decide whether enough new change exists.</p><div class="mono">read checkpoint</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Load old persona</h4><p>Read <span class="inline">persona.md</span> and remove old Scene Navigation first, so repeated generation does not duplicate stale navigation.</p><div class="mono">load persona -&gt; strip navigation</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Select changed scenes</h4><p>Filter the scene index with <span class="inline">scene.updated &gt; last_persona_time</span>; incremental mode prioritizes these scenes.</p><div class="mono">select changed scenes</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>Back up and let the LLM write</h4><p>Back up <span class="inline">persona.md</span> before writing; the tool-enabled LLM writes the target file in the data directory workspace.</p><div class="mono">backup -&gt; LLM write</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>Sanitize, append navigation, advance cursor</h4><p>Read persona again, apply <span class="inline">escapeXmlTags</span> and <span class="inline">stripSceneNavigation</span>, append fresh navigation, then call <span class="inline">markPersonaGenerated</span> only after success.</p><div class="mono">sanitize -&gt; append navigation -&gt; checkpoint</div></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Trigger decision happens outside</h4><p><span class="inline">PersonaTrigger.shouldGenerate()</span> reads checkpoint, persona state, and scene files before L3 generation begins; that decision is not part of <span class="inline">generateLocalPersona()</span>.</p><div class="mono">trigger.shouldGenerate()</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Optionally pull remote profiles</h4><p>If a profile-capable store is enabled, the pipeline pulls remote L2/L3 profiles to local storage before generation and records a baseline for later sync.</p><div class="mono">pullProfilesToLocal()</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Local generation writes persona only</h4><p><span class="inline">generateLocalPersona()</span> reads checkpoint, loads old persona, selects scenes with <span class="inline">scene.updated &gt; last_persona_time</span>, backs up, runs the LLM, sanitizes, and appends Scene Navigation. It returns whether an update succeeded, but it does not advance the checkpoint.</p><div class="mono">generator.generateLocalPersona(reason)</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Optionally sync profile storage</h4><p>After a successful local write, the pipeline may sync changed L2 scenes and L3 persona back to the profile store. This is storage synchronization, not runtime injection.</p><div class="mono">syncLocalProfilesToStore()</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Advance checkpoint only after success</h4><p>The outer L3 runner calls <span class="inline">markPersonaGenerated</span> after generation and optional sync succeed; the compatibility wrapper <span class="inline">generate()</span> also advances after <span class="inline">generateLocalPersona()</span> succeeds.</p><div class="mono">markPersonaGenerated()</div></div></div>
 </div>
 
 <h2>Engineering code vs LLM boundary</h2>
 <div class="cols">
-  <div class="col"><h4>Engineering code</h4><p>Owns checkpoints, scene-index filtering, backups, runner workspace, post-processing, Scene Navigation appending, and <span class="inline">markPersonaGenerated</span>. State must advance only after a successful write.</p></div>
-  <div class="col"><h4>LLM writer</h4><p>Uses the first or incremental prompt to rewrite the body of <span class="inline">persona.md</span>. It may organize prose, but it does not own checkpoints, indexes, or the decision about which scenes count as changed.</p></div>
+  <div class="col"><h4>Engineering pipeline</h4><p>Owns trigger decisions, profile pull/sync, checkpoint advancement, and the <span class="inline">generateLocalPersona()</span> internals: scene-index filtering, backups, runner workspace, post-processing, and Scene Navigation appending. The checkpoint advances only from the outer success path.</p></div>
+  <div class="col"><h4>LLM writer</h4><p>Uses the first or incremental prompt to rewrite the body of <span class="inline">persona.md</span>. It may organize prose, but it does not own trigger decisions, checkpoints, indexes, or the decision about which scenes count as changed.</p></div>
 </div>
 
 <h2>Core pseudocode</h2>
-<pre class="code">cp = checkpoint.read()
-existing = stripSceneNavigation(read(persona.md))
-changed = sceneIndex.filter(scene.updated &gt; cp.last_persona_time)
-mode = existing ? "incremental" : "first"
-backup(persona.md)
-llm.run(buildPersonaPrompt(mode, changed, existing), workspaceDir=dataDir)
-persona = escapeXmlTags(stripSceneNavigation(read(persona.md)))
-write(persona.md, persona + generateSceneNavigation(sceneIndex))
-checkpoint.markPersonaGenerated(cp.total_processed)</pre>
+<pre class="code">decision = PersonaTrigger(dataDir).shouldGenerate()
+if decision.should:
+    baseline = pullProfilesToLocal(dataDir)  # optional profile store
+    updated = generator.generateLocalPersona(decision.reason)
+    if updated:
+        syncLocalProfilesToStore(dataDir, baseline)  # optional
+        checkpoint.markPersonaGenerated(total_processed)</pre>
 
 <p>
-The final line depends on the preceding work: the checkpoint should advance only after <span class="inline">persona.md</span>
-has been written, sanitized, and given fresh navigation. If writing fails, the next run still sees the same changed scenes,
-avoiding data loss where the profile was not persisted but the cursor skipped ahead.
+The boundary matters: <span class="inline">generateLocalPersona()</span> reads checkpoint state to select changed scenes, but it does not advance that state. Only after <span class="inline">persona.md</span> has been written, sanitized, and given fresh navigation may the outer runner or compatibility wrapper <span class="inline">generate()</span> advance the checkpoint. If writing fails, the next run still sees the same changed scenes, avoiding data loss where the profile was not persisted but the cursor skipped ahead.
 </p>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/persona/persona-generator.ts</span>: <span class="inline">PersonaGenerator.generateLocalPersona</span> and <span class="inline">generate</span> orchestrate scene reading, backup, LLM writing, post-processing, and checkpoint advancement.</li>
-    <li><span class="inline">src/core/prompts/persona-generation.ts</span>: first and incremental prompt inputs differ; the incremental prompt includes existing persona plus changed scenes.</li>
-    <li><span class="inline">src/core/persona/persona-trigger.ts</span>: contains the helper that decides whether a persona update should run.</li>
-    <li><span class="inline">src/core/profile/profile-sync.ts</span>: shows the profile sync path after generation, clarifying how L3 is consumed by runtime context.</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: stores <span class="inline">last_persona_time</span> and uses <span class="inline">markPersonaGenerated</span> to advance the persona checkpoint after a successful write.</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>: <span class="inline">generateLocalPersona</span> reads checkpoint state, selects scenes, backs up, runs the LLM, and post-processes without advancing the checkpoint; compatibility wrapper <span class="inline">generate</span> advances after success.</li>
+    <li><span class="inline">src/core/prompts/persona-generation.ts</span>: first and incremental prompt inputs differ; prompts receive scene contents, statistical counts, and rules, while incremental mode also includes existing persona.</li>
+    <li><span class="inline">src/core/persona/persona-trigger.ts</span>: <span class="inline">PersonaTrigger.shouldGenerate()</span> runs before generation in the pipeline and decides whether a persona update should run.</li>
+    <li><span class="inline">src/core/profile/profile-sync.ts</span>: shows L2/L3 profile pull, validation, local storage, and sync-back paths.</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: runtime reads persona and Scene Navigation, then injects them into agent context for consumption.</li>
+    <li><span class="inline">src/utils/pipeline-factory.ts</span>: the L3 runner connects trigger, <span class="inline">generateLocalPersona</span>, optional profile sync, and success-only <span class="inline">markPersonaGenerated</span>.</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: stores <span class="inline">last_persona_time</span> and exposes <span class="inline">markPersonaGenerated</span> for advancing persona checkpoint state.</li>
     <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">escapeXmlTags</span> sanitizes persona text so injection-like tags do not enter later context.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  PersonaGenerator distills L2 scenes into stable L3 persona; first generation builds the profile, while incremental updates read changed scenes and preserve existing stable information.
-  The file is backed up before writing, sanitized and given fresh Scene Navigation after writing, and the checkpoint advances only after persistence succeeds. Persona is injected context, not an immutable source of truth.
+  PersonaGenerator distills L2 scenes into stable L3 persona; first generation builds from available scene contents and counts, while incremental updates read changed scenes and preserve existing stable information.
+  Trigger decisions happen before generation; <span class="inline">generateLocalPersona()</span> owns local writing and post-processing only, while profile sync and checkpoint advancement happen in the outer success path. Persona is injected context, not an immutable source of truth.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
