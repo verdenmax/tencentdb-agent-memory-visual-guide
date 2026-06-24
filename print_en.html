@@ -2663,8 +2663,9 @@ destroy():
 <h1><span class="lang-zh">Prompt 构建前的 Auto Recall</span><span class="lang-en">Auto-recall before prompt build</span></h1>
 
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Auto Recall runs before the final prompt is sent to the model. The plugin first keeps the user's original input, then sends a sanitized query
-into the core recall path. If recall returns in time, it injects user-side and system-side context. If recall times out or fails, the main chat
+Auto Recall runs before the final prompt is sent to the model. The plugin first keeps the user's original input and passes the raw
+<span class="inline">event.prompt</span> into the core entry point; before FTS/embedding lookup, <span class="inline">searchMemories</span>
+sanitizes the query with <span class="inline">sanitizeText(userText)</span>. If recall returns in time, it injects user-side and system-side context. If recall times out or fails, the main chat
 continues so memory enhancement never blocks the user's response.
 </p>
 
@@ -2677,7 +2678,7 @@ continues so memory enhancement never blocks the user's response.
 <h2>The before_prompt_build path</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>User text enters the hook</h4><p>The before-prompt hook in <span class="inline">index.ts</span> receives this turn's user text and stores the original prompt in <span class="inline">pendingOriginalPrompts</span> for later capture.</p><div class="mono">user text -&gt; pendingOriginalPrompts</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Delegate to TdaiCore</h4><p>The plugin calls <span class="inline">TdaiCore.handleBeforeRecall</span>, keeping host wiring in the shell while recall semantics live in the core.</p><div class="mono">index.ts -&gt; TdaiCore.handleBeforeRecall</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Delegate to TdaiCore</h4><p><span class="inline">api.on("before_prompt_build")</span> calls <span class="inline">TdaiCore.handleBeforeRecall</span> with the raw <span class="inline">event.prompt</span>, keeping host wiring in the shell while recall semantics live in the core.</p><div class="mono">index.ts -&gt; TdaiCore.handleBeforeRecall(raw prompt)</div></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>Run the timeout race</h4><p><span class="inline">performAutoRecall</span> races the recall work against <span class="inline">recall.timeoutMs</span>: strategy config controls which layers are searched and how much context can return; timeout means skip injection.</p><div class="mono">recall task -&gt; race(timeoutMs)</div></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>Inject context</h4><p>When recall returns in time, <span class="inline">prependContext</span> is placed before the user message, and <span class="inline">appendSystemContext</span> is appended to system context.</p><div class="mono">prependContext + appendSystemContext -&gt; prompt</div></div></div>
   <div class="step"><div class="num">5</div><div class="sc"><h4>The model responds</h4><p>The model sees the enhanced prompt; if recall timed out or failed, it still receives the original chat path without being held by memory.</p><div class="mono">prompt -&gt; model</div></div></div>
@@ -2693,15 +2694,15 @@ continues so memory enhancement never blocks the user's response.
 <div class="flow">
   <div class="node"><div class="nt">original prompt cache</div><div class="nd"><span class="inline">pendingOriginalPrompts</span> keeps the user text so capture does not save recall-prepended content as evidence.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">sanitized query</div><div class="nd"><span class="inline">sanitize.ts</span> cleans the prompt/query so injected tags or control fragments do not enter search.</div></div>
+  <div class="node"><div class="nt">sanitized query</div><div class="nd"><span class="inline">searchMemories</span> calls <span class="inline">sanitizeText(userText)</span> before FTS/embedding lookup so injected tags or control fragments do not enter search.</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node hl"><div class="nt">recall result</div><div class="nd"><span class="inline">performAutoRecall</span> produces injectable context, hit details, and timing.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">metrics cache</div><div class="nd"><span class="inline">pendingRecallCache</span> temporarily stores this turn's recall metrics for later commit, observation, or debugging correlation.</div></div>
+  <div class="node"><div class="nt">metrics cache</div><div class="nd"><span class="inline">pendingRecallCache</span> is keyed by <span class="inline">sessionKey</span> and stores the recall payload used at <span class="inline">agent_end</span> to report the <span class="inline">agent_turn</span> metric.</div></div>
 </div>
 
 <p>
-The sanitized query is for "finding memory"; the original prompt is for "recording what the user actually said". These two data planes must not be mixed.
+The core entry point receives the raw prompt; sanitization happens inside <span class="inline">searchMemories</span>. The sanitized query is for "finding memory"; the original prompt is for "recording what the user actually said". These two data planes must not be mixed.
 If capture saved recall-prepended text, later L0/L1 processing would treat system-injected context as user evidence and create self-contamination.
 </p>
 
@@ -2712,25 +2713,25 @@ If capture saved recall-prepended text, later L0/L1 processing would treat syste
     if result within timeout:
         prepend_to_user(result.prependContext)
         append_to_system(result.appendSystemContext)
-        pendingRecallCache[turnId] = result.metrics
+        pendingRecallCache[sessionKey] = result.recallPayload
     else:
         continue_without_memory()</pre>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">index.ts</span>: the before prompt hook caches <span class="inline">pendingOriginalPrompts</span>, receives the recall result, and stores metrics in <span class="inline">pendingRecallCache</span>.</li>
+    <li><span class="inline">index.ts</span>: <span class="inline">api.on("before_prompt_build")</span> caches <span class="inline">pendingOriginalPrompts</span>, passes raw <span class="inline">event.prompt</span> into the core entry point, receives the recall result, and stores the payload in <span class="inline">pendingRecallCache</span> by <span class="inline">sessionKey</span>.</li>
     <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">handleBeforeRecall</span> is the core entry point called by the host shell.</li>
     <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">performAutoRecall</span> runs recall and uses a timeout race to protect the main path.</li>
     <li><span class="inline">src/config.ts</span>: <span class="inline">recall.timeoutMs</span> and strategy config define recall budget, strategy, and result size.</li>
-    <li><span class="inline">src/utils/sanitize.ts</span>: handles prompt/query sanitization so injection tags or untrusted control text do not enter search.</li>
+    <li><span class="inline">searchMemories</span>: calls <span class="inline">sanitizeText(userText)</span> before FTS/embedding lookup.</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>: provides <span class="inline">sanitizeText</span> so injection tags or untrusted control text do not enter search.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Recall is an enhancement, not a hard dependency of the main chat. The before-prompt stage stores original input first, then uses a sanitized query
-  to try recall; timely results inject <span class="inline">prependContext</span> and <span class="inline">appendSystemContext</span>, while timeout fails open into a no-memory chat.
+  Recall is an enhancement, not a hard dependency of the main chat. The before-prompt stage stores original input first and passes the raw prompt to the core entry point; the search layer then sanitizes the query before recall. Timely results inject <span class="inline">prependContext</span> and <span class="inline">appendSystemContext</span>, while timeout fails open into a no-memory chat.
 </div>
 
 <div class="selftest">
