@@ -3498,25 +3498,30 @@ but splits responsibility into three local LLM calls: <span class="inline">l1Sum
 <div class="flow">
   <div class="node"><div class="nt">tool pairs</div><div class="nd">Tool name, args, call ID, result, and recent messages.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">L1 summaries</div><div class="nd">Dense summary, score, result_ref, and empty node_id.</div></div>
+  <div class="node"><div class="nt">L1 summaries</div><div class="nd">The local model returns tool_call, summary, tool_call_id, timestamp, score, and empty node_id.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">L1.5 task judgment</div><div class="nd">Decide continue, complete, or start long task, then choose active MMD.</div></div>
+  <div class="node"><div class="nt">host ref backfill</div><div class="nd">The host pipeline writes refs, then backfills <span class="inline">result_ref</span> from its refs map.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">L2 MMD update</div><div class="nd">Generate or patch the Mermaid task canvas.</div></div>
+  <div class="node"><div class="nt">L1.5 task gate</div><div class="nd">Judge continue, complete, or start long task; activate or switch task/MMD.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L2 independent trigger</div><div class="nd">Null-count, timeout, or task-switch rules trigger Mermaid updates.</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node hl"><div class="nt">node backfill</div><div class="nd">Use <span class="inline">node_mapping</span> to backfill JSONL node_id values.</div></div>
 </div>
 
 <p>
-The boundary is the point: L1 only asks “what did these tool results prove?”; L1.5 only asks “which task does the latest user turn belong to?”;
-L2 only asks “where should unassigned summaries land on the Mermaid canvas?” With the calls split, a failure in one layer does not invent output for another layer.
+The boundary is the point: L1 only asks “what did these tool results prove?” and does not own refs paths;
+the host pipeline writes refs and backfills <span class="inline">result_ref</span> from the L1 results;
+L1.5 only gates task/MMD activation or switching; the normal L2 trigger runs independently, and a task switch only becomes an independent flush trigger.
+L2 only asks “where should unassigned summaries land on the Mermaid canvas?”
+With the calls split, a failure in one layer does not invent output for another layer.
 </p>
 
 <h2>L1 / L1.5 / L2 input-output comparison</h2>
 <div class="cols">
-  <div class="col"><h4>L1 input/output</h4><p><b>L1 input</b>: <span class="inline">tool_pairs</span> plus <span class="inline">recent_messages</span>.<br><b>L1 output</b>: a JSON array whose items carry compact summary, score, tool-call identity, and ref path; <span class="inline">node_id</span> is not assigned by L1.</p></div>
-  <div class="col"><h4>L1.5 input/output</h4><p><b>L1.5 input</b>: recent user/assistant messages, current active MMD, and available MMDs.<br><b>L1.5 output</b>: whether this is a long task, whether it continues/completes/starts a task, and which MMD should be active.</p></div>
-  <div class="col"><h4>L2 input/output</h4><p><b>L2 input</b>: offload entries that still lack <span class="inline">node_id</span>, plus the active MMD.<br><b>L2 output</b>: Mermaid MMD text and <span class="inline">node_mapping</span> for later backfill.</p></div>
+  <div class="col"><h4>L1 input/output</h4><p><b>L1 input</b>: <span class="inline">tool_pairs</span> plus <span class="inline">recent_messages</span>.<br><b>L1 output</b>: a JSON array whose items contain only <span class="inline">tool_call</span>, <span class="inline">summary</span>, <span class="inline">tool_call_id</span>, <span class="inline">timestamp</span>, <span class="inline">score</span>, and <span class="inline">node_id = null</span>; <span class="inline">result_ref</span> is not model output.</p></div>
+  <div class="col"><h4>Host + L1.5 output</h4><p><b>Host step</b>: write refs and backfill <span class="inline">result_ref</span> from the refs map.<br><b>L1.5 input</b>: recent user/assistant messages, current active MMD, and available MMDs.<br><b>L1.5 output</b>: whether this is a long task, whether it continues/completes/starts a task, and which task/MMD should be active.</p></div>
+  <div class="col"><h4>L2 input/output</h4><p><b>L2 input</b>: offload entries that still lack <span class="inline">node_id</span>, plus the active MMD.<br><b>L2 output</b>: Mermaid MMD text and <span class="inline">node_mapping</span>; this is the primary safe path for node_id backfill, while wait entries have a fallback.</p></div>
 </div>
 
 <h2>One interface for local and backend clients</h2>
@@ -3535,19 +3540,24 @@ L2 only asks “where should unassigned summaries land on the Mermaid canvas?”
 
 <h2>Core pseudocode</h2>
 <pre class="code">client = LocalLlmClient(config)
+refs_map = write_refs_for_tool_pairs(tool_pairs)
 l1_entries = client.l1Summarize(tool_pairs, recent_messages)
+entries = backfill_result_ref_from_refs_map(l1_entries, refs_map)
 judgment = client.l15Judge(recent_messages, active_mmd, available_mmds)
 if judgment.isLongTask:
+    activate_or_switch_task_mmd(judgment)
+
+if should_run_l2(null_node_count, timeout, task_switched):
     l2_result = client.l2Generate(unassigned_entries, active_mmd)
     write_or_patch_mmd(l2_result)
     backfill_node_ids(l2_result.node_mapping)</pre>
 
 <h2>Independent trigger and backfill path</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>L1 creates unassigned entries first</h4><p>Summarized tool pairs are appended to offload JSONL, but these rows usually do not have Mermaid nodes yet.</p><div class="mono">node_id = null</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>L1.5 chooses the task boundary</h4><p>The latest user turn can continue an old task, complete one, or start a new long task; that decides the active MMD.</p><div class="mono">continue / complete / start</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>L2 triggers independently</h4><p><span class="inline">src/offload/pipelines/l2-mermaid.ts</span> can independently inspect unassigned entries and generate or patch MMD.</p><div class="mono">unassigned_entries -&gt; mmd + mapping</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>Backfill by mapping</h4><p>Only the <span class="inline">node_mapping</span> returned by L2 safely connects JSONL rows to Mermaid nodes.</p><div class="mono">tool_call_id -&gt; node_id</div></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>L1 creates unassigned entries first</h4><p>The L1 parser/model returns summary fields and <span class="inline">node_id = null</span>; the host writes refs, backfills <span class="inline">result_ref</span>, then appends offload JSONL.</p><div class="mono">L1 fields + host result_ref</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>L1.5 gates the task boundary</h4><p>The latest user turn can continue an old task, complete one, or start a new long task; that only activates or switches task/MMD state, not L2 generation.</p><div class="mono">continue / complete / start</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>L2 triggers independently</h4><p><span class="inline">src/offload/pipelines/l2-mermaid.ts</span> independently decides whether to generate or patch MMD from null-node entry count, timeout, or task switch.</p><div class="mono">null count / timeout / task switch</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Backfill by mapping</h4><p><span class="inline">node_mapping</span> is the primary safe path connecting JSONL rows to Mermaid nodes; wait entries can use a fallback so missing wait-state mappings do not block the pipeline.</p><div class="mono">tool_call_id -&gt; node_id</div></div></div>
 </div>
 
 <h2>Source anchors</h2>
@@ -3560,13 +3570,14 @@ if judgment.isLongTask:
     <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>: define the L1 JSON array summarization contract.</li>
     <li><span class="inline">src/offload/local-llm/prompts/l15-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l15-parser.ts</span>: define the L1.5 task-boundary judgment contract.</li>
     <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>: define the L2 Mermaid plus <span class="inline">node_mapping</span> contract.</li>
-    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>: implements the independent L2 trigger and node_id backfill path.</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>: implements the independent L2 trigger, primary <span class="inline">node_mapping</span> backfill, and wait-entry fallback path.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  L1, L1.5, and L2 are three different local model responsibilities: summarize tool evidence, judge task boundaries, and maintain the Mermaid task canvas.
+  L1, L1.5, and L2 are three different local model responsibilities: summarize tool evidence, gate task/MMD activation, and maintain the Mermaid task canvas.
+  <span class="inline">result_ref</span> is backfilled by the host after refs are written; L2 runs on independent null-count, timeout, or task-switch triggers.
   <span class="inline">LocalLlmClient</span> shares one interface with the backend client so local/backend modes can reuse the same upper pipeline.
 </div>
 
