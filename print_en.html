@@ -2587,14 +2587,14 @@ and one <span class="inline">l3Pending</span>: triggers that arrive during a run
         reset_l1_idle_timer(sessionKey)
 
 on_l1_success(sessionKey):
+    persist_pipeline_state_for_recovery()
     if destroyed:
-        persist_pipeline_state_for_recovery()
         return
     advance_l2_timer_earlier(max(now + delay, lastL2 + minInterval))
 
 on_l2_success():
+    persist_pipeline_state_for_recovery()
     if destroyed:
-        persist_pipeline_state_for_recovery()
         return
     if l3Running:
         l3Pending = true
@@ -2604,16 +2604,18 @@ on_l2_success():
 destroy():
     destroyed = true
     cancel_timers_and_flush_buffered_l1_when_safe()
-    await_existing_queues_to_drain()
+    await_l1_queue_to_drain()
+    flush_pending_l2_timers_into_l2_queue()
+    await_queued_l2_l3_to_drain()
     persist_pipeline_state_for_recovery()</pre>
 
 <h2>Shutdown flush order</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>Stop accepting new work</h4><p><span class="inline">destroyed</span> is set to true first; from then on, <span class="inline">advanceL2Timer()</span> and <span class="inline">triggerL3()</span> return without scheduling fresh L2/L3 work.</p><div class="mono">destroyed = true</div></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>Flush L1 idle</h4><p>Cancel L1 idle timers; if a session still has buffered messages, finish it with <span class="inline">enqueueL1(..., "flush")</span> only when safe.</p><div class="mono">cancel idle -&gt; optional L1 flush</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Wait for queued L1 to drain</h4><p>Wait until the L1 queue is idle; during shutdown, successful L1 does not advance a new L2 timer, so unfinished consolidation intent remains in state.</p><div class="mono">await l1Queue.onIdle()</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>Drain existing L2/L3</h4><p>Only wait for L2/L3 work that was already queued; flushed L1 or completed L2 will not create a new L2 timer or L3 run.</p><div class="mono">drain queued L2/L3 only</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>Persist state for recovery</h4><p>Persist <span class="inline">PipelineSessionState</span> whether flush/drain succeeded or failed, preserving pending counts and timestamps so startup can recover unfinished work.</p><div class="mono">persist state -&gt; recover later</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Wait for queued L1 to drain</h4><p>Wait until the L1 queue is idle; successful L1 persists <span class="inline">PipelineSessionState</span> first, but during shutdown it does not advance a new L2 timer.</p><div class="mono">persist state -&gt; await l1Queue.onIdle()</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Flush L2 timers, then drain L2/L3</h4><p><span class="inline">_doFlush()</span> first flushes pending L2 schedule timers into the L2 queue, then waits for L2/L3 queues to drain; because <span class="inline">destroyed</span> is already true, those L2 runs only persist state and do not arm new timers or trigger L3.</p><div class="mono">flush L2 timers -&gt; drain L2/L3</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Final persist for recovery</h4><p>The normal L1/L2 success path already persists state before scheduling; destroy saves once more at the end, preserving pending counts and timestamps so startup can recover unfinished work.</p><div class="mono">persist state -&gt; recover later</div></div></div>
 </div>
 
 <div class="card detail">
@@ -2622,7 +2624,7 @@ destroy():
     <li><span class="inline">src/utils/pipeline-manager.ts</span>: <span class="inline">notifyConversation</span>, <span class="inline">enqueueL1</span>, <span class="inline">enqueueL2</span>, <span class="inline">enqueueL3</span>, and <span class="inline">destroy</span> connect L1/L2/L3 scheduling.</li>
     <li><span class="inline">src/utils/managed-timer.ts</span>: <span class="inline">schedule()</span> implements resettable timers; <span class="inline">tryAdvanceTo()</span> implements the downward-only timer that can move earlier but not later.</li>
     <li><span class="inline">src/utils/serial-queue.ts</span>: L1, L2, and L3 all use FIFO queues with concurrency=1; L3 also deduplicates outside the queue with <span class="inline">l3Running</span>/<span class="inline">l3Pending</span>.</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">PipelineSessionState</span> stores <span class="inline">conversation_count</span>, <span class="inline">last_active_time</span>, <span class="inline">last_extraction_updated_time</span>, <span class="inline">l2_pending_l1_count</span>, <span class="inline">l2_last_extraction_time</span>, and warm-up threshold.</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">PipelineSessionState</span> stores <span class="inline">conversation_count</span>, <span class="inline">last_active_time</span>, <span class="inline">last_extraction_time</span>, <span class="inline">last_extraction_updated_time</span>, <span class="inline">l2_pending_l1_count</span>, <span class="inline">l2_last_extraction_time</span>, and warm-up threshold.</li>
     <li><span class="inline">src/core/persona/persona-trigger.ts</span>: inside the L3 runner, explicit request, cold start, recovery, first scene, and threshold conditions decide whether persona should actually be generated.</li>
   </ul>
 </div>
@@ -2630,7 +2632,7 @@ destroy():
 <div class="card key">
   <div class="tag">✅ Key points</div>
   L1's resettable idle answers "wait while the user is still talking"; L2's downward-only timer answers "fresh L1 may pull consolidation earlier, but not postpone it forever";
-  L3's global serial queue answers "all sessions share one persona write surface." Shutdown first enters the destroyed state, drains/flushes appropriate pending work, and persists state; fresh L2/L3 scheduling is left for recovery after restart.
+  L3's global serial queue answers "all sessions share one persona write surface." Normal L1/L2 success persists state before scheduling the next layer; shutdown enters the destroyed state, flushes pending L2 timers and drains queues, but fresh timer/L3 triggers are left for recovery after restart.
 </div>
 
 <div class="selftest">
