@@ -81,9 +81,42 @@ jobs:
                   failures.append(f"{name} has {count} print lesson sections, expected {expected}")
 
           glossary_html = (root / "lessons" / "34-debug-tests-contribution-glossary.html").read_text(encoding="utf-8")
-          for anchor in re.findall(r'id="(glossary-[^"]+)"', glossary_html):
-              if f'#{anchor}' not in glossary_html and anchor == "":
-                  failures.append("invalid empty glossary anchor")
+          required_glossary_links = {
+              "L0": "13-l0-jsonl-recorder.html",
+              "L1": "15-l1-extraction.html",
+              "L2": "17-why-l2-scene-blocks.html",
+              "L3 Persona": "20-persona-generator-incremental.html",
+              "Scene Block": "17-why-l2-scene-blocks.html",
+              "Auto Capture": "12-auto-capture-hook.html",
+              "Auto Recall": "22-auto-recall-before-prompt.html",
+              "TdaiCore": "09-tdai-core-facade.html",
+              "HostAdapter": "10-host-adapter-boundaries.html",
+              "Hermes Gateway": "32-hermes-gateway-http-security.html",
+              "SQLite": "25-sqlite-vec-fts-bm25-hybrid.html",
+              "Tencent VectorDB": "26-tencent-vectordb-embedding.html",
+              "Context Offload": "27-why-long-task-logs-symbolic-compression.html",
+              "refs": "28-after-tool-call-refs-offload-jsonl.html",
+              "JSONL": "13-l0-jsonl-recorder.html",
+              "MMD": "30-mermaid-mmd-node-id-drill-down.html",
+              "node_id": "30-mermaid-mmd-node-id-drill-down.html",
+              "seed": "33-seed-cli-migration-export-read.html",
+              "migration": "33-seed-cli-migration-export-read.html",
+              "glossary": "34-debug-tests-contribution-glossary.html",
+          }
+          for term, lesson_target in required_glossary_links.items():
+              if f'<td class="mono">{term}</td>' not in glossary_html:
+                  failures.append(f"lesson 34 glossary missing term label: {term}")
+              if f'href="{lesson_target}"' not in glossary_html:
+                  failures.append(f"lesson 34 glossary missing link for {term}: {lesson_target}")
+              if not (root / "lessons" / lesson_target).is_file():
+                  failures.append(f"lesson 34 glossary target does not exist for {term}: {lesson_target}")
+
+          glossary_row_count = len(re.findall(r'<tr><td class="mono">', glossary_html))
+          if glossary_row_count != len(required_glossary_links) * 2:
+              failures.append(
+                  f"lesson 34 glossary has {glossary_row_count} bilingual term rows, "
+                  f"expected {len(required_glossary_links) * 2}"
+              )
 
           if failures:
               print("Guide invariant check failed:")
