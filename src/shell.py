@@ -74,6 +74,8 @@ PAGES = [
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
     ("14-checkpoints-races.html", "Checkpoint：游标、锁与防重复", "Checkpoints: cursors, locks, and duplicate prevention",
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
+    ("15-l1-extraction.html", "L1 抽取：从对话到原子记忆", "L1 extraction: conversation to memory atoms",
+     "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
 ]
 
 def bi(zh, en):
@@ -535,6 +537,8 @@ SUBTITLES = {
                                   "one message per line, daily files, sanitize injected tags, preserve evidence"),
     "14-checkpoints-races.html": ("captureAtomically、timestamp cursor、position slice、scheduler start gate",
                                   "captureAtomically, timestamp cursor, position slice, scheduler start gate"),
+    "15-l1-extraction.html": ("质量门、背景窗口、场景分段、LLM JSON 输出、source_message_ids",
+                              "quality gate, background window, scene segments, LLM JSON, source_message_ids"),
 }
 
 def index_page(lesson_prefix="lessons/"):

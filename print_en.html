@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 14 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">14 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 15 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">15 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -346,6 +346,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></li>
   <li><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></li>
   <li><span class="lang-zh">Checkpoint：游标、锁与防重复</span><span class="lang-en">Checkpoints: cursors, locks, and duplicate prevention</span></li>
+  <li><span class="lang-zh">L1 抽取：从对话到原子记忆</span><span class="lang-en">L1 extraction: conversation to memory atoms</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1877,6 +1878,105 @@ The promise turns startup into a gate, so concurrent callers share the same star
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>What different problems do position slice and timestamp cursor defend against?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">L1 抽取：从对话到原子记忆</span><span class="lang-en">L1 extraction: conversation to memory atoms</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+L1 is the extraction layer that turns raw L0 messages into memory atoms. <span class="inline">extractL1Memories</span>
+does not promote every chat line into permanent memory. It first uses the <span class="inline">shouldExtractL1</span> quality gate to reject low-value noise, then sends new messages plus a small background window to the LLM so the result is traceable, deduplicable, sortable structured JSON.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  L0 is the complete recording; L1 is the index card written after the meeting. The card does not copy greetings or repeated sentences.
+  It keeps reusable information such as preferences, facts, task decisions, and lessons learned. Each card still names the recording segments it came from, so later review can return to the evidence.
+</div>
+
+<h2>How L0 messages enter L1 extraction</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>L0 messages</h4><p>The pipeline reads captured user / assistant L0 records. They are still message-level evidence, not conclusions.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>quality gate</h4><p><span class="inline">shouldExtractL1</span> drops empty content, short noise, injected wrappers, log fragments, and low-information replies that are not worth sending to the LLM.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>background / new split</h4><p>The tail new messages are the extraction target; the earlier background window supplies context so the LLM does not misread the turn.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>LLM extraction</h4><p><span class="inline">src/core/prompts/l1-extraction.ts</span> asks the model for scene-segmented JSON, then <span class="inline">sanitizeJsonForParse</span> cleans it before parsing.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>extracted memories</h4><p>Each memory atom carries <span class="inline">type</span>, <span class="inline">priority</span>, <span class="inline">source_message_ids</span>, and <span class="inline">metadata</span> before being persisted by the writer.</p></div></div>
+</div>
+
+<h2>L0 raw text vs L1 memory atom</h2>
+<div class="cols">
+  <div class="col"><h4>L0 raw message</h4><p>A message records who said what and when. It preserves evidence, has fine granularity, and may include greetings, repetition, temporary corrections, and context-dependent wording.</p></div>
+  <div class="col"><h4>L1 memory atom</h4><p>A structured conclusion records a reusable fact or lesson. It may come from multiple L0 messages and points back to them through <span class="inline">source_message_ids</span>.</p></div>
+</div>
+
+<h2>L1 fields</h2>
+<table class="t">
+  <thead><tr><th>Field</th><th>Meaning</th><th>Quality role</th></tr></thead>
+  <tbody>
+    <tr><td><span class="inline">type</span></td><td>Memory type, such as fact, preference, task, or lesson</td><td>Tells dedup, recall, and UI code how to interpret the atom</td></tr>
+    <tr><td><span class="inline">content</span></td><td>The smallest reusable conclusion extracted from the conversation</td><td>Avoids copying whole dialogue into long-term memory</td></tr>
+    <tr><td><span class="inline">priority</span></td><td>Importance or retention value</td><td>Helps sorting, filtering, and later compression</td></tr>
+    <tr><td><span class="inline">source_message_ids</span></td><td>List of L0 message IDs that contributed to the memory</td><td>Preserves the audit trail from L1 back to L0</td></tr>
+    <tr><td><span class="inline">metadata</span></td><td>Scene, confidence, tags, time, and other auxiliary data</td><td>Gives writer, dedup, and retrieval extra context without replacing evidence</td></tr>
+  </tbody>
+</table>
+
+<h2>Why the prompt includes both new and background messages</h2>
+<p>
+<span class="inline">extractL1Memories</span> treats “new messages” as the required extraction range and “background messages” as read-only context.
+That lets the LLM resolve pronouns, corrections, task stage, and previous decisions without drowning in the whole conversation. Too much background raises cost and false extraction risk; too little background can turn “yes, use the second option” into an isolated, meaningless atom.
+</p>
+
+<h2>Pseudocode</h2>
+<pre class="code">qualified = messages.filter(shouldExtractL1)
+new_messages = tail(qualified, maxNewMessages)
+background = previous_window(qualified)
+scenes = call_llm_extraction(new_messages, background)
+memories = flatten_scene_memories(scenes)</pre>
+
+<p>
+The prompt output is scene segmented: one scene can contain multiple memory atoms, and each atom names its type, priority, source messages, and metadata.
+Before parsing, <span class="inline">sanitizeJsonForParse</span> removes possible Markdown fences or extra wrappers from the model response, reducing JSON parse failures.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/record/l1-extractor.ts</span>: <span class="inline">extractL1Memories</span> coordinates the quality gate, background window, new messages, and LLM call</li>
+    <li><span class="inline">src/core/prompts/l1-extraction.ts</span>: L1 extraction prompt requiring scene segmentation and structured JSON output</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">shouldExtractL1</span> and <span class="inline">sanitizeJsonForParse</span></li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>: writer-side <span class="inline">ExtractedMemory</span> and <span class="inline">MemoryRecord</span> shapes</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  L1 extracts structured memory atoms from L0 messages; <span class="inline">shouldExtractL1</span> blocks low-value noise first.
+  New messages define the extraction target, background messages provide bounded context, and the LLM returns scene-segmented memories with
+  <span class="inline">type</span>, <span class="inline">priority</span>, <span class="inline">source_message_ids</span>, and <span class="inline">metadata</span>.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Why does L1 keep <code>source_message_ids</code>?</div>
+  <ol class="opts">
+    <li>To generate a favicon</li>
+    <li>To hide message sources</li>
+    <li>To trace an atom memory back to raw L0 messages</li>
+    <li>To replace sessionKey</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. L1 is structured summary, but it must still point back to lower-layer evidence.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Why does the L1 prompt need both new messages and background messages?</li>
   </ul>
 </div>
 </div>

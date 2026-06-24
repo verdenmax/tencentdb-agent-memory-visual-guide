@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>13 · L0 JSONL：原始对话证据层 / L0 JSONL: raw conversation evidence - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜L0 JSONL：原始对话证据层 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>15 · L1 抽取：从对话到原子记忆 / L1 extraction: conversation to memory atoms - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜L1 抽取：从对话到原子记忆 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="13 · L0 JSONL：原始对话证据层 / L0 JSONL: raw conversation evidence - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜L0 JSONL：原始对话证据层 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="15 · L1 抽取：从对话到原子记忆 / L1 extraction: conversation to memory atoms - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜L1 抽取：从对话到原子记忆 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="13 · L0 JSONL：原始对话证据层 / L0 JSONL: raw conversation evidence - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜L0 JSONL：原始对话证据层 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="15 · L1 抽取：从对话到原子记忆 / L1 extraction: conversation to memory atoms - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第四部分 · L0 与 L1：捕获、抽取、去重｜L1 抽取：从对话到原子记忆 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -318,239 +318,207 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
     <span class="pill"><span class="lang-zh">第四部分 · L0 与 L1：捕获、抽取、去重</span><span class="lang-en">Part 4 · L0 and L1: capture, extraction, dedup</span></span>
-    <span class="pill">13 / 15</span>
+    <span class="pill">15 / 15</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:86%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
     <div class="part"><span class="lang-zh">第四部分 · L0 与 L1：捕获、抽取、去重</span><span class="lang-en">Part 4 · L0 and L1: capture, extraction, dedup</span></div>
-    <h1><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></h1>
+    <h1><span class="lang-zh">L1 抽取：从对话到原子记忆</span><span class="lang-en">L1 extraction: conversation to memory atoms</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-L0 不是摘要层，而是“原始对话证据层”：它把可追溯的 user / assistant 消息按 JSONL 追加到本地文件中。
-<span class="inline">recordConversation</span> 只负责从原始 messages 中找出本次新增内容，清洗召回包裹、元数据和结构噪声，再一行一条写入当天文件。
+L1 是把 L0 原始消息整理成“原子记忆”的抽取层。<span class="inline">extractL1Memories</span>
+不会把每条聊天都永久升级为记忆；它先通过 <span class="inline">shouldExtractL1</span> 质量门过滤低价值噪声，再把新消息和少量背景消息交给 LLM，让输出成为可追溯、可去重、可排序的结构化 JSON。
 </p>
 
 <div class="card analogy">
   <div class="tag">🧩 生活类比</div>
-  L0 像法庭证物袋，不像会议纪要。证物袋要保存“当时看到的原文”，方便以后核查；纪要可以提炼观点，但不能替代证物。
-  所以 L0 先写原文账本，L1/L2/L3 才在后面从账本中抽取结构化记忆。
+  L0 像完整录音，L1 像会议后的索引卡。索引卡不会抄下寒暄和重复句，只留下“偏好、事实、任务决定、经验教训”等可以复用的信息。
+  但每张卡都要写上来自哪几段录音，之后有人质疑时才能回到原始证据。
 </div>
 
-<h2>L0 的边界：证据，不是结论</h2>
+<h2>L0 消息如何进入 L1 抽取</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>L0 messages</h4><p>pipeline 读取已捕获的 user / assistant L0 记录，它们仍是消息级证据，而不是结论。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>quality gate</h4><p><span class="inline">shouldExtractL1</span> 丢弃空内容、短噪声、注入包裹、日志碎片、低信息量回复等不值得进入 LLM 的文本。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>background / new split</h4><p>尾部新消息是本批抽取对象；前面的背景窗口只提供上下文，避免 LLM 因缺少前因后果而误解。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>LLM extraction</h4><p><span class="inline">src/core/prompts/l1-extraction.ts</span> 要求模型按场景分段输出 JSON，再由 <span class="inline">sanitizeJsonForParse</span> 清理后解析。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>extracted memories</h4><p>每个原子记忆带 <span class="inline">type</span>、<span class="inline">priority</span>、<span class="inline">source_message_ids</span> 与 <span class="inline">metadata</span>，随后交给 writer 持久化。</p></div></div>
+</div>
+
+<h2>L0 原文与 L1 原子记忆</h2>
 <div class="cols">
-  <div class="col"><h4>L0 raw evidence</h4><p>保存单条消息、角色、时间、会话标识与清洗后的正文。它强调可追加、可 grep、可流式读取、可回放排查。</p></div>
-  <div class="col"><h4>L1 extracted memory</h4><p>从多条 L0 中抽取事实、偏好、任务片段或经验。它是解释后的结果，必须能回到 L0 找证据。</p></div>
+  <div class="col"><h4>L0 raw message</h4><p>一条消息记录“谁在什么时候说了什么”。它保留证据，粒度偏细，可能包含寒暄、重复、临时纠错和上下文依赖。</p></div>
+  <div class="col"><h4>L1 memory atom</h4><p>一个结构化结论记录“值得未来复用的事实或经验”。它可以来自多条 L0，并用 <span class="inline">source_message_ids</span> 指回证据。</p></div>
 </div>
 
-<h2>从原始会话到 JSONL</h2>
-<div class="flow">
-  <div class="node"><div class="nt">raw session messages</div><div class="nd">宿主传入的完整历史</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">slice</div><div class="nd">按位置或 timestamp cursor 只取新增消息</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">filter</div><div class="nd">只保留 user / assistant，跳过不应捕获内容</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">sanitize</div><div class="nd">移除召回包裹、标记、元数据与结构噪声</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">JSONL</div><div class="nd">按天追加，一行一条消息</div></div>
-</div>
-
-<p>
-<span class="inline">src/core/conversation/l0-recorder.ts</span> 中的 <span class="inline">recordConversation</span>
-接收会话消息、会话标识与游标信息。它优先用位置切片避免重复写入；当位置缓存缺失时，再用 timestamp cursor 排除已经记录过的消息。
-随后 <span class="inline">extractUserAssistantMessages</span> 只提取 user / assistant 消息，避免把 system、tool 或中间协议文本混进 L0。
-</p>
-
-<h2>JSONL 字段</h2>
+<h2>L1 字段</h2>
 <table class="t">
-  <thead><tr><th>字段</th><th>含义</th><th>为什么重要</th></tr></thead>
+  <thead><tr><th>字段</th><th>含义</th><th>质量作用</th></tr></thead>
   <tbody>
-    <tr><td><span class="inline">id</span></td><td>单条 L0 记录 ID</td><td>供索引、去重和回查引用</td></tr>
-    <tr><td><span class="inline">sessionKey</span></td><td>逻辑会话键</td><td>把同一任务或窗口的记录归组</td></tr>
-    <tr><td><span class="inline">sessionId</span></td><td>宿主会话 ID</td><td>保留宿主侧可追溯来源</td></tr>
-    <tr><td><span class="inline">role</span></td><td>user 或 assistant</td><td>区分问题、回答和后续抽取方向</td></tr>
-    <tr><td><span class="inline">content</span></td><td>清洗后的消息正文</td><td>L1 抽取与人工排查的原文输入；向量或索引层可能映射为不同文本字段</td></tr>
-    <tr><td><span class="inline">timestamp</span> / <span class="inline">recordedAt</span></td><td>消息时间与记录时间</td><td>支持游标过滤、排序和审计</td></tr>
+    <tr><td><span class="inline">type</span></td><td>记忆类型，如 fact、preference、task、lesson</td><td>让后续去重、召回和展示知道如何解释这条原子记忆</td></tr>
+    <tr><td><span class="inline">content</span></td><td>抽取后的最小可复用结论</td><td>避免把整段对话搬进长期记忆，只保存稳定含义</td></tr>
+    <tr><td><span class="inline">priority</span></td><td>重要度或保留价值</td><td>帮助排序、筛选和后续压缩</td></tr>
+    <tr><td><span class="inline">source_message_ids</span></td><td>贡献该记忆的 L0 消息 ID 列表</td><td>保留从 L1 回到 L0 的审计链路</td></tr>
+    <tr><td><span class="inline">metadata</span></td><td>场景、置信度、标签、时间等辅助信息</td><td>给 writer、去重和检索更多上下文，但不替代正文证据</td></tr>
   </tbody>
 </table>
 
-<h2>按天写入，而不是一个巨型文件</h2>
+<h2>为什么同时给 new messages 和 background messages</h2>
 <p>
-<span class="inline">src/utils/time.ts</span> 的 <span class="inline">formatLocalDate</span> 生成本地日期，L0 recorder 用它决定当天 JSONL 文件名。
-这种布局让追加写入很便宜，也让排查时可以按日期定位：今天的 agent 任务只查今天文件，历史导出也可以按天流式处理。
-</p>
-
-<h2>清洗和“还原原始 prompt”</h2>
-<div class="cols">
-  <div class="col"><h4>清洗后再写入</h4><p><span class="inline">src/utils/sanitize.ts</span> 的 <span class="inline">sanitizeText</span> 会移除注入的 memory/context 包裹、召回标记、元数据、时间戳、媒体/base64 和结构噪声；prompt-injection 与内容质量拒绝推迟到 L1 的 <span class="inline">shouldExtractL1</span>。</p></div>
-  <div class="col"><h4>被 prepend 污染时回退</h4><p><span class="inline">index.ts</span> 中的 <span class="inline">pendingOriginalPrompts</span> 缓存原始用户 prompt。当 <span class="inline">originalUserText</span> 与匹配的目标消息/timestamp 可用时，recorder 会恢复缓存的原始 prompt；否则回退到清洗与日志记录。</p></div>
-</div>
-
-<p>
-这一步很关键：L0 要记录用户真正说了什么，而不是“用户消息 + 系统召回上下文”的拼接物。
-否则后续 L1 会把 recall 注入的旧记忆误当成本轮新事实，造成证据污染和重复抽取。
+<span class="inline">extractL1Memories</span> 把“新消息”作为本次必须抽取的范围，把“背景消息”作为只读上下文。
+这样 LLM 能理解代词、纠错、任务阶段和上一句决定，又不会被整段历史淹没。背景窗口越大，成本和误抽取风险越高；窗口太小，又可能把“好，就按第二个方案”抽成没有意义的孤立句。
 </p>
 
 <h2>伪代码</h2>
-<pre class="code">recordConversation(rawMessages):
-    new_messages = slice_by_position_or_timestamp(rawMessages)
-    user_assistant = extract_user_assistant(new_messages)
-    clean = sanitize_and_filter(user_assistant)
-    append_jsonl(daily_file, clean)</pre>
+<pre class="code">qualified = messages.filter(shouldExtractL1)
+new_messages = tail(qualified, maxNewMessages)
+background = previous_window(qualified)
+scenes = call_llm_extraction(new_messages, background)
+memories = flatten_scene_memories(scenes)</pre>
+
+<p>
+prompt 的输出按 scene 分段：一个场景可包含多条 memory atom，每条都要说明类型、优先级、来源消息和 metadata。
+解析前使用 <span class="inline">sanitizeJsonForParse</span> 去掉模型可能带上的 Markdown fence 或多余包装，降低 JSON 解析失败率。
+</p>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：<span class="inline">recordConversation</span>、<span class="inline">extractUserAssistantMessages</span>、位置切片、timestamp cursor、JSONL 追加</li>
-    <li><span class="inline">src/utils/sanitize.ts</span>：<span class="inline">sanitizeText</span>、<span class="inline">shouldCaptureL0</span>、召回包裹、元数据与结构噪声清理</li>
-    <li><span class="inline">src/utils/time.ts</span>：<span class="inline">formatLocalDate</span>、按本地日期生成 daily file</li>
-    <li><span class="inline">index.ts</span>：<span class="inline">pendingOriginalPrompts</span> 缓存被 prepend 前的原始 prompt</li>
+    <li><span class="inline">src/core/record/l1-extractor.ts</span>：<span class="inline">extractL1Memories</span> 组织质量门、背景窗口、新消息与 LLM 调用</li>
+    <li><span class="inline">src/core/prompts/l1-extraction.ts</span>：L1 抽取 prompt，要求场景分段和结构化 JSON 输出</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>：<span class="inline">shouldExtractL1</span> 与 <span class="inline">sanitizeJsonForParse</span></li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>：<span class="inline">ExtractedMemory</span>、<span class="inline">MemoryRecord</span> 的写入结构</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  L0 是可追溯证据层：JSONL 一行一条消息，按天追加，带 <span class="inline">sessionKey</span> / <span class="inline">sessionId</span>，
-  先切片去重，再提取 user / assistant，清洗召回包裹和结构噪声；当原文缓存与目标消息匹配时恢复原始 prompt，否则回退到清洗与日志。
+  L1 从 L0 消息中抽取结构化原子记忆；<span class="inline">shouldExtractL1</span> 先挡住低价值噪声；
+  new messages 决定抽取范围，background messages 提供有限上下文；LLM 输出按场景分段，并为每条记忆保留
+  <span class="inline">type</span>、<span class="inline">priority</span>、<span class="inline">source_message_ids</span> 和 <span class="inline">metadata</span>。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. L0 为什么采用 JSONL 一行一条消息？</div>
+  <div class="qn">1. L1 为什么保留 <code>source_message_ids</code>？</div>
   <ol class="opts">
-    <li>便于追加、grep、流式读取和保留原始证据</li>
-    <li>因为必须压缩成二进制</li>
-    <li>因为不能保存时间戳</li>
-    <li>因为 L1 不能读取 JSON</li>
+    <li>为了生成 favicon</li>
+    <li>为了隐藏消息来源</li>
+    <li>为了从原子记忆追溯回 L0 原始消息</li>
+    <li>为了替代 sessionKey</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：A</strong>。JSONL 适合增量写入和排查证据，是 L0 的“原文账本”。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。L1 是结构化摘要，但仍要能回到底层证据。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>recorder 什么时候可以恢复缓存的原始 prompt，什么时候会回退到清洗与日志？</li>
+    <li>为什么 L1 prompt 同时需要 new messages 和 background messages？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-L0 is not a summary layer. It is the raw conversation evidence layer: append traceable user / assistant messages into local JSONL files.
-<span class="inline">recordConversation</span> finds the new messages in the raw messages array, removes recall wrappers, metadata, and structural noise, then writes one message per line to the daily file.
+L1 is the extraction layer that turns raw L0 messages into memory atoms. <span class="inline">extractL1Memories</span>
+does not promote every chat line into permanent memory. It first uses the <span class="inline">shouldExtractL1</span> quality gate to reject low-value noise, then sends new messages plus a small background window to the LLM so the result is traceable, deduplicable, sortable structured JSON.
 </p>
 
 <div class="card analogy">
   <div class="tag">🧩 Analogy</div>
-  L0 is an evidence bag, not meeting minutes. The evidence bag keeps what was seen at the time so it can be inspected later; minutes may summarize ideas, but they cannot replace evidence.
-  L0 writes the raw ledger first, and L1/L2/L3 extract structured memory from that ledger afterward.
+  L0 is the complete recording; L1 is the index card written after the meeting. The card does not copy greetings or repeated sentences.
+  It keeps reusable information such as preferences, facts, task decisions, and lessons learned. Each card still names the recording segments it came from, so later review can return to the evidence.
 </div>
 
-<h2>L0's boundary: evidence, not conclusions</h2>
+<h2>How L0 messages enter L1 extraction</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>L0 messages</h4><p>The pipeline reads captured user / assistant L0 records. They are still message-level evidence, not conclusions.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>quality gate</h4><p><span class="inline">shouldExtractL1</span> drops empty content, short noise, injected wrappers, log fragments, and low-information replies that are not worth sending to the LLM.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>background / new split</h4><p>The tail new messages are the extraction target; the earlier background window supplies context so the LLM does not misread the turn.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>LLM extraction</h4><p><span class="inline">src/core/prompts/l1-extraction.ts</span> asks the model for scene-segmented JSON, then <span class="inline">sanitizeJsonForParse</span> cleans it before parsing.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>extracted memories</h4><p>Each memory atom carries <span class="inline">type</span>, <span class="inline">priority</span>, <span class="inline">source_message_ids</span>, and <span class="inline">metadata</span> before being persisted by the writer.</p></div></div>
+</div>
+
+<h2>L0 raw text vs L1 memory atom</h2>
 <div class="cols">
-  <div class="col"><h4>L0 raw evidence</h4><p>Stores each message, role, time, session identifiers, and sanitized text. It favors appendability, grep, streaming reads, and replayable debugging.</p></div>
-  <div class="col"><h4>L1 extracted memory</h4><p>Extracts facts, preferences, task fragments, or lessons from multiple L0 messages. It is an interpreted result and should be traceable back to L0 evidence.</p></div>
+  <div class="col"><h4>L0 raw message</h4><p>A message records who said what and when. It preserves evidence, has fine granularity, and may include greetings, repetition, temporary corrections, and context-dependent wording.</p></div>
+  <div class="col"><h4>L1 memory atom</h4><p>A structured conclusion records a reusable fact or lesson. It may come from multiple L0 messages and points back to them through <span class="inline">source_message_ids</span>.</p></div>
 </div>
 
-<h2>Raw conversation to JSONL</h2>
-<div class="flow">
-  <div class="node"><div class="nt">raw session messages</div><div class="nd">complete history from the host</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">slice</div><div class="nd">take only new messages by position or timestamp cursor</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">filter</div><div class="nd">keep user / assistant and skip non-capturable text</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">sanitize</div><div class="nd">remove recall wrappers, markers, metadata, and structural noise</div></div>
-  <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">JSONL</div><div class="nd">daily append, one message per line</div></div>
-</div>
-
-<p>
-In <span class="inline">src/core/conversation/l0-recorder.ts</span>, <span class="inline">recordConversation</span>
-receives session messages, session identifiers, and cursor data. It prefers a position slice to avoid duplicate writes; if that cache is unavailable, it uses a timestamp cursor to exclude messages already recorded.
-Then <span class="inline">extractUserAssistantMessages</span> extracts only user / assistant messages so system, tool, or protocol text does not enter L0.
-</p>
-
-<h2>JSONL fields</h2>
+<h2>L1 fields</h2>
 <table class="t">
-  <thead><tr><th>Field</th><th>Meaning</th><th>Why it matters</th></tr></thead>
+  <thead><tr><th>Field</th><th>Meaning</th><th>Quality role</th></tr></thead>
   <tbody>
-    <tr><td><span class="inline">id</span></td><td>Single L0 record ID</td><td>Used for indexing, dedup, and evidence lookup</td></tr>
-    <tr><td><span class="inline">sessionKey</span></td><td>Logical session key</td><td>Groups records from the same task or window</td></tr>
-    <tr><td><span class="inline">sessionId</span></td><td>Host session ID</td><td>Preserves the traceable host source</td></tr>
-    <tr><td><span class="inline">role</span></td><td>user or assistant</td><td>Separates requests, answers, and extraction direction</td></tr>
-    <tr><td><span class="inline">content</span></td><td>Sanitized message body</td><td>Raw input for L1 extraction and human inspection; vector or indexing layers may map text into different fields</td></tr>
-    <tr><td><span class="inline">timestamp</span> / <span class="inline">recordedAt</span></td><td>Message time and record time</td><td>Supports cursor filtering, ordering, and audit</td></tr>
+    <tr><td><span class="inline">type</span></td><td>Memory type, such as fact, preference, task, or lesson</td><td>Tells dedup, recall, and UI code how to interpret the atom</td></tr>
+    <tr><td><span class="inline">content</span></td><td>The smallest reusable conclusion extracted from the conversation</td><td>Avoids copying whole dialogue into long-term memory</td></tr>
+    <tr><td><span class="inline">priority</span></td><td>Importance or retention value</td><td>Helps sorting, filtering, and later compression</td></tr>
+    <tr><td><span class="inline">source_message_ids</span></td><td>List of L0 message IDs that contributed to the memory</td><td>Preserves the audit trail from L1 back to L0</td></tr>
+    <tr><td><span class="inline">metadata</span></td><td>Scene, confidence, tags, time, and other auxiliary data</td><td>Gives writer, dedup, and retrieval extra context without replacing evidence</td></tr>
   </tbody>
 </table>
 
-<h2>Daily files, not one giant file</h2>
+<h2>Why the prompt includes both new and background messages</h2>
 <p>
-<span class="inline">formatLocalDate</span> in <span class="inline">src/utils/time.ts</span> produces the local date, and the L0 recorder uses it to choose the daily JSONL filename.
-This layout keeps appends cheap and makes inspection date-scoped: today's agent task can read today's file, while historical export can stream day by day.
-</p>
-
-<h2>Sanitization and restoring the original prompt</h2>
-<div class="cols">
-  <div class="col"><h4>Sanitize before writing</h4><p><span class="inline">sanitizeText</span> in <span class="inline">src/utils/sanitize.ts</span> removes injected memory/context wrappers, recall markers, metadata, timestamps, media/base64, and structural noise; prompt-injection and content-quality rejection is deferred to L1 <span class="inline">shouldExtractL1</span>.</p></div>
-  <div class="col"><h4>Fall back when prepend polluted it</h4><p><span class="inline">pendingOriginalPrompts</span> in <span class="inline">index.ts</span> caches the original user prompt. When <span class="inline">originalUserText</span> and a matching target message/timestamp are available, the recorder restores the cached original prompt; otherwise it falls back to sanitization and logging.</p></div>
-</div>
-
-<p>
-That replacement is essential: L0 should record what the user actually said, not “user message plus system recall context”.
-Otherwise L1 may treat old recalled memory as a new fact from this turn, creating evidence pollution and duplicate extraction.
+<span class="inline">extractL1Memories</span> treats “new messages” as the required extraction range and “background messages” as read-only context.
+That lets the LLM resolve pronouns, corrections, task stage, and previous decisions without drowning in the whole conversation. Too much background raises cost and false extraction risk; too little background can turn “yes, use the second option” into an isolated, meaningless atom.
 </p>
 
 <h2>Pseudocode</h2>
-<pre class="code">recordConversation(rawMessages):
-    new_messages = slice_by_position_or_timestamp(rawMessages)
-    user_assistant = extract_user_assistant(new_messages)
-    clean = sanitize_and_filter(user_assistant)
-    append_jsonl(daily_file, clean)</pre>
+<pre class="code">qualified = messages.filter(shouldExtractL1)
+new_messages = tail(qualified, maxNewMessages)
+background = previous_window(qualified)
+scenes = call_llm_extraction(new_messages, background)
+memories = flatten_scene_memories(scenes)</pre>
+
+<p>
+The prompt output is scene segmented: one scene can contain multiple memory atoms, and each atom names its type, priority, source messages, and metadata.
+Before parsing, <span class="inline">sanitizeJsonForParse</span> removes possible Markdown fences or extra wrappers from the model response, reducing JSON parse failures.
+</p>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: <span class="inline">recordConversation</span>, <span class="inline">extractUserAssistantMessages</span>, position slice, timestamp cursor, JSONL append</li>
-    <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">sanitizeText</span>, <span class="inline">shouldCaptureL0</span>, recall wrapper, metadata, and structural noise cleanup</li>
-    <li><span class="inline">src/utils/time.ts</span>: <span class="inline">formatLocalDate</span>, daily files by local date</li>
-    <li><span class="inline">index.ts</span>: <span class="inline">pendingOriginalPrompts</span> caches the original prompt before prepend</li>
+    <li><span class="inline">src/core/record/l1-extractor.ts</span>: <span class="inline">extractL1Memories</span> coordinates the quality gate, background window, new messages, and LLM call</li>
+    <li><span class="inline">src/core/prompts/l1-extraction.ts</span>: L1 extraction prompt requiring scene segmentation and structured JSON output</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">shouldExtractL1</span> and <span class="inline">sanitizeJsonForParse</span></li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>: writer-side <span class="inline">ExtractedMemory</span> and <span class="inline">MemoryRecord</span> shapes</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  L0 is the traceable evidence layer: JSONL uses one message per line, appends by day, carries <span class="inline">sessionKey</span> / <span class="inline">sessionId</span>,
-  slices before extracting user / assistant messages, cleans recall wrappers and structural noise, and restores the original prompt when cached text matches the target message; otherwise it falls back to sanitization and logging.
+  L1 extracts structured memory atoms from L0 messages; <span class="inline">shouldExtractL1</span> blocks low-value noise first.
+  New messages define the extraction target, background messages provide bounded context, and the LLM returns scene-segmented memories with
+  <span class="inline">type</span>, <span class="inline">priority</span>, <span class="inline">source_message_ids</span>, and <span class="inline">metadata</span>.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. Why does L0 use JSONL with one message per line?</div>
+  <div class="qn">1. Why does L1 keep <code>source_message_ids</code>?</div>
   <ol class="opts">
-    <li>It is easy to append, grep, stream, and preserve raw evidence</li>
-    <li>Because it must be binary-compressed</li>
-    <li>Because timestamps cannot be stored</li>
-    <li>Because L1 cannot read JSON</li>
+    <li>To generate a favicon</li>
+    <li>To hide message sources</li>
+    <li>To trace an atom memory back to raw L0 messages</li>
+    <li>To replace sessionKey</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. JSONL fits incremental writes and evidence inspection; it is L0's raw ledger.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. L1 is structured summary, but it must still point back to lower-layer evidence.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>When can the recorder restore the cached original prompt, and when does it fall back to sanitization and logging?</li>
+    <li>Why does the L1 prompt need both new messages and background messages?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="12-auto-capture-hook.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></div></a><a class="next" href="14-checkpoints-races.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">Checkpoint：游标、锁与防重复</span><span class="lang-en">Checkpoints: cursors, locks, and duplicate prevention</span></div></a></div>
+  <div class="footnav"><a class="prev" href="14-checkpoints-races.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Checkpoint：游标、锁与防重复</span><span class="lang-en">Checkpoints: cursors, locks, and duplicate prevention</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

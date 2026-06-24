@@ -19,4 +19,5 @@ CONTENT = {
     "12-auto-capture-hook.html": part4.LESSON_12,
     "13-l0-jsonl-recorder.html": part4.LESSON_13,
     "14-checkpoints-races.html": part4.LESSON_14,
+    "15-l1-extraction.html": part4.LESSON_15,
 }

@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 14 lessons.
+The guide currently contains 15 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -24,6 +24,7 @@ The guide currently contains 14 lessons.
 | 12 | Auto Capture after a turn commits |
 | 13 | L0 JSONL: raw conversation evidence |
 | 14 | Checkpoints: cursors, locks, and duplicate prevention |
+| 15 | L1 extraction: conversation to memory atoms |
 
 ## How to view locally
 

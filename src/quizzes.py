@@ -296,6 +296,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "position slice 和 timestamp cursor 分别防哪类问题？", "en": "What different problems do position slice and timestamp cursor defend against?"}],
     },
+    "15-l1-extraction.html": {
+        "mcq": [{
+            "q": {"zh": "L1 为什么保留 <code>source_message_ids</code>？", "en": "Why does L1 keep <code>source_message_ids</code>?"},
+            "opts": [
+                {"zh": "为了从原子记忆追溯回 L0 原始消息", "en": "To trace an atom memory back to raw L0 messages"},
+                {"zh": "为了隐藏消息来源", "en": "To hide message sources"},
+                {"zh": "为了替代 sessionKey", "en": "To replace sessionKey"},
+                {"zh": "为了生成 favicon", "en": "To generate a favicon"},
+            ],
+            "answer": 0,
+            "why": {"zh": "L1 是结构化摘要，但仍要能回到底层证据。", "en": "L1 is structured summary, but it must still point back to lower-layer evidence."},
+        }],
+        "open": [{"zh": "为什么 L1 prompt 同时需要 new messages 和 background messages？", "en": "Why does the L1 prompt need both new messages and background messages?"}],
+    },
 }
 
 
