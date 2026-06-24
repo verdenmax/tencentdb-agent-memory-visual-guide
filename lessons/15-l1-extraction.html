@@ -331,21 +331,21 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 L1 是把 L0 原始消息整理成“原子记忆”的抽取层。<span class="inline">extractL1Memories</span>
-不会把每条聊天都永久升级为记忆；它先通过 <span class="inline">shouldExtractL1</span> 质量门过滤低价值噪声，再把新消息和少量背景消息交给 LLM，让输出成为可追溯、可去重、可排序的结构化 JSON。
+不会把每条聊天都永久升级为记忆；它先通过 <span class="inline">shouldExtractL1</span> 应用 L0 结构过滤、纯符号/纯问号过滤和 prompt-injection 检测，再把新消息和少量背景消息交给 LLM，让输出成为可追溯、可去重、可排序的结构化 JSON。
 </p>
 
 <div class="card analogy">
   <div class="tag">🧩 生活类比</div>
-  L0 像完整录音，L1 像会议后的索引卡。索引卡不会抄下寒暄和重复句，只留下“偏好、事实、任务决定、经验教训”等可以复用的信息。
+  L0 像完整录音，L1 像会议后的索引卡。索引卡不会抄下整段原文，而是按 <span class="inline">persona</span>、<span class="inline">episodic</span>、<span class="inline">instruction</span> 三类留下可复用信息。
   但每张卡都要写上来自哪几段录音，之后有人质疑时才能回到原始证据。
 </div>
 
 <h2>L0 消息如何进入 L1 抽取</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>L0 messages</h4><p>pipeline 读取已捕获的 user / assistant L0 记录，它们仍是消息级证据，而不是结论。</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>quality gate</h4><p><span class="inline">shouldExtractL1</span> 丢弃空内容、短噪声、注入包裹、日志碎片、低信息量回复等不值得进入 LLM 的文本。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>quality gate</h4><p><span class="inline">shouldExtractL1</span> 先复用 L0 的结构过滤，再排除纯符号、纯问号和疑似 prompt-injection 文本；长度过滤在当前实现中是注释掉的。</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>background / new split</h4><p>尾部新消息是本批抽取对象；前面的背景窗口只提供上下文，避免 LLM 因缺少前因后果而误解。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>LLM extraction</h4><p><span class="inline">src/core/prompts/l1-extraction.ts</span> 要求模型按场景分段输出 JSON，再由 <span class="inline">sanitizeJsonForParse</span> 清理后解析。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>LLM extraction</h4><p><span class="inline">src/core/prompts/l1-extraction.ts</span> 要求模型按场景分段输出 JSON；<span class="inline">parseExtractionResult</span> 去掉 fence 并截取 JSON 数组，随后 <span class="inline">sanitizeJsonForParse</span> 修复控制字符再交给 <span class="inline">JSON.parse</span>。</p></div></div>
   <div class="step"><div class="num">5</div><div class="sc"><h4>extracted memories</h4><p>每个原子记忆带 <span class="inline">type</span>、<span class="inline">priority</span>、<span class="inline">source_message_ids</span> 与 <span class="inline">metadata</span>，随后交给 writer 持久化。</p></div></div>
 </div>
 
@@ -359,7 +359,7 @@ L1 是把 L0 原始消息整理成“原子记忆”的抽取层。<span class="
 <table class="t">
   <thead><tr><th>字段</th><th>含义</th><th>质量作用</th></tr></thead>
   <tbody>
-    <tr><td><span class="inline">type</span></td><td>记忆类型，如 fact、preference、task、lesson</td><td>让后续去重、召回和展示知道如何解释这条原子记忆</td></tr>
+    <tr><td><span class="inline">type</span></td><td>支持的记忆类型：<span class="inline">persona</span>、<span class="inline">episodic</span>、<span class="inline">instruction</span></td><td>偏好归入 persona；决定、计划和事件归入 episodic；长期行为规则归入 instruction</td></tr>
     <tr><td><span class="inline">content</span></td><td>抽取后的最小可复用结论</td><td>避免把整段对话搬进长期记忆，只保存稳定含义</td></tr>
     <tr><td><span class="inline">priority</span></td><td>重要度或保留价值</td><td>帮助排序、筛选和后续压缩</td></tr>
     <tr><td><span class="inline">source_message_ids</span></td><td>贡献该记忆的 L0 消息 ID 列表</td><td>保留从 L1 回到 L0 的审计链路</td></tr>
@@ -382,14 +382,14 @@ memories = flatten_scene_memories(scenes)</pre>
 
 <p>
 prompt 的输出按 scene 分段：一个场景可包含多条 memory atom，每条都要说明类型、优先级、来源消息和 metadata。
-解析前使用 <span class="inline">sanitizeJsonForParse</span> 去掉模型可能带上的 Markdown fence 或多余包装，降低 JSON 解析失败率。
+解析时 <span class="inline">parseExtractionResult</span> 先去掉模型可能带上的 Markdown fence 并从回复中截取 JSON 数组；之后 <span class="inline">sanitizeJsonForParse</span> 只负责修复 JSON 字符串里的未转义控制字符，最后再调用 <span class="inline">JSON.parse</span>。
 </p>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/record/l1-extractor.ts</span>：<span class="inline">extractL1Memories</span> 组织质量门、背景窗口、新消息与 LLM 调用</li>
-    <li><span class="inline">src/core/prompts/l1-extraction.ts</span>：L1 抽取 prompt，要求场景分段和结构化 JSON 输出</li>
+    <li><span class="inline">src/core/record/l1-extractor.ts</span>：<span class="inline">extractL1Memories</span> 组织质量门、背景窗口、新消息与 LLM 调用；<span class="inline">parseExtractionResult</span> 去 fence、截取 JSON 数组并调用 <span class="inline">sanitizeJsonForParse</span></li>
+    <li><span class="inline">src/core/prompts/l1-extraction.ts</span>：L1 抽取 prompt，限定 <span class="inline">persona</span> / <span class="inline">episodic</span> / <span class="inline">instruction</span> 三类并要求场景分段和结构化 JSON 输出</li>
     <li><span class="inline">src/utils/sanitize.ts</span>：<span class="inline">shouldExtractL1</span> 与 <span class="inline">sanitizeJsonForParse</span></li>
     <li><span class="inline">src/core/record/l1-writer.ts</span>：<span class="inline">ExtractedMemory</span>、<span class="inline">MemoryRecord</span> 的写入结构</li>
   </ul>
@@ -397,9 +397,9 @@ prompt 的输出按 scene 分段：一个场景可包含多条 memory atom，每
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  L1 从 L0 消息中抽取结构化原子记忆；<span class="inline">shouldExtractL1</span> 先挡住低价值噪声；
+  L1 从 L0 消息中抽取结构化原子记忆；<span class="inline">shouldExtractL1</span> 应用 L0 结构过滤、纯符号/纯问号过滤和 prompt-injection 检测；
   new messages 决定抽取范围，background messages 提供有限上下文；LLM 输出按场景分段，并为每条记忆保留
-  <span class="inline">type</span>、<span class="inline">priority</span>、<span class="inline">source_message_ids</span> 和 <span class="inline">metadata</span>。
+  <span class="inline">persona</span> / <span class="inline">episodic</span> / <span class="inline">instruction</span> 类型、<span class="inline">priority</span>、<span class="inline">source_message_ids</span> 和 <span class="inline">metadata</span>。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
@@ -426,21 +426,21 @@ prompt 的输出按 scene 分段：一个场景可包含多条 memory atom，每
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 L1 is the extraction layer that turns raw L0 messages into memory atoms. <span class="inline">extractL1Memories</span>
-does not promote every chat line into permanent memory. It first uses the <span class="inline">shouldExtractL1</span> quality gate to reject low-value noise, then sends new messages plus a small background window to the LLM so the result is traceable, deduplicable, sortable structured JSON.
+does not promote every chat line into permanent memory. It first uses <span class="inline">shouldExtractL1</span> to apply L0 structural filters, pure-symbol / question-only filters, and prompt-injection detection, then sends new messages plus a small background window to the LLM so the result is traceable, deduplicable, sortable structured JSON.
 </p>
 
 <div class="card analogy">
   <div class="tag">🧩 Analogy</div>
   L0 is the complete recording; L1 is the index card written after the meeting. The card does not copy greetings or repeated sentences.
-  It keeps reusable information such as preferences, facts, task decisions, and lessons learned. Each card still names the recording segments it came from, so later review can return to the evidence.
+  It keeps reusable information in the supported <span class="inline">persona</span>, <span class="inline">episodic</span>, and <span class="inline">instruction</span> categories. Each card still names the recording segments it came from, so later review can return to the evidence.
 </div>
 
 <h2>How L0 messages enter L1 extraction</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>L0 messages</h4><p>The pipeline reads captured user / assistant L0 records. They are still message-level evidence, not conclusions.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>quality gate</h4><p><span class="inline">shouldExtractL1</span> drops empty content, short noise, injected wrappers, log fragments, and low-information replies that are not worth sending to the LLM.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>quality gate</h4><p><span class="inline">shouldExtractL1</span> reuses L0 structural filters, then rejects pure-symbol text, question-only text, and suspected prompt-injection payloads; length filters are commented out in the current implementation.</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>background / new split</h4><p>The tail new messages are the extraction target; the earlier background window supplies context so the LLM does not misread the turn.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>LLM extraction</h4><p><span class="inline">src/core/prompts/l1-extraction.ts</span> asks the model for scene-segmented JSON, then <span class="inline">sanitizeJsonForParse</span> cleans it before parsing.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>LLM extraction</h4><p><span class="inline">src/core/prompts/l1-extraction.ts</span> asks the model for scene-segmented JSON; <span class="inline">parseExtractionResult</span> strips fences and extracts the JSON array, then <span class="inline">sanitizeJsonForParse</span> fixes control characters before <span class="inline">JSON.parse</span>.</p></div></div>
   <div class="step"><div class="num">5</div><div class="sc"><h4>extracted memories</h4><p>Each memory atom carries <span class="inline">type</span>, <span class="inline">priority</span>, <span class="inline">source_message_ids</span>, and <span class="inline">metadata</span> before being persisted by the writer.</p></div></div>
 </div>
 
@@ -454,7 +454,7 @@ does not promote every chat line into permanent memory. It first uses the <span 
 <table class="t">
   <thead><tr><th>Field</th><th>Meaning</th><th>Quality role</th></tr></thead>
   <tbody>
-    <tr><td><span class="inline">type</span></td><td>Memory type, such as fact, preference, task, or lesson</td><td>Tells dedup, recall, and UI code how to interpret the atom</td></tr>
+    <tr><td><span class="inline">type</span></td><td>Supported memory type: <span class="inline">persona</span>, <span class="inline">episodic</span>, or <span class="inline">instruction</span></td><td>Preferences fold into persona; decisions, plans, and events into episodic; durable behavior rules into instruction</td></tr>
     <tr><td><span class="inline">content</span></td><td>The smallest reusable conclusion extracted from the conversation</td><td>Avoids copying whole dialogue into long-term memory</td></tr>
     <tr><td><span class="inline">priority</span></td><td>Importance or retention value</td><td>Helps sorting, filtering, and later compression</td></tr>
     <tr><td><span class="inline">source_message_ids</span></td><td>List of L0 message IDs that contributed to the memory</td><td>Preserves the audit trail from L1 back to L0</td></tr>
@@ -477,14 +477,14 @@ memories = flatten_scene_memories(scenes)</pre>
 
 <p>
 The prompt output is scene segmented: one scene can contain multiple memory atoms, and each atom names its type, priority, source messages, and metadata.
-Before parsing, <span class="inline">sanitizeJsonForParse</span> removes possible Markdown fences or extra wrappers from the model response, reducing JSON parse failures.
+During parsing, <span class="inline">parseExtractionResult</span> first removes possible Markdown fences and extracts the JSON array from the model response. Then <span class="inline">sanitizeJsonForParse</span> fixes unescaped control characters inside JSON strings before <span class="inline">JSON.parse</span>.
 </p>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/record/l1-extractor.ts</span>: <span class="inline">extractL1Memories</span> coordinates the quality gate, background window, new messages, and LLM call</li>
-    <li><span class="inline">src/core/prompts/l1-extraction.ts</span>: L1 extraction prompt requiring scene segmentation and structured JSON output</li>
+    <li><span class="inline">src/core/record/l1-extractor.ts</span>: <span class="inline">extractL1Memories</span> coordinates the quality gate, background window, new messages, and LLM call; <span class="inline">parseExtractionResult</span> strips fences, extracts the JSON array, and calls <span class="inline">sanitizeJsonForParse</span></li>
+    <li><span class="inline">src/core/prompts/l1-extraction.ts</span>: L1 extraction prompt limiting types to <span class="inline">persona</span> / <span class="inline">episodic</span> / <span class="inline">instruction</span> and requiring scene segmentation plus structured JSON output</li>
     <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">shouldExtractL1</span> and <span class="inline">sanitizeJsonForParse</span></li>
     <li><span class="inline">src/core/record/l1-writer.ts</span>: writer-side <span class="inline">ExtractedMemory</span> and <span class="inline">MemoryRecord</span> shapes</li>
   </ul>
@@ -492,9 +492,9 @@ Before parsing, <span class="inline">sanitizeJsonForParse</span> removes possibl
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  L1 extracts structured memory atoms from L0 messages; <span class="inline">shouldExtractL1</span> blocks low-value noise first.
+  L1 extracts structured memory atoms from L0 messages; <span class="inline">shouldExtractL1</span> applies L0 structural filters, pure-symbol / question-only filters, and prompt-injection detection first.
   New messages define the extraction target, background messages provide bounded context, and the LLM returns scene-segmented memories with
-  <span class="inline">type</span>, <span class="inline">priority</span>, <span class="inline">source_message_ids</span>, and <span class="inline">metadata</span>.
+  <span class="inline">persona</span> / <span class="inline">episodic</span> / <span class="inline">instruction</span> types, <span class="inline">priority</span>, <span class="inline">source_message_ids</span>, and <span class="inline">metadata</span>.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
