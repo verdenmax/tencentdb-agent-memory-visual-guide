@@ -184,24 +184,24 @@ LLM 只在 <span class="inline">scene_blocks/</span> 工作区里创建、更新
 <h2>extract() 的阶段</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>创建目录并备份</h4><p>确保 <span class="inline">scene_blocks/</span> 存在，然后用 <span class="inline">BackupManager.backupDirectory</span> 备份现有场景块。</p><div class="mono">create dirs -&gt; backup(scene_blocks)</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>读取索引</h4><p>工程代码读取 <span class="inline">scene_index</span>，把已有场景摘要和文件映射作为 prompt 上下文，而不是让模型直接编辑索引。</p><div class="mono">readSceneIndex(dataDir)</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>读取索引</h4><p>工程代码读取 <span class="inline">.metadata/scene_index.json</span>，把已有场景摘要和文件映射作为 prompt 上下文，而不是让模型直接编辑索引。</p><div class="mono">readSceneIndex(dataDir)</div></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>构造 prompt</h4><p><span class="inline">buildSceneExtractionPrompt</span> 描述允许的操作：创建新场景、更新已有场景、用软删除标记废弃场景，并发出 persona 更新信号。</p><div class="mono">build prompt from memories + index</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>沙箱化 LLM 运行</h4><p><span class="inline">CleanContextRunner</span> 以 <span class="inline">workspaceDir=scene_blocks</span> 启用文件工具。可见目录只有 <span class="inline">scene_blocks/</span>。</p><div class="mono">runner.run({ workspaceDir: sceneBlocksDir })</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>沙箱化 LLM 运行</h4><p><span class="inline">CleanContextRunner</span> 构造时用 <span class="inline">enableTools=True</span> 启用文件工具；每次运行再传入 <span class="inline">workspaceDir=scene_blocks</span>。可见目录只有 <span class="inline">scene_blocks/</span>。</p><div class="mono">new runner(enableTools) -&gt; run({ workspaceDir })</div></div></div>
   <div class="step"><div class="num">5</div><div class="sc"><h4>工程后处理</h4><p>运行结束后删除软删除文件、规范化文件名、同步索引，并解析 persona update signals。</p><div class="mono">cleanup -&gt; normalize filenames -&gt; sync index -&gt; parse persona signals</div></div></div>
 </div>
 
 <h2>可见与隐藏的文件边界</h2>
 <div class="layers">
   <div class="layer l-core"><div class="lh"><span class="badge">VISIBLE</span><span class="name">scene_blocks/</span></div><div class="ld">LLM 的文件工具只能在这里读写 Markdown scene files：可创建、更新、重命名后被规范化，也可写入软删除标记。</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">HIDDEN</span><span class="name">.metadata/</span></div><div class="ld">内部元数据目录不暴露给 LLM，避免模型绕过工程状态机或污染运行状态。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">HIDDEN</span><span class="name">scene_index, checkpoints</span></div><div class="ld">索引与 checkpoint 游标由 TypeScript 代码读取、同步和推进，LLM 不能直接改它们。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">HIDDEN</span><span class="name">.metadata/ (scene_index.json, recall_checkpoint.json, ...)</span></div><div class="ld">内部元数据目录不暴露给 LLM；索引与 checkpoint 游标由 TypeScript 代码读取、同步和推进，避免模型绕过工程状态机或污染运行状态。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">HIDDEN</span><span class="name">.backup/</span></div><div class="ld">模型写入前的备份快照由工程代码管理，LLM 不直接查看或修改回滚状态。</div></div>
   <div class="layer l-app"><div class="lh"><span class="badge">HIDDEN</span><span class="name">persona.md</span></div><div class="ld">模型只能在场景输出里留下 persona update signals；是否更新 L3 Persona 由后续解析与生成流程决定。</div></div>
 </div>
 
 <h2>工程代码与 LLM agent 的分工</h2>
 <div class="cols">
-  <div class="col"><h4>Engineering code responsibilities</h4><p>创建目录、备份 <span class="inline">scene_blocks/</span>、读取并同步 <span class="inline">scene_index</span>、限制 <span class="inline">workspaceDir</span>、清理软删除、调用 <span class="inline">normalizeSceneFilenames</span>，并用 <span class="inline">parsePersonaUpdateSignal</span> 提取画像更新信号。</p></div>
-  <div class="col"><h4>LLM agent responsibilities</h4><p>根据 L1 memories 与已有摘要判断哪些活动应合并、哪些需要新建场景、哪些旧场景应软删除；它写的是可读 Markdown 场景块，不拥有 checkpoint、索引或 persona 文件。</p></div>
+  <div class="col"><h4>Engineering code responsibilities</h4><p>创建目录、备份 <span class="inline">scene_blocks/</span>、读取并同步 <span class="inline">.metadata/scene_index.json</span>、在 runner 构造时启用 tools、每次运行限制 <span class="inline">workspaceDir</span>、清理软删除、调用 <span class="inline">normalizeSceneFilenames</span>，并用 <span class="inline">parsePersonaUpdateSignal</span> 提取画像更新信号。</p></div>
+  <div class="col"><h4>LLM agent responsibilities</h4><p>根据 L1 memories 与已有摘要判断哪些活动应合并、哪些需要新建场景、哪些旧场景应软删除；它写的是可读 Markdown 场景块，不拥有 metadata checkpoint、索引或 persona 文件。</p></div>
 </div>
 
 <h2>核心伪代码</h2>
@@ -209,7 +209,8 @@ LLM 只在 <span class="inline">scene_blocks/</span> 工作区里创建、更新
 backup(sceneBlocksDir)
 index = readSceneIndex(dataDir)
 prompt = buildSceneExtractionPrompt(memories, index)
-llm.run(prompt, enableTools=True, workspaceDir=sceneBlocksDir)
+runner = CleanContextRunner(enableTools=True)
+runner.run(prompt, workspaceDir=sceneBlocksDir)
 remove_soft_deleted_files()
 normalizeSceneFilenames(sceneBlocksDir)
 syncSceneIndex(dataDir)</pre>
@@ -217,7 +218,7 @@ syncSceneIndex(dataDir)</pre>
 <p>
 这个设计的关键不是“让模型不能写文件”，而是“只让模型写它应该负责的文件”。沙箱允许模型发挥整理场景叙事的能力：
 创建新 Markdown scene block、更新已有 block、或通过 soft-delete 标记废弃 block；同时隐藏
-<span class="inline">.metadata/</span>、<span class="inline">persona.md</span>、checkpoints 和 indexes。
+<span class="inline">.metadata/</span>（包含 scene index 与 checkpoint 文件）、<span class="inline">.backup/</span> 和 <span class="inline">persona.md</span>。
 因此，创造性编辑发生在 L2 场景正文里，备份、索引一致性、文件名规范和 L3 画像升级仍由确定性的工程代码收口。
 </p>
 
@@ -225,7 +226,7 @@ syncSceneIndex(dataDir)</pre>
   <div class="tag">🔬 源码锚点</div>
   <ul>
     <li><span class="inline">src/core/scene/scene-extractor.ts</span>：<span class="inline">SceneExtractor.extract</span> 编排目录创建、备份、索引读取、prompt 构造、<span class="inline">runner.run({ workspaceDir: sceneBlocksDir })</span>、清理、索引同步，并包含 <span class="inline">parsePersonaUpdateSignal</span>。</li>
-    <li><span class="inline">src/utils/clean-context-runner.ts</span>：定义 tool-enabled runner contract，让调用方显式传入受限工作区。</li>
+    <li><span class="inline">src/utils/clean-context-runner.ts</span>：定义 tool-enabled runner contract；文件工具在构造 runner 时启用，受限 <span class="inline">workspaceDir</span> 在每次 <span class="inline">run()</span> 调用时传入。</li>
     <li><span class="inline">src/core/prompts/scene-extraction.ts</span>：约束 LLM 允许的场景操作：创建、更新、软删除 Markdown scene files，并输出 persona 更新信号。</li>
     <li><span class="inline">src/core/scene/filename-normalizer.ts</span>：把模型产生的场景文件名收敛为规范化命名，降低重复与不可预测路径。</li>
     <li><span class="inline">src/utils/backup.ts</span>：<span class="inline">BackupManager.backupDirectory</span> 在模型写入前保存可回滚快照。</li>
@@ -235,7 +236,7 @@ syncSceneIndex(dataDir)</pre>
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
   SceneExtractor 把不确定的 LLM 文件编辑限制在 <span class="inline">scene_blocks/</span>，
-  同时把 <span class="inline">.metadata/</span>、<span class="inline">persona.md</span>、checkpoints、indexes 保持隐藏。
+  同时把 <span class="inline">.metadata/</span>（含 scene index 与 checkpoint 文件）、<span class="inline">.backup/</span> 和 <span class="inline">persona.md</span> 保持隐藏。
   这样 LLM 能写场景，工程代码仍掌握备份、索引、文件名规范、软删除清理与 persona 信号解析。
 </div>
 """,
@@ -254,24 +255,24 @@ the LLM can create, update, or soft-delete Markdown scene files only inside the 
 <h2>extract() phases</h2>
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>Create directories and back up</h4><p>Ensure <span class="inline">scene_blocks/</span> exists, then use <span class="inline">BackupManager.backupDirectory</span> to snapshot existing scene blocks.</p><div class="mono">create dirs -&gt; backup(scene_blocks)</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Load the index</h4><p>Engineering code reads <span class="inline">scene_index</span> and passes summaries/file mappings as prompt context instead of letting the model edit the index directly.</p><div class="mono">readSceneIndex(dataDir)</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Load the index</h4><p>Engineering code reads <span class="inline">.metadata/scene_index.json</span> and passes summaries/file mappings as prompt context instead of letting the model edit the index directly.</p><div class="mono">readSceneIndex(dataDir)</div></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>Build the prompt</h4><p><span class="inline">buildSceneExtractionPrompt</span> describes allowed operations: create scenes, update scenes, mark stale scenes for soft deletion, and emit persona update signals.</p><div class="mono">build prompt from memories + index</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>Run the sandboxed LLM</h4><p><span class="inline">CleanContextRunner</span> enables file tools with <span class="inline">workspaceDir=scene_blocks</span>. The visible directory is only <span class="inline">scene_blocks/</span>.</p><div class="mono">runner.run({ workspaceDir: sceneBlocksDir })</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Run the sandboxed LLM</h4><p><span class="inline">CleanContextRunner</span> enables file tools at construction with <span class="inline">enableTools=True</span>; each run then receives <span class="inline">workspaceDir=scene_blocks</span>. The visible directory is only <span class="inline">scene_blocks/</span>.</p><div class="mono">new runner(enableTools) -&gt; run({ workspaceDir })</div></div></div>
   <div class="step"><div class="num">5</div><div class="sc"><h4>Post-process in code</h4><p>After the run, code removes soft-deleted files, normalizes filenames, syncs the index, and parses persona update signals.</p><div class="mono">cleanup -&gt; normalize filenames -&gt; sync index -&gt; parse persona signals</div></div></div>
 </div>
 
 <h2>Visible and hidden file boundary</h2>
 <div class="layers">
   <div class="layer l-core"><div class="lh"><span class="badge">VISIBLE</span><span class="name">scene_blocks/</span></div><div class="ld">The LLM file tools can read/write Markdown scene files only here: create, update, later-normalized rename, or write soft-delete markers.</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">HIDDEN</span><span class="name">.metadata/</span></div><div class="ld">Internal metadata is not exposed to the LLM, preventing bypasses of the engineering state machine or runtime pollution.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">HIDDEN</span><span class="name">scene_index, checkpoints</span></div><div class="ld">Indexes and checkpoint cursors are read, synchronized, and advanced by TypeScript code; the LLM cannot edit them directly.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">HIDDEN</span><span class="name">.metadata/ (scene_index.json, recall_checkpoint.json, ...)</span></div><div class="ld">Internal metadata is not exposed to the LLM; indexes and checkpoint cursors are read, synchronized, and advanced by TypeScript code to prevent bypasses of the engineering state machine or runtime pollution.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">HIDDEN</span><span class="name">.backup/</span></div><div class="ld">Rollback snapshots taken before model writes are managed by engineering code, not directly viewed or modified by the LLM.</div></div>
   <div class="layer l-app"><div class="lh"><span class="badge">HIDDEN</span><span class="name">persona.md</span></div><div class="ld">The model can only leave persona update signals in scene output; later parsing and generation decide whether L3 Persona changes.</div></div>
 </div>
 
 <h2>Engineering code vs LLM agent</h2>
 <div class="cols">
-  <div class="col"><h4>Engineering code responsibilities</h4><p>Create directories, back up <span class="inline">scene_blocks/</span>, read and sync <span class="inline">scene_index</span>, constrain <span class="inline">workspaceDir</span>, clean soft deletes, call <span class="inline">normalizeSceneFilenames</span>, and extract persona update signals with <span class="inline">parsePersonaUpdateSignal</span>.</p></div>
-  <div class="col"><h4>LLM agent responsibilities</h4><p>Use L1 memories and existing summaries to decide which activities merge, which scenes are new, and which old scenes should be soft-deleted. It writes readable Markdown scene blocks; it does not own checkpoints, indexes, or persona files.</p></div>
+  <div class="col"><h4>Engineering code responsibilities</h4><p>Create directories, back up <span class="inline">scene_blocks/</span>, read and sync <span class="inline">.metadata/scene_index.json</span>, enable tools when constructing the runner, constrain <span class="inline">workspaceDir</span> per run, clean soft deletes, call <span class="inline">normalizeSceneFilenames</span>, and extract persona update signals with <span class="inline">parsePersonaUpdateSignal</span>.</p></div>
+  <div class="col"><h4>LLM agent responsibilities</h4><p>Use L1 memories and existing summaries to decide which activities merge, which scenes are new, and which old scenes should be soft-deleted. It writes readable Markdown scene blocks; it does not own metadata checkpoints, indexes, or persona files.</p></div>
 </div>
 
 <h2>Core pseudocode</h2>
@@ -279,7 +280,8 @@ the LLM can create, update, or soft-delete Markdown scene files only inside the 
 backup(sceneBlocksDir)
 index = readSceneIndex(dataDir)
 prompt = buildSceneExtractionPrompt(memories, index)
-llm.run(prompt, enableTools=True, workspaceDir=sceneBlocksDir)
+runner = CleanContextRunner(enableTools=True)
+runner.run(prompt, workspaceDir=sceneBlocksDir)
 remove_soft_deleted_files()
 normalizeSceneFilenames(sceneBlocksDir)
 syncSceneIndex(dataDir)</pre>
@@ -287,7 +289,7 @@ syncSceneIndex(dataDir)</pre>
 <p>
 The key design is not "forbid the model from writing files"; it is "let the model write only the files it should own."
 The sandbox lets the model do creative scene editing: create a Markdown scene block, update an existing block, or mark a stale block with soft-delete.
-At the same time, <span class="inline">.metadata/</span>, <span class="inline">persona.md</span>, checkpoints, and indexes are hidden.
+At the same time, <span class="inline">.metadata/</span> (including scene index and checkpoint files), <span class="inline">.backup/</span>, and <span class="inline">persona.md</span> are hidden.
 Creative edits happen in L2 scene prose; deterministic code still owns backups, index consistency, filename normalization, and L3 persona promotion.
 </p>
 
@@ -295,7 +297,7 @@ Creative edits happen in L2 scene prose; deterministic code still owns backups, 
   <div class="tag">🔬 Source anchors</div>
   <ul>
     <li><span class="inline">src/core/scene/scene-extractor.ts</span>: <span class="inline">SceneExtractor.extract</span> orchestrates directory creation, backup, index loading, prompt construction, <span class="inline">runner.run({ workspaceDir: sceneBlocksDir })</span>, cleanup, index sync, and <span class="inline">parsePersonaUpdateSignal</span>.</li>
-    <li><span class="inline">src/utils/clean-context-runner.ts</span>: defines the tool-enabled runner contract where callers pass a restricted workspace explicitly.</li>
+    <li><span class="inline">src/utils/clean-context-runner.ts</span>: defines the tool-enabled runner contract; tools are enabled when the runner is constructed, while the restricted <span class="inline">workspaceDir</span> is supplied on each <span class="inline">run()</span> call.</li>
     <li><span class="inline">src/core/prompts/scene-extraction.ts</span>: constrains allowed scene operations: create, update, soft-delete Markdown scene files, and emit persona update signals.</li>
     <li><span class="inline">src/core/scene/filename-normalizer.ts</span>: converges model-produced scene filenames into normalized names, reducing duplicates and unpredictable paths.</li>
     <li><span class="inline">src/utils/backup.ts</span>: <span class="inline">BackupManager.backupDirectory</span> saves a rollback snapshot before model writes.</li>
@@ -305,7 +307,7 @@ Creative edits happen in L2 scene prose; deterministic code still owns backups, 
 <div class="card key">
   <div class="tag">✅ Key points</div>
   SceneExtractor confines uncertain LLM file edits to <span class="inline">scene_blocks/</span>,
-  while <span class="inline">.metadata/</span>, <span class="inline">persona.md</span>, checkpoints, and indexes stay hidden.
+  while <span class="inline">.metadata/</span> (including scene index and checkpoint files), <span class="inline">.backup/</span>, and <span class="inline">persona.md</span> stay hidden.
   The LLM can write scenes; engineering code still owns backups, indexing, filename normalization, soft-delete cleanup, and persona signal parsing.
 </div>
 """,
