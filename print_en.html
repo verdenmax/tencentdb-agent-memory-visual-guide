@@ -3735,15 +3735,15 @@ for entry in entries:
 
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 L3 is the last runtime loop before Context Offload enters the model call. It first injects the current active MMD before prompt build,
-then deterministically re-applies replacements for already confirmed offloads, then uses precise token snapshots to decide whether to run mild,
-aggressive, or emergency compression. The goal is not “delete as much as possible”; it is to return model input to a safe window without breaking the current task,
+then deterministically re-applies replacements for already confirmed offloads, then uses precise token snapshots to choose the tier: medium pressure runs only mild replacement,
+while pressure at the higher aggressive threshold runs aggressive deletion first, then mild cleanup, and only then emergency compression if needed. The goal is not “delete as much as possible”; it is to return model input to a safe window without breaking the current task,
 the latest user message, or tool-call structure.
 </p>
 
 <div class="card analogy">
   <div class="tag">🧭 Analogy</div>
   Think of an aircraft weight check before takeoff: the task map goes into the cockpit first; old checked luggage is represented by claim tickets;
-  if weight is still high, low-priority bags are moved first, then older boxes become cargo-manifest entries, and only then does emergency shedding start.
+  medium overweight cases use lighter claim tickets, while severe overweight cases first move older boxes to the cargo manifest, then clear the easiest-to-represent bags, and only then start emergency shedding.
   Passengers, flight instructions, and safety communications cannot be thrown away.
 </div>
 
@@ -3752,15 +3752,15 @@ the latest user message, or tool-call structure.
   <div class="step"><div class="num">1</div><div class="sc"><h4>before prompt</h4><p><span class="inline">before-prompt-build.ts</span> skips internal memory-pipeline sessions, reads the active MMD, and prepares the confirmed-offload fast path.</p><div class="mono">skip internal pipeline; load active MMD</div></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>inject active MMD</h4><p><span class="inline">injectMmdIntoMessages</span> manages injected fragments with a marker so the task map enters context first without duplicate appends.</p><div class="mono">MMD_MESSAGE_MARKER -&gt; task map</div></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>token snapshot</h4><p><span class="inline">context-token-tracker.ts</span> and <span class="inline">l3-token-counter.ts</span> count actual message tokens instead of guessing by character length.</p><div class="mono">messages -&gt; precise token count</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>mild replacement</h4><p><span class="inline">compressByScoreCascade</span> first replaces low-score, older, already offloaded regions while keeping summaries recoverable through JSONL and refs.</p><div class="mono">old tool detail -&gt; compact offload marker</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive / emergency</h4><p>If pressure remains high, old offloaded regions are deleted and history MMD is injected; overflow or continued high pressure enters <span class="inline">emergencyCompress</span>.</p><div class="mono">history MMD -&gt; emergency trim</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>tier gate</h4><p>Precise counts below the mild threshold do nothing; medium pressure such as 50-85 runs only <span class="inline">compressByScoreCascade</span>, while the higher aggressive threshold runs deletion first.</p><div class="mono">mild threshold &lt; aggressive threshold</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>aggressive -&gt; mild -&gt; emergency</h4><p><span class="inline">aggressiveCompressUntilBelowThreshold</span> first deletes old offloaded regions and injects history MMD; mild cleanup then replaces the highest replaceability-score regions, and <span class="inline">emergencyCompress</span> runs only if still above the emergency threshold.</p><div class="mono">history MMD -&gt; high-score replacement -&gt; emergency trim</div></div></div>
 </div>
 
 <h2>Three compression tiers</h2>
 <div class="cols">
-  <div class="col"><h4>Mild: score cascade</h4><p><b>Trigger</b>: token usage approaches the threshold but is still manageable.<br><b>Action</b>: replace old tool results by score, age, and offload state.<br><b>Evidence recovery</b>: keep tool_call_id, node_id, result_ref, and summary.</p></div>
-  <div class="col"><h4>Aggressive: delete old offloaded regions</h4><p><b>Trigger</b>: mild replacement still misses the budget.<br><b>Action</b>: <span class="inline">aggressiveCompressUntilBelowThreshold</span> removes older offloaded message blocks and injects history MMD.<br><b>Evidence recovery</b>: go from history MMD nodes to JSONL, then to refs.</p></div>
-  <div class="col"><h4>Emergency: overflow fallback</h4><p><b>Trigger</b>: token pressure remains high, or <span class="inline">isTokenOverflowError</span> detects an entry overflow.<br><b>Action</b>: <span class="inline">emergencyCompress</span> keeps only the safe skeleton, latest user message, valid tool pairs, and necessary task map.<br><b>Evidence recovery</b>: rely on active/history MMD plus JSONL status markers.</p></div>
+  <div class="col"><h4>Aggressive: delete old offloaded regions</h4><p><b>Trigger</b>: token usage reaches the aggressive threshold, which is higher than the mild threshold.<br><b>Action</b>: <span class="inline">aggressiveCompressUntilBelowThreshold</span> first removes older offloaded message blocks and injects history MMD.<br><b>Evidence recovery</b>: go from history MMD nodes to JSONL, then to refs.</p></div>
+  <div class="col"><h4>Mild: score cascade</h4><p><b>Trigger</b>: token usage reaches the mild threshold; after aggressive deletion, it also runs as the cleanup step.<br><b>Action</b>: <span class="inline">compressByScoreCascade</span> replaces old tool results by descending replaceability score, so high-score regions go first and lower-replaceability / hard-to-summarize evidence survives longer.<br><b>Evidence recovery</b>: keep tool_call_id, node_id, result_ref, and summary.</p></div>
+  <div class="col"><h4>Emergency: overflow fallback</h4><p><b>Trigger</b>: token pressure remains high after aggressive plus mild cleanup, or the previous entry overflow set <span class="inline">_forceEmergencyNext</span>.<br><b>Action</b>: <span class="inline">emergencyCompress</span> keeps only the safe skeleton, latest user message, valid tool pairs, MMD task-map messages, and the minimum keep set.<br><b>Evidence recovery</b>: rely on active/history MMD plus JSONL status markers.</p></div>
 </div>
 
 <h2>Why the fast path marks JSONL status</h2>
@@ -3774,8 +3774,8 @@ the latest user message, or tool-call structure.
 <h2>Timeline of one LLM call</h2>
 <div class="timeline">
   <div class="tl"><div class="tm">before_prompt_build</div><div class="td">Skip internal memory-pipeline sessions; inject active MMD; replay deterministic replacements for <span class="inline">offloaded: true</span>; write the token guard snapshot.</div></div>
-  <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> uses precise counts to choose <span class="inline">compressByScoreCascade</span>, <span class="inline">aggressiveCompressUntilBelowThreshold</span>, or <span class="inline">emergencyCompress</span>.</div></div>
-  <div class="tl"><div class="tm">model call</div><div class="td">If the entry throws token overflow, <span class="inline">isTokenOverflowError</span> turns it into an emergency-compression signal instead of blindly retrying the same oversized input.</div></div>
+  <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> uses precise counts in the real order: above the aggressive threshold it runs <span class="inline">aggressiveCompressUntilBelowThreshold</span> first, then <span class="inline">compressByScoreCascade</span>; medium pressure runs only mild replacement; <span class="inline">emergencyCompress</span> is last.</div></div>
+  <div class="tl"><div class="tm">model call</div><div class="td">If the entry throws token overflow, <span class="inline">isTokenOverflowError</span> sets <span class="inline">_forceEmergencyNext</span> so the next L3 pass runs emergency compression, rather than returning inline emergency output from the error handler.</div></div>
   <div class="tl"><div class="tm">after_tool_call</div><div class="td">After a tool returns, active MMD is refreshed, patch effectiveness is reported, and the next turn knows which replacements actually saved tokens.</div></div>
 </div>
 
@@ -3785,7 +3785,8 @@ the latest user message, or tool-call structure.
   <ul>
     <li>Preserve the latest user message: it defines the current intent and must not be deleted to save tokens.</li>
     <li>Keep tool-use / tool-result pairs valid: never delete only one side of a pair, or the host protocol can break.</li>
-    <li>Protect current-task nodes: <span class="inline">l3-helpers.ts</span> current-task node protection prevents deleting evidence targeted by the active MMD.</li>
+    <li>Protect current-task nodes during mild/aggressive stages: <span class="inline">l3-helpers.ts</span> current-task node protection prevents deleting evidence targeted by the active MMD.</li>
+    <li>In emergency mode, protect MMD task-map messages, the latest user message, valid tool pairs, and the minimum keep set rather than continuing node-level current-task filtering.</li>
     <li>Write JSONL status clearly: use <span class="inline">markOffloadStatus</span> with <span class="inline">true</span> and <span class="inline">"deleted"</span> so the fast path is repeatable.</li>
     <li>Skip internal memory-pipeline sessions: the memory pipeline's own compression/generation should not recursively trigger Context Offload.</li>
   </ul>
@@ -3801,28 +3802,37 @@ the latest user message, or tool-call structure.
     snapshot = build_precise_token_snapshot(messages)
     return messages, snapshot
 
-on_llm_input_l3(messages, snapshot):
-    if snapshot.total_tokens &lt; mild_threshold:
+on_llm_input_l3(messages, snapshot, state):
+    force_emergency = state._forceEmergencyNext
+    state._forceEmergencyNext = False
+
+    if snapshot.total_tokens &lt; mild_threshold and not force_emergency:
         return messages
 
-    messages = compressByScoreCascade(messages, protect_latest_user=True)
-    if count_tokens(messages) &lt; target_threshold:
-        markOffloadStatus(replaced_entries, true)
-        return messages
+    if snapshot.total_tokens >= aggressive_threshold:
+        messages = aggressiveCompressUntilBelowThreshold(messages, inject_history_mmd=True)
+        if deleted_entries:
+            markOffloadStatus(deleted_entries, "deleted")
 
-    messages = aggressiveCompressUntilBelowThreshold(messages, inject_history_mmd=True)
-    markOffloadStatus(deleted_entries, "deleted")
-    if count_tokens(messages) &lt; hard_threshold:
-        return messages
+    if count_tokens(messages) >= mild_threshold:
+        messages = compressByScoreCascade(messages,
+            sort_replaceability_score="desc",
+            protect_latest_user=True)
+        if replaced_entries:
+            markOffloadStatus(replaced_entries, true)
 
-    return emergencyCompress(messages,
-        preserve_latest_user=True,
-        preserve_valid_tool_pairs=True,
-        preserve_current_task_nodes=True)
+    if count_tokens(messages) >= emergency_threshold or force_emergency:
+        return emergencyCompress(messages,
+            preserve_latest_user=True,
+            preserve_valid_tool_pairs=True,
+            preserve_mmd_task_map_messages=True,
+            preserve_min_keep=True)
+    return messages
 
-on_model_error(error, messages):
+# inside on_llm_input_l3 outer try/catch:
+except error:
     if isTokenOverflowError(error):
-        return emergencyCompress(messages)
+        state._forceEmergencyNext = True  # consumed by the next L3 pass
     raise error</pre>
 
 <h2>Source anchors</h2>
@@ -3842,7 +3852,7 @@ on_model_error(error, messages):
 <div class="card key">
   <div class="tag">✅ Key points</div>
   The correct L3 order is: inject active MMD and replay confirmed offloads first, then use precise token counts to choose the compression tier.
-  Mild replacement, aggressive deletion, and emergency compression must all preserve the latest user message, valid tool pairs, and current-task nodes.
+  The aggressive threshold is higher than the mild threshold: medium pressure runs only mild replacement, while high pressure runs aggressive deletion before mild cleanup; mild replacement sorts replaceability score descending, so high-score regions go first. Safety invariants still preserve latest-user and valid tool-pair structure.
   <span class="inline">markOffloadStatus</span> values <span class="inline">true</span> / <span class="inline">"deleted"</span> make deterministic fast-path replay possible on the next turn.
 </div>
 
