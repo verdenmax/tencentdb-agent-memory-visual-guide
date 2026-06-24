@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 26 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">26 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 27 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">27 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -358,6 +358,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">L2 导航与 L3 Persona 注入</span><span class="lang-en">L2 navigation plus L3 persona injection</span></li>
   <li><span class="lang-zh">SQLite、sqlite-vec、FTS、BM25 与混合搜索</span><span class="lang-en">SQLite, sqlite-vec, FTS, BM25, and hybrid search</span></li>
   <li><span class="lang-zh">腾讯云 VectorDB 后端与 Embedding 服务</span><span class="lang-en">Tencent Cloud VectorDB backend and embedding services</span></li>
+  <li><span class="lang-zh">为什么长任务日志需要符号压缩</span><span class="lang-en">Why long task logs need symbolic compression</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -3237,6 +3238,103 @@ Existing SQLite data can be migrated with <span class="inline">scripts/migrate-s
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>If TCVDB initialization degrades, which local evidence paths should still remain?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">为什么长任务日志需要符号压缩</span><span class="lang-en">Why long task logs need symbolic compression</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Tool logs in long tasks grow quickly: the same file is read again and again, command output fills screens, and early results become stale while still occupying live context.
+Context Offload does not replace L0-L3 long-term memory. It adds a current-task symbolic layer: raw output goes to refs files, compact rows go to offload JSONL,
+task state is rendered as Mermaid MMD, and the next turn injects only the symbols needed to continue.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  L0-L3 is a cross-project archive that helps future sessions remember facts, scenes, and profiles; Context Offload is the whiteboard on your desk.
+  The whiteboard does not keep every detail in view. It keeps “where is the evidence, where are we now, which node should we inspect next” visible.
+</div>
+
+<h2>Why long task logs crowd the window</h2>
+<div class="cols">
+  <div class="col"><h4>Repeated tool calls</h4><p>Coding sessions repeatedly run <span class="inline">rg</span>, read files, and run tests. Each result may enter message history even when the next step only needs the symbol “this file was checked”.</p></div>
+  <div class="col"><h4>Large command output</h4><p>Builds, tests, and logs can produce hundreds or thousands of lines. The raw output is evidence, but the next reasoning step usually needs a failure summary, reference path, and current state.</p></div>
+  <div class="col"><h4>Stale results remain</h4><p>Early search hits, old stack traces, and fixed failures keep consuming tokens. They should remain traceable, but they should not permanently crowd the real-time prompt window.</p></div>
+</div>
+
+<h2>Symbolic compression flow</h2>
+<div class="flow">
+  <div class="node"><div class="nt">long task logs</div><div class="nd">Tool calls, parameters, stdout/stderr, stack traces, and duration.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">refs</div><div class="nd">Full evidence is written under <span class="inline">refs/</span> with a recoverable path.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">offload JSONL</div><div class="nd"><span class="inline">OffloadEntry</span> stores summary, result_ref, tool_call_id, and node_id.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Mermaid MMD</div><div class="nd">L2 organizes JSONL rows into task nodes and status canvas.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">L3 injected context</div><div class="nd">Only active task symbols are injected, not the whole tool log.</div></div>
+</div>
+
+<h2>Long-term L0-L3 versus short-term Context Offload</h2>
+<div class="cols">
+  <div class="col"><h4>Long-term L0-L3 memory</h4><p>Future-session oriented: L0 stores raw conversation evidence, L1 extracts atomic memories, L2 organizes scene blocks, and L3 generates persona/profile context. The goal is cross-session reuse, search, and long-term evolution.</p></div>
+  <div class="col"><h4>Short-term Context Offload</h4><p>Current-task oriented: move tool results out of live context into local evidence files and a task symbol layer. The goal is long coding-session continuity, drill-down recovery, and controlled token budget.</p></div>
+  <div class="col"><h4>Shared principle, different boundary</h4><p>Both care about evidence paths and compressed summaries. The lifecycle differs: Offload solves current-task navigation, not cross-session long-term factual memory.</p></div>
+</div>
+
+<h2>Three visible layers</h2>
+<div class="layers">
+  <div class="layer l-main"><div class="lh"><span class="badge">live</span><span class="name">prompt window</span></div><div class="ld">The messages, system prompt, a few active symbols, and necessary MMD fragments directly visible to the LLM now.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">local files</span><span class="name">~/.openclaw/context-offload</span></div><div class="ld">Under <span class="inline">DEFAULT_DATA_ROOT</span>, storage is isolated by agent and session; it contains <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;sessionId&gt;.jsonl</span>, and state.</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">guide</span><span class="name">generated lesson page</span></div><div class="ld">This page turns the implementation path into a learning model: evidence files, JSONL symbols, MMD canvas, and L3 injection.</div></div>
+</div>
+
+<h2>Core pseudocode</h2>
+<pre class="code">if task_has_many_tool_results:
+    write_raw_evidence_to_refs()
+    append_compact_rows_to_offload_jsonl()
+    update_mermaid_task_canvas()
+    inject_only_active_symbols_before_next_llm_call()</pre>
+
+<h2>Source anchors</h2>
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li>Approved spec Part 7: Context Offload exists to explain the second memory spine for long tasks and tool-log compression.</li>
+    <li><span class="inline">src/offload/index.ts</span>: <span class="inline">registerOffload</span> is the entry point, configures <span class="inline">OffloadContextEngine</span>, chooses <span class="inline">BackendClient</span> or <span class="inline">LocalLlmClient</span>, and wires hook / context-engine registration paths.</li>
+    <li><span class="inline">src/offload/storage.ts</span>: <span class="inline">DEFAULT_DATA_ROOT</span> points to <span class="inline">~/.openclaw/context-offload</span>; <span class="inline">createStorageContext</span> builds per-agent / per-session refs, mmds, offload JSONL, and state paths.</li>
+    <li><span class="inline">src/offload/types.ts</span>: <span class="inline">OffloadEntry</span> defines summary, result_ref, tool_call_id, and node_id; <span class="inline">PLUGIN_DEFAULTS</span> defines L1/L2/L3 thresholds and compression ratios.</li>
+    <li><span class="inline">src/offload/context-token-tracker.ts</span>: <span class="inline">ContextSnapshot</span> and <span class="inline">buildTiktokenContextSnapshot</span> capture stage, totalTokens, messageCount, and related token snapshots.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Context Offload is short-term symbolic memory for the current task: bulky tool logs become refs evidence, JSONL summaries, Mermaid nodes, and small L3 injections.
+  L0-L3 long-term memory serves future-session facts, scenes, and profiles; Offload serves current long-task navigation, drill-down, and token budget.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Why does Context Offload exist beside L0-L3 long-term memory?</div>
+  <ol class="opts">
+    <li>It sends every Mermaid diagram directly to VectorDB</li>
+    <li>It serves the current long task, compressing tool logs into traceable symbols to protect the live context token budget</li>
+    <li>It only stores real API keys</li>
+    <li>It replaces L0-L3 as the only cross-session memory source</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: B</strong>. Offload is for current-task navigation and token control; L0-L3 is for future-session facts, scenes, and profiles.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Which tool results should remain as refs evidence instead of staying injected in the live prompt?</li>
   </ul>
 </div>
 </div>

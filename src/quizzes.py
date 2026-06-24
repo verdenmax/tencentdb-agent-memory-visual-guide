@@ -464,6 +464,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果 TCVDB 初始化降级，哪些本地证据路径仍应保留？", "en": "If TCVDB initialization degrades, which local evidence paths should still remain?"}],
     },
+    "27-why-long-task-logs-symbolic-compression.html": {
+        "mcq": [{
+            "q": {"zh": "Context Offload 为什么要与 L0-L3 长期记忆并存？", "en": "Why does Context Offload exist beside L0-L3 long-term memory?"},
+            "opts": [
+                {"zh": "它服务当前长任务，把工具日志压成可追溯符号，保护 live context token 预算", "en": "It serves the current long task, compressing tool logs into traceable symbols to protect the live context token budget"},
+                {"zh": "它替代 L0-L3，成为唯一跨会话记忆来源", "en": "It replaces L0-L3 as the only cross-session memory source"},
+                {"zh": "它只负责保存真实 API key", "en": "It only stores real API keys"},
+                {"zh": "它把所有 Mermaid 图直接发到 VectorDB", "en": "It sends every Mermaid diagram directly to VectorDB"},
+            ],
+            "answer": 0,
+            "why": {"zh": "Offload 面向当前任务导航和 token 控制；L0-L3 面向未来会话的事实、场景和画像。", "en": "Offload is for current-task navigation and token control; L0-L3 is for future-session facts, scenes, and profiles."},
+        }],
+        "open": [{"zh": "哪些工具结果应该保留为 refs 证据，而不是持续注入 live prompt？", "en": "Which tool results should remain as refs evidence instead of staying injected in the live prompt?"}],
+    },
 }
 
 

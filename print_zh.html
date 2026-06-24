@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 26 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">26 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 27 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">27 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -358,6 +358,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">L2 导航与 L3 Persona 注入</span><span class="lang-en">L2 navigation plus L3 persona injection</span></li>
   <li><span class="lang-zh">SQLite、sqlite-vec、FTS、BM25 与混合搜索</span><span class="lang-en">SQLite, sqlite-vec, FTS, BM25, and hybrid search</span></li>
   <li><span class="lang-zh">腾讯云 VectorDB 后端与 Embedding 服务</span><span class="lang-en">Tencent Cloud VectorDB backend and embedding services</span></li>
+  <li><span class="lang-zh">为什么长任务日志需要符号压缩</span><span class="lang-en">Why long task logs need symbolic compression</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -3250,6 +3251,103 @@ recall_hybrid(queryText, sparseVector, topK):
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>如果 TCVDB 初始化降级，哪些本地证据路径仍应保留？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">为什么长任务日志需要符号压缩</span><span class="lang-en">Why long task logs need symbolic compression</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+长任务里的工具日志会迅速膨胀：同一个文件被反复读取，命令输出一屏接一屏，早期结果很快变旧却仍占着 live context。
+Context Offload 不是替代 L0-L3 长期记忆，而是在当前任务内把这些短期证据压成可导航符号：原始输出落到 refs 文件，紧凑行写入 offload JSONL，
+任务画布渲染成 Mermaid MMD，下一轮只把继续工作所需的符号注入回上下文。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  L0-L3 像跨项目档案馆，帮未来会话记住事实、场景和画像；Context Offload 像桌面上的任务白板。
+  白板不保存一切细节，只把“证据在哪里、当前做到哪一步、下一步该看哪个节点”保持在眼前。
+</div>
+
+<h2>为什么长任务日志会挤爆窗口</h2>
+<div class="cols">
+  <div class="col"><h4>重复工具调用</h4><p>编码会话常反复 <span class="inline">rg</span>、read file、run test。每次结果都可能被追加进消息历史，即使后续只需要“哪个文件已确认”这个符号。</p></div>
+  <div class="col"><h4>大块命令输出</h4><p>构建、测试和日志可能产生成百上千行。原始输出是证据，但下一轮推理通常只需要失败摘要、引用路径和当前状态。</p></div>
+  <div class="col"><h4>过期结果滞留</h4><p>早期搜索结果、旧失败栈和已修复错误会继续消耗 token。它们应可追溯，但不该一直挤占实时 prompt window。</p></div>
+</div>
+
+<h2>符号压缩流向</h2>
+<div class="flow">
+  <div class="node"><div class="nt">long task logs</div><div class="nd">工具调用、参数、stdout/stderr、错误栈与耗时。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">refs</div><div class="nd">完整证据写入 <span class="inline">refs/</span>，保留可回看路径。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">offload JSONL</div><div class="nd"><span class="inline">OffloadEntry</span> 保存 summary、result_ref、tool_call_id、node_id。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Mermaid MMD</div><div class="nd">L2 把 JSONL 行组织成任务节点和状态画布。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">L3 injected context</div><div class="nd">只注入当前任务需要的节点符号，而不是整段工具日志。</div></div>
+</div>
+
+<h2>长期 L0-L3 与短期 Context Offload</h2>
+<div class="cols">
+  <div class="col"><h4>长期 L0-L3 memory</h4><p>面向未来会话：L0 留原始对话证据，L1 抽取原子记忆，L2 组织场景块，L3 生成 persona/profile。目标是跨会话复用、搜索和长期演化。</p></div>
+  <div class="col"><h4>短期 Context Offload</h4><p>面向当前任务：把工具结果从 live context 移到本地证据文件和任务符号层。目标是让长编码会话可继续、可下钻、可控 token 预算。</p></div>
+  <div class="col"><h4>共同点与边界</h4><p>两者都强调证据路径和压缩摘要；差别是生命周期。Offload 解决当前任务导航，不承诺成为跨 session 的长期事实来源。</p></div>
+</div>
+
+<h2>三层可见空间</h2>
+<div class="layers">
+  <div class="layer l-main"><div class="lh"><span class="badge">live</span><span class="name">prompt window</span></div><div class="ld">LLM 当前能直接看到的消息、系统提示、少量 active symbols 和必要 MMD 片段。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">local files</span><span class="name">~/.openclaw/context-offload</span></div><div class="ld"><span class="inline">DEFAULT_DATA_ROOT</span> 下按 agent/session 隔离；包含 <span class="inline">refs/</span>、<span class="inline">mmds/</span>、<span class="inline">offload-&lt;sessionId&gt;.jsonl</span> 与 state。</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">guide</span><span class="name">generated lesson page</span></div><div class="ld">本页把实现路径解释成学习模型：证据文件、JSONL 符号、MMD 画布、L3 注入。</div></div>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">if task_has_many_tool_results:
+    write_raw_evidence_to_refs()
+    append_compact_rows_to_offload_jsonl()
+    update_mermaid_task_canvas()
+    inject_only_active_symbols_before_next_llm_call()</pre>
+
+<h2>源码锚点</h2>
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li>批准规格 Part 7：Context Offload 的目的，是解释长任务和工具日志压缩这条第二记忆主线。</li>
+    <li><span class="inline">src/offload/index.ts</span>：<span class="inline">registerOffload</span> 注册入口，配置 <span class="inline">OffloadContextEngine</span>，选择 <span class="inline">BackendClient</span> 或 <span class="inline">LocalLlmClient</span>，并连接 hook / context engine 路径。</li>
+    <li><span class="inline">src/offload/storage.ts</span>：<span class="inline">DEFAULT_DATA_ROOT</span> 指向 <span class="inline">~/.openclaw/context-offload</span>；<span class="inline">createStorageContext</span> 生成 per-agent / per-session 的 refs、mmds、offload JSONL 和 state 路径。</li>
+    <li><span class="inline">src/offload/types.ts</span>：<span class="inline">OffloadEntry</span> 定义 summary、result_ref、tool_call_id、node_id；<span class="inline">PLUGIN_DEFAULTS</span> 定义 L1/L2/L3 阈值和压缩比例。</li>
+    <li><span class="inline">src/offload/context-token-tracker.ts</span>：<span class="inline">ContextSnapshot</span> 与 <span class="inline">buildTiktokenContextSnapshot</span> 记录 stage、totalTokens、messageCount 等 token 快照。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  Context Offload 是当前任务的短期符号记忆：把臃肿工具日志变成 refs 证据、JSONL 摘要、Mermaid 节点和少量 L3 注入。
+  L0-L3 长期记忆负责未来会话的事实、场景和画像；Offload 负责当前长任务的导航、下钻和 token 预算。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. Context Offload 为什么要与 L0-L3 长期记忆并存？</div>
+  <ol class="opts">
+    <li>它把所有 Mermaid 图直接发到 VectorDB</li>
+    <li>它服务当前长任务，把工具日志压成可追溯符号，保护 live context token 预算</li>
+    <li>它只负责保存真实 API key</li>
+    <li>它替代 L0-L3，成为唯一跨会话记忆来源</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：B</strong>。Offload 面向当前任务导航和 token 控制；L0-L3 面向未来会话的事实、场景和画像。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>哪些工具结果应该保留为 refs 证据，而不是持续注入 live prompt？</li>
   </ul>
 </div>
 </div>

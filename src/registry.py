@@ -5,6 +5,7 @@ import part3
 import part4
 import part5
 import part6
+import part7
 
 CONTENT = {
     "01-why-agent-memory.html": part1.LESSON_01,
@@ -33,4 +34,5 @@ CONTENT = {
     "24-l2-navigation-l3-persona-injection.html": part6.LESSON_24,
     "25-sqlite-vec-fts-bm25-hybrid.html": part6.LESSON_25,
     "26-tencent-vectordb-embedding.html": part6.LESSON_26,
+    "27-why-long-task-logs-symbolic-compression.html": part7.LESSON_27,
 }

@@ -98,6 +98,8 @@ PAGES = [
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
     ("26-tencent-vectordb-embedding.html", "腾讯云 VectorDB 后端与 Embedding 服务", "Tencent Cloud VectorDB backend and embedding services",
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
+    ("27-why-long-task-logs-symbolic-compression.html", "为什么长任务日志需要符号压缩", "Why long task logs need symbolic compression",
+     "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
 ]
 
 def bi(zh, en):
@@ -583,6 +585,8 @@ SUBTITLES = {
                                            "local l1_records/l0_conversations metadata tables + vec0 vector tables + FTS5 BM25 ranking"),
     "26-tencent-vectordb-embedding.html": ("TCVDB 集合、服务端 dense embedding、客户端 sparse vector、native hybridSearch 与降级策略",
                                       "TCVDB collections, server-side dense embedding, client sparse vectors, native hybridSearch, and degradation"),
+    "27-why-long-task-logs-symbolic-compression.html": ("把臃肿工具日志变成可追溯的任务符号层",
+                                                   "turn bulky tool logs into a traceable symbolic task layer"),
 }
 
 def index_page(lesson_prefix="lessons/"):
