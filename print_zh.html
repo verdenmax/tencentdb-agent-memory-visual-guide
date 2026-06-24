@@ -2595,21 +2595,33 @@ L2 是按 session 整理场景，L3 persona 却汇总所有场景并写同一个
         reset_l1_idle_timer(sessionKey)
 
 on_l1_success(sessionKey):
+    if destroyed:
+        persist_pipeline_state_for_recovery()
+        return
     advance_l2_timer_earlier(max(now + delay, lastL2 + minInterval))
 
 on_l2_success():
+    if destroyed:
+        persist_pipeline_state_for_recovery()
+        return
     if l3Running:
         l3Pending = true
     else:
-        enqueue_global_l3()</pre>
+        enqueue_global_l3()
+
+destroy():
+    destroyed = true
+    cancel_timers_and_flush_buffered_l1_when_safe()
+    await_existing_queues_to_drain()
+    persist_pipeline_state_for_recovery()</pre>
 
 <h2>Shutdown flush 顺序</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>停止接收新工作</h4><p><span class="inline">destroyed</span> 先置为 true，自然 timer 不再发起新调度。</p><div class="mono">destroyed = true</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>flush L1 idle</h4><p>取消 L1 idle timer；如果 session 还有 buffered messages，用 <span class="inline">enqueueL1(..., "flush")</span> 收尾。</p><div class="mono">L1 idle -&gt; enqueue L1</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>等待 L1 drain</h4><p>L1 成功后会照常推进 L2 timer，因此必须先等待 L1 queue 清空。</p><div class="mono">await l1Queue.onIdle()</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>flush L2 timers</h4><p>把 pending 的 L2 schedule timer 立即触发，进入 L2 queue；L2 成功后触发 L3。</p><div class="mono">L2 timer -&gt; enqueue L2 -&gt; enqueue L3</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>等待 L2/L3 并持久化状态</h4><p>等待 L2 与 L3 队列空闲，然后无论 flush 成败都保存 <span class="inline">PipelineSessionState</span>，便于下次启动恢复。</p><div class="mono">await queues -&gt; persist state</div></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>停止接收新工作</h4><p><span class="inline">destroyed</span> 先置为 true；从这一刻起，<span class="inline">advanceL2Timer()</span> 和 <span class="inline">triggerL3()</span> 都会直接返回，不再安排新的 L2/L3。</p><div class="mono">destroyed = true</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>flush L1 idle</h4><p>取消 L1 idle timer；如果 session 还有 buffered messages，只在安全时用 <span class="inline">enqueueL1(..., "flush")</span> 收尾。</p><div class="mono">cancel idle -&gt; optional L1 flush</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>等待已入队 L1 drain</h4><p>等待 L1 queue 清空；shutdown 期间 L1 成功不会再推进新的 L2 timer，未完成的整理意图留在状态里。</p><div class="mono">await l1Queue.onIdle()</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>drain 已存在的 L2/L3</h4><p>只等待已经在队列中的 L2/L3 工作完成；不会因为 flush 后的 L1 或 L2 再创建新的 L2 timer 或 L3 run。</p><div class="mono">drain queued L2/L3 only</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>持久化状态供恢复</h4><p>无论 flush/drain 成败都保存 <span class="inline">PipelineSessionState</span>，保留 pending 计数与时间戳，便于下次启动恢复未整理的工作。</p><div class="mono">persist state -&gt; recover later</div></div></div>
 </div>
 
 <div class="card detail">
@@ -2626,7 +2638,7 @@ on_l2_success():
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
   L1 的 resettable idle 解决“用户还在说话时先等等”；L2 的 downward-only timer 解决“新 L1 可提前整理，但不能把整理无限推迟”；
-  L3 的全局串行队列解决“所有 session 共享同一份 persona 写入面”。Shutdown 时按 L1 -&gt; L2 -&gt; L3 -&gt; persist state 收口，保证 pending 工作可完成或可恢复。
+  L3 的全局串行队列解决“所有 session 共享同一份 persona 写入面”。Shutdown 时先进入 destroyed 状态，只 drain/flush 合适的已挂起工作并持久化 state；新的 L2/L3 调度留到恢复后处理。
 </div>
 
 <div class="selftest">
