@@ -177,14 +177,14 @@ LESSON_23 = {
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">budget</div><div class="nd"><span class="inline">maxResults</span> 与字符预算限制注入规模。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">injected lines</div><div class="nd">只注入简洁 L1 行，保留 id、score、memory 摘要等可追踪线索。</div></div>
+  <div class="node hl"><div class="nt">injected lines</div><div class="nd">只注入 <span class="inline">formatMemoryLine()</span> 生成的简洁 L1 行：<span class="inline">- [type|scene] content</span>，可附活动时间；id 和 score 不进入 prompt，解析注入文本的指标不应依赖 score。</div></div>
 </div>
 
 <h2>三种策略怎么选</h2>
 <div class="cols">
   <div class="col"><h4>keyword</h4><p><span class="inline">searchByKeyword</span> 走 SQLite FTS5。<span class="inline">buildFtsQuery</span> 把清洗后的词变成 FTS 查询，结果用 BM25 排序，适合精确术语、文件名、函数名。</p></div>
   <div class="col"><h4>embedding</h4><p><span class="inline">searchByEmbedding</span> 先把 query 编成向量，再用余弦相似度找语义接近的 L1。它适合用户换一种说法提问，但依赖 embedding 资源可用。</p></div>
-  <div class="col"><h4>hybrid</h4><p><span class="inline">searchHybrid</span> 同时跑 keyword 与 embedding，再用 <span class="inline">rrfMerge</span> 把两个排行榜融合。RRF 的 <span class="inline">RRF_K</span> 让高排名结果稳定胜出，而不是只看某一路绝对分数。</p></div>
+  <div class="col"><h4>hybrid</h4><p><span class="inline">searchHybrid</span> 同时跑 keyword 与 embedding，并在 <span class="inline">auto-recall.ts</span> 内部用本地 RRF 合并两个排行榜。RRF 常量让高排名结果稳定胜出，而不是只看某一路绝对分数。</p></div>
 </div>
 
 <p>
@@ -209,17 +209,16 @@ strategy = cfg.recall.strategy or "hybrid"
 if strategy needs embedding and embedding not ready:
     strategy = "keyword"
 if strategy == "hybrid":
-    candidates = rrfMerge([fts(clean), vector(embed(clean))])
+    lines = searchHybrid(clean)  # local RRF merge inside auto-recall
 else:
     candidates = search_one_strategy(clean)
-lines = format_top_results(candidates, maxResults, scoreThreshold)
+    lines = format_top_results(candidates, maxResults, scoreThreshold)
 return applyRecallBudget(lines, cfg.recall)</pre>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：<span class="inline">searchMemories</span> 选择 <span class="inline">keyword</span>、<span class="inline">embedding</span>、<span class="inline">hybrid</span>；<span class="inline">searchByKeyword</span>、<span class="inline">searchByEmbedding</span>、<span class="inline">searchHybrid</span> 分别实现三条路径；<span class="inline">applyRecallBudget</span> 做最终裁剪。</li>
-    <li><span class="inline">src/core/store/search-utils.ts</span>：<span class="inline">rrfMerge</span> 与 <span class="inline">RRF_K</span> 定义 hybrid 的 reciprocal-rank fusion 排序。</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：<span class="inline">searchMemories</span> 选择 <span class="inline">keyword</span>、<span class="inline">embedding</span>、<span class="inline">hybrid</span>；<span class="inline">searchByKeyword</span>、<span class="inline">searchByEmbedding</span>、<span class="inline">searchHybrid</span> 分别实现三条路径；<span class="inline">searchHybrid</span> 在自动召回路径内完成本地 RRF 合并；<span class="inline">formatMemoryLine</span> 生成最终注入行；<span class="inline">applyRecallBudget</span> 做最终裁剪。</li>
     <li><span class="inline">src/core/store/sqlite.ts</span>：<span class="inline">buildFtsQuery</span> 与 FTS5 helpers 负责关键词查询、BM25 排名和 SQLite 搜索细节。</li>
     <li><span class="inline">src/core/store/types.ts</span>：<span class="inline">L1SearchResult</span> 与 <span class="inline">L1FtsResult</span> 描述召回候选和 FTS 命中的结构。</li>
     <li><span class="inline">src/core/tools/memory-search.ts</span>：显式 memory search 工具路径；当自动召回只给出短片段时，可以用工具继续下钻。</li>
@@ -258,14 +257,14 @@ Recall output is not a full transcript. It is a compact set of relevant L1 snipp
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">budget</div><div class="nd"><span class="inline">maxResults</span> and character limits bound injection size.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">injected lines</div><div class="nd">Only concise L1 lines are injected, keeping id, score, memory summary, and trace hints.</div></div>
+  <div class="node hl"><div class="nt">injected lines</div><div class="nd">Only concise L1 lines from <span class="inline">formatMemoryLine()</span> are injected: <span class="inline">- [type|scene] content</span>, optionally with activity time; id and score do not enter the prompt, so metrics that parse injected text should not rely on score.</div></div>
 </div>
 
 <h2>How the three strategies differ</h2>
 <div class="cols">
   <div class="col"><h4>keyword</h4><p><span class="inline">searchByKeyword</span> uses SQLite FTS5. <span class="inline">buildFtsQuery</span> turns sanitized words into an FTS query, and BM25 ranks the results. This is good for exact terms, file names, and function names.</p></div>
   <div class="col"><h4>embedding</h4><p><span class="inline">searchByEmbedding</span> embeds the query, then finds L1 memories by cosine similarity. It works when the user asks with different wording, but it depends on embedding resources being ready.</p></div>
-  <div class="col"><h4>hybrid</h4><p><span class="inline">searchHybrid</span> runs keyword and embedding, then <span class="inline">rrfMerge</span> fuses both rankings. <span class="inline">RRF_K</span> makes high-ranked items win consistently instead of trusting one absolute score scale.</p></div>
+  <div class="col"><h4>hybrid</h4><p><span class="inline">searchHybrid</span> runs keyword and embedding, then performs a local RRF merge inside <span class="inline">auto-recall.ts</span>. The RRF constant makes high-ranked items win consistently instead of trusting one absolute score scale.</p></div>
 </div>
 
 <p>
@@ -290,17 +289,16 @@ strategy = cfg.recall.strategy or "hybrid"
 if strategy needs embedding and embedding not ready:
     strategy = "keyword"
 if strategy == "hybrid":
-    candidates = rrfMerge([fts(clean), vector(embed(clean))])
+    lines = searchHybrid(clean)  # local RRF merge inside auto-recall
 else:
     candidates = search_one_strategy(clean)
-lines = format_top_results(candidates, maxResults, scoreThreshold)
+    lines = format_top_results(candidates, maxResults, scoreThreshold)
 return applyRecallBudget(lines, cfg.recall)</pre>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">searchMemories</span> selects <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>; <span class="inline">searchByKeyword</span>, <span class="inline">searchByEmbedding</span>, and <span class="inline">searchHybrid</span> implement the paths; <span class="inline">applyRecallBudget</span> does final trimming.</li>
-    <li><span class="inline">src/core/store/search-utils.ts</span>: <span class="inline">rrfMerge</span> and <span class="inline">RRF_K</span> define reciprocal-rank fusion for hybrid ranking.</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">searchMemories</span> selects <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>; <span class="inline">searchByKeyword</span>, <span class="inline">searchByEmbedding</span>, and <span class="inline">searchHybrid</span> implement the paths; <span class="inline">searchHybrid</span> owns the auto-recall local RRF merge; <span class="inline">formatMemoryLine</span> creates the injected lines; <span class="inline">applyRecallBudget</span> does final trimming.</li>
     <li><span class="inline">src/core/store/sqlite.ts</span>: <span class="inline">buildFtsQuery</span> and FTS5 helpers handle keyword query construction, BM25 ranking, and SQLite search details.</li>
     <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">L1SearchResult</span> and <span class="inline">L1FtsResult</span> describe recall candidates and FTS hits.</li>
     <li><span class="inline">src/core/tools/memory-search.ts</span>: explicit memory search tool path; when automatic recall injects only short snippets, the tool can drill deeper.</li>
