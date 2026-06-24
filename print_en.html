@@ -560,7 +560,7 @@ experience for future sessions, while short-term Offload compresses the current 
 <h2>Two spines, two jobs</h2>
 <div class="cols">
   <div class="col"><h4>Long-term L0-L3</h4><p>Start with raw conversation, extract atoms, aggregate scenes, synthesize persona, then recall before a later turn or future session. It asks: what experience should be reused later?</p></div>
-  <div class="col"><h4>Short-term Offload</h4><p>Start with tool results, write refs markdown and offload JSONL, produce L1/L1.5/L2 Mermaid MMD, inject an L3 task canvas, then drill down by node_id. It asks: how do we reduce current prompt pressure?</p></div>
+  <div class="col"><h4>Short-term Offload</h4><p>Start with tool results, write refs markdown and offload JSONL, let Offload-L1 produce compact summary rows, optionally let Offload-L1.5 judge and refine recent task context, let Offload-L2 build the Mermaid MMD canvas and assign node_id values, then let Offload-L3 inject compressed symbolic context. It asks: how do we reduce current prompt pressure?</p></div>
 </div>
 
 <h2>Long-term spine: evidence to reusable memory</h2>
@@ -589,11 +589,20 @@ This spine is for durable preferences, project constraints, repeated scenes, and
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">Refs</div><div class="nd">markdown evidence</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">MMD</div><div class="nd">L1/L1.5/L2</div></div>
+  <div class="node"><div class="nt">Offload-L1</div><div class="nd">JSONL summary rows</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">Injection</div><div class="nd">L3 task graph</div></div>
+  <div class="node"><div class="nt">Offload-L1.5</div><div class="nd">recent context judgment/refinement</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Offload-L2 MMD</div><div class="nd">task canvas/node_id</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">Offload-L3</div><div class="nd">compressed symbolic injection</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node hl"><div class="nt">node_id</div><div class="nd">drill-down</div></div>
+</div>
+
+<div class="card detail">
+  <div class="tag">⚠️ Naming boundary</div>
+  Long-term L2/L3 still mean Scene blocks and Persona profiles; Offload-L2/L3 are separate internal context-offload stages for the Mermaid MMD task canvas and compressed symbolic injection.
 </div>
 
 <p>
@@ -601,13 +610,13 @@ Offload is registered in <span class="inline">src/offload/index.ts</span> throug
 runtime context is coordinated by <span class="inline">OffloadContextEngine</span>. Storage lives in
 <span class="inline">src/offload/storage.ts</span>: <span class="inline">writeRefMd</span>,
 <span class="inline">appendOffloadEntries</span>, and <span class="inline">createStorageContext</span> preserve evidence and indexes.
-The L2 promotion decision is anchored by <span class="inline">checkL2Trigger</span> in
+The Offload-L2 promotion decision is anchored by <span class="inline">checkL2Trigger</span> in
 <span class="inline">src/offload/pipelines/l2-mermaid.ts</span>. This spine is not learning the user; it is keeping a long current task manageable.
 </p>
 
 <h2>Shared principle: structure above, evidence below</h2>
 <div class="cols">
-  <div class="col"><h4>Upper layers keep structure</h4><p>L3 persona, L2 scenes, and Offload L2/L3 Mermaid should be compact, stable, and navigable. The model sees the map first.</p></div>
+  <div class="col"><h4>Upper layers keep structure</h4><p>L3 persona, L2 scenes, Offload-L2 MMD, and Offload-L3 injection should be compact, stable, and navigable. The model sees the map first.</p></div>
   <div class="col"><h4>Lower layers keep evidence</h4><p>L0 conversations, refs markdown, and offload JSONL preserve raw text, sources, and node_id links so the agent can drill down only when needed.</p></div>
 </div>
 

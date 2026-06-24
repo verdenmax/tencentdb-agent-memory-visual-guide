@@ -31,10 +31,14 @@ A second spine covers short-term context compression:
 Long task logs
   -> refs/*.md
   -> offload JSONL
-  -> L1 / L1.5 / L2 Mermaid canvas
-  -> L3 context injection
+  -> Offload-L1 compact summaries / rows
+  -> Offload-L1.5 recent-context judgment/refinement when used
+  -> Offload-L2 Mermaid MMD canvas and node_id assignment
+  -> Offload-L3 compressed symbolic context injection
   -> drill down by node_id
 ```
+
+Long-term L2/L3 still mean scene blocks and persona. Offload-L2/L3 are separate internal context-offload stages.
 
 ### Audience
 
@@ -275,9 +279,9 @@ Candidate lessons:
 
 27. Why long task logs need symbolic compression
 28. `after-tool-call`, refs, and offload JSONL
-29. L1 / L1.5 / L2 local LLM pipelines
+29. Offload-L1 / Offload-L1.5 / Offload-L2 local LLM pipelines
 30. Mermaid MMD canvas, `node_id`, and drill-down recovery
-31. L3 context injection and emergency compression
+31. Offload-L3 context injection and emergency compression
 
 Core source anchors:
 
@@ -398,7 +402,7 @@ Each milestone should be independently buildable and reviewable in a browser.
 | M1 - Parts 1-2 | Data-flow overview plus minimal OpenClaw/Hermes usage loop |
 | M2 - Parts 3-4 | Hooks, adapters, TdaiCore, L0 capture, L1 extraction |
 | M3 - Parts 5-6 | L2 scenes, L3 persona, recall/search/store backends |
-| M4 - Part 7 | Context offload, refs, MMD, node_id drill-down, L3 compression |
+| M4 - Part 7 | Context offload, refs, MMD, node_id drill-down, Offload-L3 compression |
 | M5 - Part 8 | Gateway, seed CLI, operations, debugging, testing, contribution, glossary |
 | M6 - Final polish | Fill quiz coverage, print editions, CI, README badges, link/HTML/drift validation |
 
