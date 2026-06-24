@@ -360,3 +360,183 @@ under the agent directory use timestamp names for drill-down evidence and <span 
 </div>
 """,
 }
+
+
+LESSON_29 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+本地模式不是“一次调用解决所有 Offload 问题”。<span class="inline">LocalLlmClient</span> 暴露和后端 client 相同的方法，
+但把三种责任拆成三次本地 LLM 调用：<span class="inline">l1Summarize</span> 把工具对压成高密度摘要，
+<span class="inline">l15Judge</span> 判断最新用户轮次与长任务边界，<span class="inline">l2Generate</span> 把未分配的 offload 行组织成 Mermaid MMD 并返回 <span class="inline">node_mapping</span>。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  像一个本地项目助理团队：记录员先把工具结果写成索引卡；调度员判断“这是继续、收尾还是新任务”；白板管理员再把未贴到白板的卡片放进 Mermaid 任务画布，并把卡片编号回填。
+</div>
+
+<h2>三次本地模型调用，不共享一份输出</h2>
+<div class="flow">
+  <div class="node"><div class="nt">tool pairs</div><div class="nd">工具名、参数、调用 ID、结果与最近消息。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L1 summaries</div><div class="nd">高密度 summary、score、result_ref 与空 node_id。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L1.5 task judgment</div><div class="nd">判断继续、完成或开始长任务，并选择 active MMD。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L2 MMD update</div><div class="nd">生成/修补 Mermaid 任务画布。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">node backfill</div><div class="nd">用 <span class="inline">node_mapping</span> 回填 JSONL 行的 node_id。</div></div>
+</div>
+
+<p>
+关键点是责任边界：L1 只关心“这批工具结果说明了什么”；L1.5 只关心“最新用户轮次属于哪个任务”；
+L2 只关心“未分配摘要应落到 Mermaid 画布的哪个节点”。拆开后，某一层失败不会伪造另一层结果。
+</p>
+
+<h2>L1 / L1.5 / L2 输入输出对照</h2>
+<div class="cols">
+  <div class="col"><h4>L1 input/output</h4><p><b>L1 input</b>：<span class="inline">tool_pairs</span> 与 <span class="inline">recent_messages</span>。<br><b>L1 output</b>：JSON array，每项是紧凑摘要、score、工具调用标识和 ref 路径；<span class="inline">node_id</span> 还不属于 L1。</p></div>
+  <div class="col"><h4>L1.5 input/output</h4><p><b>L1.5 input</b>：最近用户/助手消息、当前 active MMD、可选 MMD 列表。<br><b>L1.5 output</b>：是否长任务、继续/完成/新任务判断、应使用哪个 active MMD。</p></div>
+  <div class="col"><h4>L2 input/output</h4><p><b>L2 input</b>：尚未分配 <span class="inline">node_id</span> 的 offload entries 与 active MMD。<br><b>L2 output</b>：Mermaid MMD 文本和 <span class="inline">node_mapping</span>，供后续回填。</p></div>
+</div>
+
+<h2>本地 client 与后端 client 共用接口</h2>
+<div class="card detail">
+  <div class="tag">🔌 接口边界</div>
+  <span class="inline">LocalLlmClient</span> 实现与 backend client 相同的 <span class="inline">l1Summarize</span>、<span class="inline">l15Judge</span>、<span class="inline">l2Generate</span> 方法。
+  上层 pipeline 不需要知道当前模式是 local 还是 backend；差异被封装在本地 <span class="inline">llm-caller.ts</span> 的模型配置、直接调用和 timeout 处理里。
+</div>
+
+<table class="t">
+  <tr><th>方法</th><th>Prompt file</th><th>Parser file</th><th>失败行为</th></tr>
+  <tr><td class="mono">LocalLlmClient.l1Summarize</td><td class="mono">src/offload/local-llm/prompts/l1-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l1-parser.ts</td><td>L1 parser 只接受 JSON array 契约；解析失败时不应写入伪摘要。</td></tr>
+  <tr><td class="mono">LocalLlmClient.l15Judge</td><td class="mono">src/offload/local-llm/prompts/l15-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l15-parser.ts</td><td>判断契约无效时保持保守：不随意切换 active MMD 或误判新长任务。</td></tr>
+  <tr><td class="mono">LocalLlmClient.l2Generate</td><td class="mono">src/offload/local-llm/prompts/l2-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l2-parser.ts</td><td>L2 parser 要同时拿到 Mermaid 与 <span class="inline">node_mapping</span>；缺失映射就不能安全回填。</td></tr>
+</table>
+
+<h2>核心伪代码</h2>
+<pre class="code">client = LocalLlmClient(config)
+l1_entries = client.l1Summarize(tool_pairs, recent_messages)
+judgment = client.l15Judge(recent_messages, active_mmd, available_mmds)
+if judgment.isLongTask:
+    l2_result = client.l2Generate(unassigned_entries, active_mmd)
+    write_or_patch_mmd(l2_result)
+    backfill_node_ids(l2_result.node_mapping)</pre>
+
+<h2>独立触发与回填路径</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>L1 先产生未分配 entries</h4><p>工具对被摘要后追加到 offload JSONL，但这些行通常还没有 Mermaid 节点。</p><div class="mono">node_id = null</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>L1.5 选择任务边界</h4><p>最新用户轮次可能继续旧任务、完成旧任务，或开启新长任务；这决定 active MMD。</p><div class="mono">continue / complete / start</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>L2 独立触发</h4><p><span class="inline">src/offload/pipelines/l2-mermaid.ts</span> 可以独立检查未分配 entries，生成或修补 MMD。</p><div class="mono">unassigned_entries -&gt; mmd + mapping</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>按 mapping 回填</h4><p>只有 L2 返回的 <span class="inline">node_mapping</span> 能把 JSONL 行安全连接到 Mermaid 节点。</p><div class="mono">tool_call_id -&gt; node_id</div></div></div>
+</div>
+
+<h2>源码锚点</h2>
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li>批准规格 Part 7 lesson 29：本课聚焦 Offload-L1 / L1.5 / L2 的 local LLM pipeline 分工。</li>
+    <li><span class="inline">src/offload/local-llm/index.ts</span>：<span class="inline">LocalLlmClient.l1Summarize</span>、<span class="inline">LocalLlmClient.l15Judge</span>、<span class="inline">LocalLlmClient.l2Generate</span> 是三条独立本地调用入口。</li>
+    <li><span class="inline">src/offload/local-llm/llm-caller.ts</span>：封装直接 LLM 调用、timeout 和本地模型配置。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>：定义 L1 JSON array 摘要契约。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l15-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l15-parser.ts</span>：定义 L1.5 任务边界判断契约。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>：定义 L2 Mermaid 与 <span class="inline">node_mapping</span> 契约。</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>：实现 L2 的独立触发和 node_id backfill 路径。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  L1、L1.5、L2 是三种不同本地模型责任：摘要工具证据、判断任务边界、维护 Mermaid 任务画布。
+  <span class="inline">LocalLlmClient</span> 与 backend client 共用接口，让 local/backend 模式可以共享上层 pipeline。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Local mode is not “one call solves every Offload problem.” <span class="inline">LocalLlmClient</span> exposes the same methods as the backend client,
+but splits responsibility into three local LLM calls: <span class="inline">l1Summarize</span> compresses tool pairs into high-density summaries,
+<span class="inline">l15Judge</span> judges the latest user turn and long-task boundary, and <span class="inline">l2Generate</span> organizes unassigned offload rows into Mermaid MMD with <span class="inline">node_mapping</span>.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Imagine a local project-assistant team: the recorder turns tool results into index cards; the dispatcher decides “continue, finish, or start a task”; the whiteboard keeper places unassigned cards onto a Mermaid task canvas and backfills card IDs.
+</div>
+
+<h2>Three local model calls, not one shared output</h2>
+<div class="flow">
+  <div class="node"><div class="nt">tool pairs</div><div class="nd">Tool name, args, call ID, result, and recent messages.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L1 summaries</div><div class="nd">Dense summary, score, result_ref, and empty node_id.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L1.5 task judgment</div><div class="nd">Decide continue, complete, or start long task, then choose active MMD.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">L2 MMD update</div><div class="nd">Generate or patch the Mermaid task canvas.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">node backfill</div><div class="nd">Use <span class="inline">node_mapping</span> to backfill JSONL node_id values.</div></div>
+</div>
+
+<p>
+The boundary is the point: L1 only asks “what did these tool results prove?”; L1.5 only asks “which task does the latest user turn belong to?”;
+L2 only asks “where should unassigned summaries land on the Mermaid canvas?” With the calls split, a failure in one layer does not invent output for another layer.
+</p>
+
+<h2>L1 / L1.5 / L2 input-output comparison</h2>
+<div class="cols">
+  <div class="col"><h4>L1 input/output</h4><p><b>L1 input</b>: <span class="inline">tool_pairs</span> plus <span class="inline">recent_messages</span>.<br><b>L1 output</b>: a JSON array whose items carry compact summary, score, tool-call identity, and ref path; <span class="inline">node_id</span> is not assigned by L1.</p></div>
+  <div class="col"><h4>L1.5 input/output</h4><p><b>L1.5 input</b>: recent user/assistant messages, current active MMD, and available MMDs.<br><b>L1.5 output</b>: whether this is a long task, whether it continues/completes/starts a task, and which MMD should be active.</p></div>
+  <div class="col"><h4>L2 input/output</h4><p><b>L2 input</b>: offload entries that still lack <span class="inline">node_id</span>, plus the active MMD.<br><b>L2 output</b>: Mermaid MMD text and <span class="inline">node_mapping</span> for later backfill.</p></div>
+</div>
+
+<h2>One interface for local and backend clients</h2>
+<div class="card detail">
+  <div class="tag">🔌 Interface boundary</div>
+  <span class="inline">LocalLlmClient</span> implements the same <span class="inline">l1Summarize</span>, <span class="inline">l15Judge</span>, and <span class="inline">l2Generate</span> methods as the backend client.
+  The upper pipeline does not need to know whether the mode is local or backend; local differences live inside <span class="inline">llm-caller.ts</span>, including model config, direct calls, and timeout handling.
+</div>
+
+<table class="t">
+  <tr><th>Method</th><th>Prompt file</th><th>Parser file</th><th>Failure behavior</th></tr>
+  <tr><td class="mono">LocalLlmClient.l1Summarize</td><td class="mono">src/offload/local-llm/prompts/l1-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l1-parser.ts</td><td>The L1 parser accepts the JSON array contract only; parse failure should not write invented summaries.</td></tr>
+  <tr><td class="mono">LocalLlmClient.l15Judge</td><td class="mono">src/offload/local-llm/prompts/l15-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l15-parser.ts</td><td>Invalid judgment stays conservative: do not switch active MMDs or start a new long task casually.</td></tr>
+  <tr><td class="mono">LocalLlmClient.l2Generate</td><td class="mono">src/offload/local-llm/prompts/l2-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l2-parser.ts</td><td>The L2 parser needs both Mermaid and <span class="inline">node_mapping</span>; without mapping, node backfill is unsafe.</td></tr>
+</table>
+
+<h2>Core pseudocode</h2>
+<pre class="code">client = LocalLlmClient(config)
+l1_entries = client.l1Summarize(tool_pairs, recent_messages)
+judgment = client.l15Judge(recent_messages, active_mmd, available_mmds)
+if judgment.isLongTask:
+    l2_result = client.l2Generate(unassigned_entries, active_mmd)
+    write_or_patch_mmd(l2_result)
+    backfill_node_ids(l2_result.node_mapping)</pre>
+
+<h2>Independent trigger and backfill path</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>L1 creates unassigned entries first</h4><p>Summarized tool pairs are appended to offload JSONL, but these rows usually do not have Mermaid nodes yet.</p><div class="mono">node_id = null</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>L1.5 chooses the task boundary</h4><p>The latest user turn can continue an old task, complete one, or start a new long task; that decides the active MMD.</p><div class="mono">continue / complete / start</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>L2 triggers independently</h4><p><span class="inline">src/offload/pipelines/l2-mermaid.ts</span> can independently inspect unassigned entries and generate or patch MMD.</p><div class="mono">unassigned_entries -&gt; mmd + mapping</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Backfill by mapping</h4><p>Only the <span class="inline">node_mapping</span> returned by L2 safely connects JSONL rows to Mermaid nodes.</p><div class="mono">tool_call_id -&gt; node_id</div></div></div>
+</div>
+
+<h2>Source anchors</h2>
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li>Approved spec Part 7 lesson 29: this lesson focuses on local LLM pipeline responsibilities for Offload-L1 / L1.5 / L2.</li>
+    <li><span class="inline">src/offload/local-llm/index.ts</span>: <span class="inline">LocalLlmClient.l1Summarize</span>, <span class="inline">LocalLlmClient.l15Judge</span>, and <span class="inline">LocalLlmClient.l2Generate</span> are three separate local call entry points.</li>
+    <li><span class="inline">src/offload/local-llm/llm-caller.ts</span>: wraps direct LLM calls, timeout handling, and local model configuration.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>: define the L1 JSON array summarization contract.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l15-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l15-parser.ts</span>: define the L1.5 task-boundary judgment contract.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>: define the L2 Mermaid plus <span class="inline">node_mapping</span> contract.</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>: implements the independent L2 trigger and node_id backfill path.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  L1, L1.5, and L2 are three different local model responsibilities: summarize tool evidence, judge task boundaries, and maintain the Mermaid task canvas.
+  <span class="inline">LocalLlmClient</span> shares one interface with the backend client so local/backend modes can reuse the same upper pipeline.
+</div>
+""",
+}

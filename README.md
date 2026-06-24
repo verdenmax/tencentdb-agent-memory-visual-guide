@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 28 lessons.
+The guide currently contains 29 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -38,6 +38,7 @@ The guide currently contains 28 lessons.
 | 26 | Tencent Cloud VectorDB backend and embedding services |
 | 27 | Why long task logs need symbolic compression |
 | 28 | after-tool-call, refs, and offload JSONL |
+| 29 | L1 / L1.5 / L2 local LLM pipelines |
 
 ## How to view locally
 

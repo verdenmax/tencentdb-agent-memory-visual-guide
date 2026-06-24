@@ -492,6 +492,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "如果同一个 tool_call_id 因重试被重复写入，你希望 JSONL 和 refs 分别表现出什么行为？", "en": "If the same tool_call_id is replayed after a retry, how should JSONL and refs behave?"}],
     },
+    "29-l1-l15-l2-local-llm-pipelines.html": {
+        "mcq": [{
+            "q": {"zh": "为什么本地 Offload 要把 L1、L1.5、L2 拆成三次模型调用？", "en": "Why does local Offload split L1, L1.5, and L2 into three model calls?"},
+            "opts": [
+                {"zh": "三者责任不同：L1 摘要工具证据，L1.5 判断任务边界，L2 生成 MMD 并返回 node_mapping", "en": "They have different responsibilities: L1 summarizes tool evidence, L1.5 judges task boundaries, and L2 generates MMD with node_mapping"},
+                {"zh": "因为 Mermaid 只能由 L1 parser 解析", "en": "Because Mermaid can only be parsed by the L1 parser"},
+                {"zh": "因为 L1.5 必须写入真实 API key", "en": "Because L1.5 must write real API keys"},
+                {"zh": "因为 backend client 和 local client 不能共享接口", "en": "Because backend and local clients cannot share an interface"},
+            ],
+            "answer": 0,
+            "why": {"zh": "拆分后每层只验证自己的 prompt/parser 契约；LocalLlmClient 仍与 backend client 暴露同一组方法，上层 pipeline 可复用。", "en": "Splitting lets each layer validate its own prompt/parser contract; LocalLlmClient still exposes the same methods as the backend client, so the upper pipeline is reused."},
+        }],
+        "open": [{"zh": "如果 L2 返回了 Mermaid 但缺少 node_mapping，你会如何防止错误回填 node_id？", "en": "If L2 returns Mermaid but no node_mapping, how would you prevent incorrect node_id backfill?"}],
+    },
 }
 
 

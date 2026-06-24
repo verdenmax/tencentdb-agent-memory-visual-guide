@@ -102,6 +102,8 @@ PAGES = [
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
     ("28-after-tool-call-refs-offload-jsonl.html", "after-tool-call、refs 与 offload JSONL", "after-tool-call, refs, and offload JSONL",
      "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
+    ("29-l1-l15-l2-local-llm-pipelines.html", "L1 / L1.5 / L2 本地 LLM 管线", "L1 / L1.5 / L2 local LLM pipelines",
+     "第七部分 · Context Offload：短期符号记忆", "Part 7 · Context Offload: short-term symbolic memory"),
 ]
 
 def bi(zh, en):
@@ -591,6 +593,8 @@ SUBTITLES = {
                                                    "turn bulky tool logs into a traceable symbolic task layer"),
     "28-after-tool-call-refs-offload-jsonl.html": ("工具结果先进入缓冲区，再变成 refs 证据和 JSONL 摘要",
                                              "tool results enter a buffer, then become refs evidence and JSONL summaries"),
+    "29-l1-l15-l2-local-llm-pipelines.html": ("摘要、任务边界判断与 MMD 生成是三条不同的本地模型调用",
+                                           "summarization, task-boundary judgment, and MMD generation are three distinct local model calls"),
 }
 
 def index_page(lesson_prefix="lessons/"):

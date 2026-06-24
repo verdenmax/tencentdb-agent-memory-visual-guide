@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>22 · Prompt 构建前的 Auto Recall / Auto-recall before prompt build - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第六部分 · Recall、Search 与 Store｜Prompt 构建前的 Auto Recall - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>29 · L1 / L1.5 / L2 本地 LLM 管线 / L1 / L1.5 / L2 local LLM pipelines - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第七部分 · Context Offload：短期符号记忆｜L1 / L1.5 / L2 本地 LLM 管线 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="22 · Prompt 构建前的 Auto Recall / Auto-recall before prompt build - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第六部分 · Recall、Search 与 Store｜Prompt 构建前的 Auto Recall - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="29 · L1 / L1.5 / L2 本地 LLM 管线 / L1 / L1.5 / L2 local LLM pipelines - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第七部分 · Context Offload：短期符号记忆｜L1 / L1.5 / L2 本地 LLM 管线 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="22 · Prompt 构建前的 Auto Recall / Auto-recall before prompt build - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第六部分 · Recall、Search 与 Store｜Prompt 构建前的 Auto Recall - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="29 · L1 / L1.5 / L2 本地 LLM 管线 / L1 / L1.5 / L2 local LLM pipelines - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第七部分 · Context Offload：短期符号记忆｜L1 / L1.5 / L2 本地 LLM 管线 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,206 +317,236 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第六部分 · Recall、Search 与 Store</span><span class="lang-en">Part 6 · Recall, search, and storage</span></span>
-    <span class="pill">22 / 29</span>
+    <span class="pill"><span class="lang-zh">第七部分 · Context Offload：短期符号记忆</span><span class="lang-en">Part 7 · Context Offload: short-term symbolic memory</span></span>
+    <span class="pill">29 / 29</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:75%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第六部分 · Recall、Search 与 Store</span><span class="lang-en">Part 6 · Recall, search, and storage</span></div>
-    <h1><span class="lang-zh">Prompt 构建前的 Auto Recall</span><span class="lang-en">Auto-recall before prompt build</span></h1>
+    <div class="part"><span class="lang-zh">第七部分 · Context Offload：短期符号记忆</span><span class="lang-en">Part 7 · Context Offload: short-term symbolic memory</span></div>
+    <h1><span class="lang-zh">L1 / L1.5 / L2 本地 LLM 管线</span><span class="lang-en">L1 / L1.5 / L2 local LLM pipelines</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Auto Recall 发生在 prompt 真正交给模型之前。插件先保留用户原始输入，并把原始 <span class="inline">event.prompt</span> 交给核心入口；
-真正进入 FTS/embedding 检索前，<span class="inline">searchMemories</span> 再调用 <span class="inline">sanitizeText(userText)</span> 清洗查询。
-如果召回及时返回，就把用户侧上下文和系统侧上下文分别注入。如果超时或失败，主对话必须继续，不让记忆增强阻塞用户响应。
+本地模式不是“一次调用解决所有 Offload 问题”。<span class="inline">LocalLlmClient</span> 暴露和后端 client 相同的方法，
+但把三种责任拆成三次本地 LLM 调用：<span class="inline">l1Summarize</span> 把工具对压成高密度摘要，
+<span class="inline">l15Judge</span> 判断最新用户轮次与长任务边界，<span class="inline">l2Generate</span> 把未分配的 offload 行组织成 Mermaid MMD 并返回 <span class="inline">node_mapping</span>。
 </p>
 
 <div class="card analogy">
   <div class="tag">🧭 生活类比</div>
-  这像开会前的助理检索：用户刚提出问题，助理快速翻出相关项目笔记，贴在发言稿前后。
-  如果档案柜一时打不开，会议不会停在门口；最多这轮先按没有记忆的方式回答。
+  像一个本地项目助理团队：记录员先把工具结果写成索引卡；调度员判断“这是继续、收尾还是新任务”；白板管理员再把未贴到白板的卡片放进 Mermaid 任务画布，并把卡片编号回填。
 </div>
 
-<h2>before_prompt_build 路径</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>用户文本进入 hook</h4><p><span class="inline">index.ts</span> 的 before-prompt hook 收到本轮用户文本，并把原始 prompt 写入 <span class="inline">pendingOriginalPrompts</span>，供后续 capture 使用。</p><div class="mono">user text -&gt; pendingOriginalPrompts</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>交给 TdaiCore</h4><p><span class="inline">api.on("before_prompt_build")</span> 调用 <span class="inline">TdaiCore.handleBeforeRecall</span> 时传入的是原始 <span class="inline">event.prompt</span>，让宿主壳只负责接线，核心层负责 recall 语义。</p><div class="mono">index.ts -&gt; TdaiCore.handleBeforeRecall(raw prompt)</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>执行超时竞速</h4><p><span class="inline">performAutoRecall</span> 使用 <span class="inline">recall.timeoutMs</span> 与召回任务 race：配置策略决定查哪些层、取多少上下文，超时则返回跳过注入。</p><div class="mono">recall task -&gt; race(timeoutMs)</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>注入上下文</h4><p>及时返回时，结果里的 <span class="inline">prependContext</span> 被放到用户消息前，<span class="inline">appendSystemContext</span> 被追加到系统上下文。</p><div class="mono">prependContext + appendSystemContext -&gt; prompt</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>模型继续响应</h4><p>模型看到的是增强后的 prompt；如果召回超时或失败，模型仍然收到原始对话路径，不被记忆系统拖住。</p><div class="mono">prompt -&gt; model</div></div></div>
-</div>
-
-<h2>两种注入位置</h2>
-<div class="cols">
-  <div class="col"><h4>Prepend user context</h4><p>适合放“与本轮用户问题直接相关”的记忆片段。它贴近用户文本，让模型把这些事实当成本轮问题的可用背景，而不是新的用户命令。</p></div>
-  <div class="col"><h4>Append system context</h4><p>适合放更稳定的系统侧说明，例如 recall 结果摘要、来源提示或使用边界。它补充系统上下文，但不覆盖原始系统规则。</p></div>
-</div>
-
-<h2>缓存、清洗与指标</h2>
+<h2>三次本地模型调用，不共享一份输出</h2>
 <div class="flow">
-  <div class="node"><div class="nt">original prompt cache</div><div class="nd"><span class="inline">pendingOriginalPrompts</span> 保留用户原文，避免 capture 保存被 recall prepend 污染后的文本。</div></div>
+  <div class="node"><div class="nt">tool pairs</div><div class="nd">工具名、参数、调用 ID、结果与最近消息。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">sanitized query</div><div class="nd"><span class="inline">searchMemories</span> 在 FTS/embedding 查找前调用 <span class="inline">sanitizeText(userText)</span>，防止把注入标签或控制片段带入检索。</div></div>
+  <div class="node"><div class="nt">L1 summaries</div><div class="nd">高密度 summary、score、result_ref 与空 node_id。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">recall result</div><div class="nd"><span class="inline">performAutoRecall</span> 生成可注入上下文、命中信息与耗时。</div></div>
+  <div class="node"><div class="nt">L1.5 task judgment</div><div class="nd">判断继续、完成或开始长任务，并选择 active MMD。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">metrics cache</div><div class="nd"><span class="inline">pendingRecallCache</span> 按 <span class="inline">sessionKey</span> 暂存 recall payload，供 <span class="inline">agent_end</span> 上报 <span class="inline">agent_turn</span> 指标。</div></div>
+  <div class="node"><div class="nt">L2 MMD update</div><div class="nd">生成/修补 Mermaid 任务画布。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">node backfill</div><div class="nd">用 <span class="inline">node_mapping</span> 回填 JSONL 行的 node_id。</div></div>
 </div>
 
 <p>
-核心入口收到的是原始 prompt；清洗发生在 <span class="inline">searchMemories</span> 内部，清洗后的 query 用于“找记忆”，原始 prompt 用于“记录用户真的说了什么”。这两个数据面不能混淆：
-如果 capture 直接保存被 prepend 后的文本，下一轮 L0/L1 会把系统注入当成用户证据，形成自我污染。
+关键点是责任边界：L1 只关心“这批工具结果说明了什么”；L1.5 只关心“最新用户轮次属于哪个任务”；
+L2 只关心“未分配摘要应落到 Mermaid 画布的哪个节点”。拆开后，某一层失败不会伪造另一层结果。
 </p>
 
-<h2>核心伪代码</h2>
-<pre class="code">before_prompt_build(userText):
-    pendingOriginalPrompts[sessionKey] = userText
-    result = await core.handleBeforeRecall(userText, sessionKey)
-    if result within timeout:
-        prepend_to_user(result.prependContext)
-        append_to_system(result.appendSystemContext)
-        pendingRecallCache[sessionKey] = result.recallPayload
-    else:
-        continue_without_memory()</pre>
+<h2>L1 / L1.5 / L2 输入输出对照</h2>
+<div class="cols">
+  <div class="col"><h4>L1 input/output</h4><p><b>L1 input</b>：<span class="inline">tool_pairs</span> 与 <span class="inline">recent_messages</span>。<br><b>L1 output</b>：JSON array，每项是紧凑摘要、score、工具调用标识和 ref 路径；<span class="inline">node_id</span> 还不属于 L1。</p></div>
+  <div class="col"><h4>L1.5 input/output</h4><p><b>L1.5 input</b>：最近用户/助手消息、当前 active MMD、可选 MMD 列表。<br><b>L1.5 output</b>：是否长任务、继续/完成/新任务判断、应使用哪个 active MMD。</p></div>
+  <div class="col"><h4>L2 input/output</h4><p><b>L2 input</b>：尚未分配 <span class="inline">node_id</span> 的 offload entries 与 active MMD。<br><b>L2 output</b>：Mermaid MMD 文本和 <span class="inline">node_mapping</span>，供后续回填。</p></div>
+</div>
 
+<h2>本地 client 与后端 client 共用接口</h2>
+<div class="card detail">
+  <div class="tag">🔌 接口边界</div>
+  <span class="inline">LocalLlmClient</span> 实现与 backend client 相同的 <span class="inline">l1Summarize</span>、<span class="inline">l15Judge</span>、<span class="inline">l2Generate</span> 方法。
+  上层 pipeline 不需要知道当前模式是 local 还是 backend；差异被封装在本地 <span class="inline">llm-caller.ts</span> 的模型配置、直接调用和 timeout 处理里。
+</div>
+
+<table class="t">
+  <tr><th>方法</th><th>Prompt file</th><th>Parser file</th><th>失败行为</th></tr>
+  <tr><td class="mono">LocalLlmClient.l1Summarize</td><td class="mono">src/offload/local-llm/prompts/l1-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l1-parser.ts</td><td>L1 parser 只接受 JSON array 契约；解析失败时不应写入伪摘要。</td></tr>
+  <tr><td class="mono">LocalLlmClient.l15Judge</td><td class="mono">src/offload/local-llm/prompts/l15-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l15-parser.ts</td><td>判断契约无效时保持保守：不随意切换 active MMD 或误判新长任务。</td></tr>
+  <tr><td class="mono">LocalLlmClient.l2Generate</td><td class="mono">src/offload/local-llm/prompts/l2-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l2-parser.ts</td><td>L2 parser 要同时拿到 Mermaid 与 <span class="inline">node_mapping</span>；缺失映射就不能安全回填。</td></tr>
+</table>
+
+<h2>核心伪代码</h2>
+<pre class="code">client = LocalLlmClient(config)
+l1_entries = client.l1Summarize(tool_pairs, recent_messages)
+judgment = client.l15Judge(recent_messages, active_mmd, available_mmds)
+if judgment.isLongTask:
+    l2_result = client.l2Generate(unassigned_entries, active_mmd)
+    write_or_patch_mmd(l2_result)
+    backfill_node_ids(l2_result.node_mapping)</pre>
+
+<h2>独立触发与回填路径</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>L1 先产生未分配 entries</h4><p>工具对被摘要后追加到 offload JSONL，但这些行通常还没有 Mermaid 节点。</p><div class="mono">node_id = null</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>L1.5 选择任务边界</h4><p>最新用户轮次可能继续旧任务、完成旧任务，或开启新长任务；这决定 active MMD。</p><div class="mono">continue / complete / start</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>L2 独立触发</h4><p><span class="inline">src/offload/pipelines/l2-mermaid.ts</span> 可以独立检查未分配 entries，生成或修补 MMD。</p><div class="mono">unassigned_entries -&gt; mmd + mapping</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>按 mapping 回填</h4><p>只有 L2 返回的 <span class="inline">node_mapping</span> 能把 JSONL 行安全连接到 Mermaid 节点。</p><div class="mono">tool_call_id -&gt; node_id</div></div></div>
+</div>
+
+<h2>源码锚点</h2>
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">index.ts</span>：<span class="inline">api.on("before_prompt_build")</span> 负责缓存 <span class="inline">pendingOriginalPrompts</span>，把原始 <span class="inline">event.prompt</span> 传给核心入口，接收 recall 结果，并按 <span class="inline">sessionKey</span> 把 payload 放入 <span class="inline">pendingRecallCache</span>。</li>
-    <li><span class="inline">src/core/tdai-core.ts</span>：<span class="inline">handleBeforeRecall</span> 是宿主壳调用的核心入口。</li>
-    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：<span class="inline">performAutoRecall</span> 执行 recall，并用 timeout race 保护主链路。</li>
-    <li><span class="inline">src/config.ts</span>：<span class="inline">recall.timeoutMs</span> 与 strategy config 决定召回预算、策略和结果规模。</li>
-    <li><span class="inline">searchMemories</span>：在 FTS/embedding lookup 前调用 <span class="inline">sanitizeText(userText)</span> 清洗查询。</li>
-    <li><span class="inline">src/utils/sanitize.ts</span>：提供 <span class="inline">sanitizeText</span>，避免把注入标记或不可信控制文本带入检索。</li>
+    <li>批准规格 Part 7 lesson 29：本课聚焦 Offload-L1 / L1.5 / L2 的 local LLM pipeline 分工。</li>
+    <li><span class="inline">src/offload/local-llm/index.ts</span>：<span class="inline">LocalLlmClient.l1Summarize</span>、<span class="inline">LocalLlmClient.l15Judge</span>、<span class="inline">LocalLlmClient.l2Generate</span> 是三条独立本地调用入口。</li>
+    <li><span class="inline">src/offload/local-llm/llm-caller.ts</span>：封装直接 LLM 调用、timeout 和本地模型配置。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>：定义 L1 JSON array 摘要契约。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l15-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l15-parser.ts</span>：定义 L1.5 任务边界判断契约。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>：定义 L2 Mermaid 与 <span class="inline">node_mapping</span> 契约。</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>：实现 L2 的独立触发和 node_id backfill 路径。</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  Recall 是增强能力，不是主对话的硬依赖。before-prompt 阶段要先缓存原始输入，并把原始 prompt 交给核心入口；检索层再清洗 query 尝试召回。
-  及时返回则注入 <span class="inline">prependContext</span> 与 <span class="inline">appendSystemContext</span>，超时则 fail open，继续无记忆对话。
+  L1、L1.5、L2 是三种不同本地模型责任：摘要工具证据、判断任务边界、维护 Mermaid 任务画布。
+  <span class="inline">LocalLlmClient</span> 与 backend client 共用接口，让 local/backend 模式可以共享上层 pipeline。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. Auto Recall 超时后为什么跳过注入而不是阻塞主对话？</div>
+  <div class="qn">1. 为什么本地 Offload 要把 L1、L1.5、L2 拆成三次模型调用？</div>
   <ol class="opts">
-    <li>因为 HTML 需要重新编译</li>
-    <li>因为 L1 不可搜索</li>
-    <li>因为 persona.md 必须删除</li>
-    <li>记忆是增强能力，不能破坏用户当前响应路径</li>
+    <li>因为 Mermaid 只能由 L1 parser 解析</li>
+    <li>因为 backend client 和 local client 不能共享接口</li>
+    <li>因为 L1.5 必须写入真实 API key</li>
+    <li>三者责任不同：L1 摘要工具证据，L1.5 判断任务边界，L2 生成 MMD 并返回 node_mapping</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。召回失败应降级为无记忆对话，而不是让用户等待或失败。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。拆分后每层只验证自己的 prompt/parser 契约；LocalLlmClient 仍与 backend client 暴露同一组方法，上层 pipeline 可复用。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>为什么 capture 时需要原始 prompt 缓存，而不是直接保存被 recall prepend 后的文本？</li>
+    <li>如果 L2 返回了 Mermaid 但缺少 node_mapping，你会如何防止错误回填 node_id？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-Auto Recall runs before the final prompt is sent to the model. The plugin first keeps the user's original input and passes the raw
-<span class="inline">event.prompt</span> into the core entry point; before FTS/embedding lookup, <span class="inline">searchMemories</span>
-sanitizes the query with <span class="inline">sanitizeText(userText)</span>. If recall returns in time, it injects user-side and system-side context. If recall times out or fails, the main chat
-continues so memory enhancement never blocks the user's response.
+Local mode is not “one call solves every Offload problem.” <span class="inline">LocalLlmClient</span> exposes the same methods as the backend client,
+but splits responsibility into three local LLM calls: <span class="inline">l1Summarize</span> compresses tool pairs into high-density summaries,
+<span class="inline">l15Judge</span> judges the latest user turn and long-task boundary, and <span class="inline">l2Generate</span> organizes unassigned offload rows into Mermaid MMD with <span class="inline">node_mapping</span>.
 </p>
 
 <div class="card analogy">
   <div class="tag">🧭 Analogy</div>
-  Think of it as a meeting assistant doing a quick lookup before you answer. The assistant may attach relevant project notes around your speaking notes.
-  If the archive cabinet is stuck, the meeting does not stop at the door; this turn simply proceeds without memory.
+  Imagine a local project-assistant team: the recorder turns tool results into index cards; the dispatcher decides “continue, finish, or start a task”; the whiteboard keeper places unassigned cards onto a Mermaid task canvas and backfills card IDs.
 </div>
 
-<h2>The before_prompt_build path</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>User text enters the hook</h4><p>The before-prompt hook in <span class="inline">index.ts</span> receives this turn's user text and stores the original prompt in <span class="inline">pendingOriginalPrompts</span> for later capture.</p><div class="mono">user text -&gt; pendingOriginalPrompts</div></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>Delegate to TdaiCore</h4><p><span class="inline">api.on("before_prompt_build")</span> calls <span class="inline">TdaiCore.handleBeforeRecall</span> with the raw <span class="inline">event.prompt</span>, keeping host wiring in the shell while recall semantics live in the core.</p><div class="mono">index.ts -&gt; TdaiCore.handleBeforeRecall(raw prompt)</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Run the timeout race</h4><p><span class="inline">performAutoRecall</span> races the recall work against <span class="inline">recall.timeoutMs</span>: strategy config controls which layers are searched and how much context can return; timeout means skip injection.</p><div class="mono">recall task -&gt; race(timeoutMs)</div></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>Inject context</h4><p>When recall returns in time, <span class="inline">prependContext</span> is placed before the user message, and <span class="inline">appendSystemContext</span> is appended to system context.</p><div class="mono">prependContext + appendSystemContext -&gt; prompt</div></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>The model responds</h4><p>The model sees the enhanced prompt; if recall timed out or failed, it still receives the original chat path without being held by memory.</p><div class="mono">prompt -&gt; model</div></div></div>
-</div>
-
-<h2>Two injection positions</h2>
-<div class="cols">
-  <div class="col"><h4>Prepend user context</h4><p>Best for memory snippets directly relevant to the current user request. It sits near the user text so the model treats those facts as available background for this turn, not as new user commands.</p></div>
-  <div class="col"><h4>Append system context</h4><p>Best for more stable system-side notes such as recall summaries, source hints, or usage boundaries. It extends system context without replacing the original system rules.</p></div>
-</div>
-
-<h2>Caches, sanitization, and metrics</h2>
+<h2>Three local model calls, not one shared output</h2>
 <div class="flow">
-  <div class="node"><div class="nt">original prompt cache</div><div class="nd"><span class="inline">pendingOriginalPrompts</span> keeps the user text so capture does not save recall-prepended content as evidence.</div></div>
+  <div class="node"><div class="nt">tool pairs</div><div class="nd">Tool name, args, call ID, result, and recent messages.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">sanitized query</div><div class="nd"><span class="inline">searchMemories</span> calls <span class="inline">sanitizeText(userText)</span> before FTS/embedding lookup so injected tags or control fragments do not enter search.</div></div>
+  <div class="node"><div class="nt">L1 summaries</div><div class="nd">Dense summary, score, result_ref, and empty node_id.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">recall result</div><div class="nd"><span class="inline">performAutoRecall</span> produces injectable context, hit details, and timing.</div></div>
+  <div class="node"><div class="nt">L1.5 task judgment</div><div class="nd">Decide continue, complete, or start long task, then choose active MMD.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">metrics cache</div><div class="nd"><span class="inline">pendingRecallCache</span> is keyed by <span class="inline">sessionKey</span> and stores the recall payload used at <span class="inline">agent_end</span> to report the <span class="inline">agent_turn</span> metric.</div></div>
+  <div class="node"><div class="nt">L2 MMD update</div><div class="nd">Generate or patch the Mermaid task canvas.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">node backfill</div><div class="nd">Use <span class="inline">node_mapping</span> to backfill JSONL node_id values.</div></div>
 </div>
 
 <p>
-The core entry point receives the raw prompt; sanitization happens inside <span class="inline">searchMemories</span>. The sanitized query is for "finding memory"; the original prompt is for "recording what the user actually said". These two data planes must not be mixed.
-If capture saved recall-prepended text, later L0/L1 processing would treat system-injected context as user evidence and create self-contamination.
+The boundary is the point: L1 only asks “what did these tool results prove?”; L1.5 only asks “which task does the latest user turn belong to?”;
+L2 only asks “where should unassigned summaries land on the Mermaid canvas?” With the calls split, a failure in one layer does not invent output for another layer.
 </p>
 
-<h2>Core pseudocode</h2>
-<pre class="code">before_prompt_build(userText):
-    pendingOriginalPrompts[sessionKey] = userText
-    result = await core.handleBeforeRecall(userText, sessionKey)
-    if result within timeout:
-        prepend_to_user(result.prependContext)
-        append_to_system(result.appendSystemContext)
-        pendingRecallCache[sessionKey] = result.recallPayload
-    else:
-        continue_without_memory()</pre>
+<h2>L1 / L1.5 / L2 input-output comparison</h2>
+<div class="cols">
+  <div class="col"><h4>L1 input/output</h4><p><b>L1 input</b>: <span class="inline">tool_pairs</span> plus <span class="inline">recent_messages</span>.<br><b>L1 output</b>: a JSON array whose items carry compact summary, score, tool-call identity, and ref path; <span class="inline">node_id</span> is not assigned by L1.</p></div>
+  <div class="col"><h4>L1.5 input/output</h4><p><b>L1.5 input</b>: recent user/assistant messages, current active MMD, and available MMDs.<br><b>L1.5 output</b>: whether this is a long task, whether it continues/completes/starts a task, and which MMD should be active.</p></div>
+  <div class="col"><h4>L2 input/output</h4><p><b>L2 input</b>: offload entries that still lack <span class="inline">node_id</span>, plus the active MMD.<br><b>L2 output</b>: Mermaid MMD text and <span class="inline">node_mapping</span> for later backfill.</p></div>
+</div>
 
+<h2>One interface for local and backend clients</h2>
+<div class="card detail">
+  <div class="tag">🔌 Interface boundary</div>
+  <span class="inline">LocalLlmClient</span> implements the same <span class="inline">l1Summarize</span>, <span class="inline">l15Judge</span>, and <span class="inline">l2Generate</span> methods as the backend client.
+  The upper pipeline does not need to know whether the mode is local or backend; local differences live inside <span class="inline">llm-caller.ts</span>, including model config, direct calls, and timeout handling.
+</div>
+
+<table class="t">
+  <tr><th>Method</th><th>Prompt file</th><th>Parser file</th><th>Failure behavior</th></tr>
+  <tr><td class="mono">LocalLlmClient.l1Summarize</td><td class="mono">src/offload/local-llm/prompts/l1-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l1-parser.ts</td><td>The L1 parser accepts the JSON array contract only; parse failure should not write invented summaries.</td></tr>
+  <tr><td class="mono">LocalLlmClient.l15Judge</td><td class="mono">src/offload/local-llm/prompts/l15-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l15-parser.ts</td><td>Invalid judgment stays conservative: do not switch active MMDs or start a new long task casually.</td></tr>
+  <tr><td class="mono">LocalLlmClient.l2Generate</td><td class="mono">src/offload/local-llm/prompts/l2-prompt.ts</td><td class="mono">src/offload/local-llm/parsers/l2-parser.ts</td><td>The L2 parser needs both Mermaid and <span class="inline">node_mapping</span>; without mapping, node backfill is unsafe.</td></tr>
+</table>
+
+<h2>Core pseudocode</h2>
+<pre class="code">client = LocalLlmClient(config)
+l1_entries = client.l1Summarize(tool_pairs, recent_messages)
+judgment = client.l15Judge(recent_messages, active_mmd, available_mmds)
+if judgment.isLongTask:
+    l2_result = client.l2Generate(unassigned_entries, active_mmd)
+    write_or_patch_mmd(l2_result)
+    backfill_node_ids(l2_result.node_mapping)</pre>
+
+<h2>Independent trigger and backfill path</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>L1 creates unassigned entries first</h4><p>Summarized tool pairs are appended to offload JSONL, but these rows usually do not have Mermaid nodes yet.</p><div class="mono">node_id = null</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>L1.5 chooses the task boundary</h4><p>The latest user turn can continue an old task, complete one, or start a new long task; that decides the active MMD.</p><div class="mono">continue / complete / start</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>L2 triggers independently</h4><p><span class="inline">src/offload/pipelines/l2-mermaid.ts</span> can independently inspect unassigned entries and generate or patch MMD.</p><div class="mono">unassigned_entries -&gt; mmd + mapping</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Backfill by mapping</h4><p>Only the <span class="inline">node_mapping</span> returned by L2 safely connects JSONL rows to Mermaid nodes.</p><div class="mono">tool_call_id -&gt; node_id</div></div></div>
+</div>
+
+<h2>Source anchors</h2>
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">index.ts</span>: <span class="inline">api.on("before_prompt_build")</span> caches <span class="inline">pendingOriginalPrompts</span>, passes raw <span class="inline">event.prompt</span> into the core entry point, receives the recall result, and stores the payload in <span class="inline">pendingRecallCache</span> by <span class="inline">sessionKey</span>.</li>
-    <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">handleBeforeRecall</span> is the core entry point called by the host shell.</li>
-    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">performAutoRecall</span> runs recall and uses a timeout race to protect the main path.</li>
-    <li><span class="inline">src/config.ts</span>: <span class="inline">recall.timeoutMs</span> and strategy config define recall budget, strategy, and result size.</li>
-    <li><span class="inline">searchMemories</span>: calls <span class="inline">sanitizeText(userText)</span> before FTS/embedding lookup.</li>
-    <li><span class="inline">src/utils/sanitize.ts</span>: provides <span class="inline">sanitizeText</span> so injection tags or untrusted control text do not enter search.</li>
+    <li>Approved spec Part 7 lesson 29: this lesson focuses on local LLM pipeline responsibilities for Offload-L1 / L1.5 / L2.</li>
+    <li><span class="inline">src/offload/local-llm/index.ts</span>: <span class="inline">LocalLlmClient.l1Summarize</span>, <span class="inline">LocalLlmClient.l15Judge</span>, and <span class="inline">LocalLlmClient.l2Generate</span> are three separate local call entry points.</li>
+    <li><span class="inline">src/offload/local-llm/llm-caller.ts</span>: wraps direct LLM calls, timeout handling, and local model configuration.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>: define the L1 JSON array summarization contract.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l15-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l15-parser.ts</span>: define the L1.5 task-boundary judgment contract.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l2-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l2-parser.ts</span>: define the L2 Mermaid plus <span class="inline">node_mapping</span> contract.</li>
+    <li><span class="inline">src/offload/pipelines/l2-mermaid.ts</span>: implements the independent L2 trigger and node_id backfill path.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Recall is an enhancement, not a hard dependency of the main chat. The before-prompt stage stores original input first and passes the raw prompt to the core entry point; the search layer then sanitizes the query before recall. Timely results inject <span class="inline">prependContext</span> and <span class="inline">appendSystemContext</span>, while timeout fails open into a no-memory chat.
+  L1, L1.5, and L2 are three different local model responsibilities: summarize tool evidence, judge task boundaries, and maintain the Mermaid task canvas.
+  <span class="inline">LocalLlmClient</span> shares one interface with the backend client so local/backend modes can reuse the same upper pipeline.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. Why does Auto Recall skip injection on timeout instead of blocking the main chat?</div>
+  <div class="qn">1. Why does local Offload split L1, L1.5, and L2 into three model calls?</div>
   <ol class="opts">
-    <li>Because HTML must be rebuilt</li>
-    <li>Because L1 cannot be searched</li>
-    <li>Because persona.md must be deleted</li>
-    <li>Memory is an enhancement and must not break the user's current response path</li>
+    <li>Because Mermaid can only be parsed by the L1 parser</li>
+    <li>Because backend and local clients cannot share an interface</li>
+    <li>Because L1.5 must write real API keys</li>
+    <li>They have different responsibilities: L1 summarizes tool evidence, L1.5 judges task boundaries, and L2 generates MMD with node_mapping</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. Recall failure should degrade to a no-memory chat rather than making the user wait or fail.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. Splitting lets each layer validate its own prompt/parser contract; LocalLlmClient still exposes the same methods as the backend client, so the upper pipeline is reused.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>Why does capture need the original prompt cache instead of saving recall-prepended text?</li>
+    <li>If L2 returns Mermaid but no node_mapping, how would you prevent incorrect node_id backfill?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="21-l2-l3-scheduling-triggers.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">L2/L3 调度与触发规则</span><span class="lang-en">L2/L3 scheduling and trigger rules</span></div></a><a class="next" href="23-l1-search-recall-budget.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">L1 记忆搜索与召回预算</span><span class="lang-en">L1 memory search and recall budgeting</span></div></a></div>
+  <div class="footnav"><a class="prev" href="28-after-tool-call-refs-offload-jsonl.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">after-tool-call、refs 与 offload JSONL</span><span class="lang-en">after-tool-call, refs, and offload JSONL</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

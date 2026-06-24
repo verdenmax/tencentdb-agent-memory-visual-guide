@@ -131,6 +131,34 @@ def check_lesson17_scene_metadata_source():
                 add("ERR", "17-why-l2-scene-blocks.html", f"{lang} parseSceneBlock anchor mentions evidence as parsed metadata")
 
 
+def check_lesson29_local_llm_contract():
+    fname = "29-l1-l15-l2-local-llm-pipelines.html"
+    src = CONTENT.get(fname)
+    if not src:
+        add("ERR", fname, "lesson 29 local LLM pipeline content missing")
+        return
+    required = (
+        "LocalLlmClient.l1Summarize",
+        "LocalLlmClient.l15Judge",
+        "LocalLlmClient.l2Generate",
+        "src/offload/local-llm/prompts/l1-prompt.ts",
+        "src/offload/local-llm/parsers/l1-parser.ts",
+        "src/offload/local-llm/prompts/l15-prompt.ts",
+        "src/offload/local-llm/parsers/l15-parser.ts",
+        "src/offload/local-llm/prompts/l2-prompt.ts",
+        "src/offload/local-llm/parsers/l2-parser.ts",
+        "node_mapping",
+    )
+    for lang in ("zh", "en"):
+        html = src.get(lang, "")
+        for needle in required:
+            if needle not in html:
+                add("ERR", fname, f"{lang} missing required local LLM anchor: {needle}")
+        for marker in ("L1 input", "L1.5 input", "L2 input"):
+            if marker not in html:
+                add("ERR", fname, f"{lang} missing distinct pipeline I/O marker: {marker}")
+
+
 def main():
     for page in PAGES:
         fname = page[0]
@@ -161,6 +189,7 @@ def main():
         if fname not in ORDER:
             add("ERR", "registry", f"CONTENT key not in PAGES: {fname}")
     check_lesson17_scene_metadata_source()
+    check_lesson29_local_llm_contract()
 
     index_path = os.path.join(ROOT, shell.INDEX_FILE)
     with open(index_path, encoding="utf-8") as fh:
