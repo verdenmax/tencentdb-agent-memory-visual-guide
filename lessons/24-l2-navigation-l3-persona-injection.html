@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>10 · HostAdapter 与 LLMRunner 边界 / HostAdapter and LLMRunner boundaries - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜HostAdapter 与 LLMRunner 边界 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>24 · L2 导航与 L3 Persona 注入 / L2 navigation plus L3 persona injection - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第六部分 · Recall、Search 与 Store｜L2 导航与 L3 Persona 注入 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="10 · HostAdapter 与 LLMRunner 边界 / HostAdapter and LLMRunner boundaries - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜HostAdapter 与 LLMRunner 边界 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="24 · L2 导航与 L3 Persona 注入 / L2 navigation plus L3 persona injection - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第六部分 · Recall、Search 与 Store｜L2 导航与 L3 Persona 注入 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="10 · HostAdapter 与 LLMRunner 边界 / HostAdapter and LLMRunner boundaries - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜HostAdapter 与 LLMRunner 边界 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="24 · L2 导航与 L3 Persona 注入 / L2 navigation plus L3 persona injection - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第六部分 · Recall、Search 与 Store｜L2 导航与 L3 Persona 注入 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,230 +317,226 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></span>
-    <span class="pill">10 / 24</span>
+    <span class="pill"><span class="lang-zh">第六部分 · Recall、Search 与 Store</span><span class="lang-en">Part 6 · Recall, search, and storage</span></span>
+    <span class="pill">24 / 24</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:41%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></div>
-    <h1><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></h1>
+    <div class="part"><span class="lang-zh">第六部分 · Recall、Search 与 Store</span><span class="lang-en">Part 6 · Recall, search, and storage</span></div>
+    <h1><span class="lang-zh">L2 导航与 L3 Persona 注入</span><span class="lang-en">L2 navigation plus L3 persona injection</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-<span class="inline">HostAdapter</span> 是宿主与 core 之间的缝合线：宿主上下文、日志、数据目录和 LLM 执行方式都从这里进入，
-<span class="inline">TdaiCore</span> 只依赖统一接口，不直接依赖 OpenClaw、Gateway 或 Hermes 的实现细节。
+第 22、23 课解释了 Auto Recall 与 L1 搜索。本课看召回结果如何分层注入：每轮变化的 L1 片段进入
+<span class="inline">prependContext</span>，贴在 user prompt 前；相对稳定的 L3 persona、L2 Scene Navigation 与工具指南进入
+<span class="inline">appendSystemContext</span>，追加到 system prompt 末尾。这样既让模型看到长期画像和场景地图，又尽量不破坏 provider 的 prompt cache。
 </p>
 
 <div class="card analogy">
-  <div class="tag">🧩 生活类比</div>
-  同一个电器可以在不同国家使用，是因为有电源适配器。Core 像电器本体；OpenClaw 与 Gateway/Hermes 像不同插座；
-  <span class="inline">HostAdapter</span> 与 <span class="inline">LLMRunner</span> 把电压、插头形状和供电方式转换成 core 能稳定使用的接口。
+  <div class="tag">🧭 生活类比</div>
+  这像助理给你准备会议材料：今天临时相关的便签放在发言稿最前面；长期稳定的个人偏好、项目目录和“需要时去哪里查”的说明放在会议手册后附录。
+  便签每轮都换，附录大多不变，所以缓存友好。
 </div>
 
-<h2>Adapter 是宿主与 core 的边界</h2>
+<h2>三段 prompt 位置</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway / Hermes</span></div><div class="ld">OpenClaw plugin API、Gateway HTTP handler、Hermes provider：负责生命周期、请求来源和宿主能力。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">统一暴露 logger、runtime context、dataDir 与 LLMRunnerFactory。</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">TdaiCore、recall、capture、pipeline、persona prompts：只看接口，不看宿主。</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">system tail</span><span class="name">appendSystemContext</span></div><div class="ld">稳定上下文：<span class="inline">&lt;user-persona&gt;</span> 包住去掉旧导航后的 persona，<span class="inline">&lt;scene-navigation&gt;</span> 包住场景索引导航，再追加 <span class="inline">MEMORY_TOOLS_GUIDE</span>。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">user prefix</span><span class="name">prependContext</span></div><div class="ld">动态上下文：本轮 <span class="inline">searchMemories()</span> 找到的 L1 snippets，放在 <span class="inline">&lt;relevant-memories&gt;</span> 中，贴近用户问题。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">user text</span><span class="name">current request</span></div><div class="ld">用户真正输入的问题保持在后面；capture 仍使用原始 prompt，避免把注入内容写回 L0/L1 证据。</div></div>
 </div>
 
-<p>
-在 <span class="inline">src/core/types.ts</span> 中，<span class="inline">HostAdapter</span> 回答三个问题：
-“怎么记录日志？”、“当前用户/会话/数据目录是谁？”、“怎么创建 LLM runner？”。
-这条边界让 core 可以把 <span class="inline">RuntimeContext</span> 当成唯一的身份与路径来源，把 LLM 调用当成可替换能力。
-新增宿主时，优先补齐这三个接口，而不是把宿主 SDK 调用散落到 core 里。
-</p>
-
-<h2>两种 adapter 路径对比</h2>
-<div class="cols">
-  <div class="col"><h4>OpenClaw adapter</h4><p><span class="inline">src/adapters/openclaw/host-adapter.ts</span> 持有 <span class="inline">OpenClawPluginApi</span>、插件数据目录和 OpenClaw 配置。它从 <span class="inline">api.logger</span> 取日志，从 hook session 构造上下文，并把 <span class="inline">api.runtime.agent</span> 交给 <span class="inline">OpenClawLLMRunnerFactory</span>。</p></div>
-  <div class="col"><h4>Standalone / Gateway adapter</h4><p><span class="inline">src/adapters/standalone/host-adapter.ts</span> 不依赖 OpenClaw。它直接接收 <span class="inline">dataDir</span>、logger、默认用户和 OpenAI-compatible LLM 配置；Gateway 每个请求再覆盖 user/session。</p></div>
-</div>
-
-<h2>LLMRunnerFactory 把模型调用藏在接口后</h2>
+<h2>persona 与 navigation 怎么组合</h2>
 <div class="flow">
-  <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw 或 Gateway/Hermes</div></div>
+  <div class="node"><div class="nt">persona.md</div><div class="nd">可能已经带有上一轮追加的 Scene Navigation。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="node"><div class="nt">strip navigation</div><div class="nd"><span class="inline">stripSceneNavigation()</span> 去掉旧导航，避免 persona 注入时重复携带过期地图。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
+  <div class="node hl"><div class="nt">user-persona tag</div><div class="nd">只把纯 persona 包进 <span class="inline">&lt;user-persona&gt;</span>。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">Core prompts</div><div class="nd">L1 extraction / L2 scene / L3 persona</div></div>
+  <div class="node"><div class="nt">scene index</div><div class="nd"><span class="inline">generateSceneNavigation()</span> 从最新 index 生成路径、热度、摘要。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">scene-navigation tag</div><div class="nd">包进 <span class="inline">&lt;scene-navigation&gt;</span>，指导 agent 用 <span class="inline">read_file</span> 下钻。</div></div>
 </div>
 
 <p>
-<span class="inline">LLMRunner</span> 的边界很关键：L1 抽取、L1 去重、L2 场景和 L3 画像提示词只调用
-<span class="inline">runner.run({prompt, systemPrompt, taskId})</span>。OpenClaw 路径背后可以继续用
-<span class="inline">CleanContextRunner</span> 与内嵌 agent runtime；Standalone 路径则通过 OpenAI-compatible HTTP 和可选文件工具执行。
-Prompt 本身因此不需要知道宿主具体怎么发起模型调用。Context Offload 也遵循“提示词不碰宿主 SDK”的目标，
-但它目前走并行的 <span class="inline">BackendClient</span> / <span class="inline">LocalLlmClient</span> 抽象，而不是这个 core runner factory。
+<span class="inline">persona-generator.ts</span> 写 <span class="inline">persona.md</span> 时也会先 strip 旧导航，再把新的 Scene Navigation 追加回文件。
+Auto Recall 再次读取 <span class="inline">persona.md</span> 时仍会 strip：这是“双保险”。文件里保留导航方便人和 agent 打开 persona 后继续探索；注入时拆成 persona 与 navigation 两块，避免旧导航混进 persona 画像本体。
 </p>
 
-<h2>伪代码</h2>
-<pre class="code">interface HostAdapter:
-    getLogger()
-    getRuntimeContext()
-    getLLMRunnerFactory()
+<h2>为什么不是注入完整场景</h2>
+<div class="cols">
+  <div class="col"><h4>自动注入</h4><p>自动路径只提供地图：场景文件 path、热度、更新时间和 summary。它告诉模型“哪里可能有完整证据”，但不把所有 scene block 塞进 prompt。</p></div>
+  <div class="col"><h4>显式工具搜索</h4><p>当回答需要细节时，agent 应主动调用 <span class="inline">read_file</span> 读取相关场景，或用 <span class="inline">tdai_memory_search</span> 查 L1、<span class="inline">tdai_conversation_search</span> 查 L0 原文证据。</p></div>
+</div>
 
-core = TdaiCore({
-    hostAdapter,
-    config
-})</pre>
-
-<h2>为什么这对测试和 Hermes 很重要</h2>
 <p>
-测试时，可以给 core 一个小型 fake adapter：固定 logger、临时 dataDir、可预测的 fake runner，就能验证 recall/capture/pipeline 逻辑，
-不用启动 OpenClaw 或真实 Gateway。Hermes 支持也因此更清晰：Hermes/Gateway 只需要实现 standalone adapter 与 runner 配置，
-无需复制 OpenClaw hooks 内的记忆算法。
+Scene Navigation 的设计是 progressive disclosure：先给索引，不给全集。完整场景可能很长，而且不是每轮都相关；把它们全部自动注入会挤占用户问题、系统规则和 L1 相关片段。
+导航里的绝对路径让 agent 在确实需要“项目背景、事件经过、阶段结论”时，用 <span class="inline">read_file</span> 精准下钻。
+</p>
+
+<h2>核心伪代码</h2>
+<pre class="code">stableParts = []
+if persona.md exists:
+    stableParts.append("&lt;user-persona&gt;" + stripSceneNavigation(persona) + "&lt;/user-persona&gt;")
+if scene_index exists:
+    stableParts.append("&lt;scene-navigation&gt;" + generateSceneNavigation(index, dataDir) + "&lt;/scene-navigation&gt;")
+if stableParts or l1Lines:
+    stableParts.append(MEMORY_TOOLS_GUIDE)
+prependContext = format_relevant_l1(l1Lines)
+appendSystemContext = join(stableParts)</pre>
+
+<h2>为什么更利于 prompt cache</h2>
+<p>
+很多 provider 的 prompt cache 对稳定前缀或稳定 system 区域更友好。L3 persona、L2 navigation 和工具指南变化频率低，放在 system 末尾可以在连续多轮中保持相同内容；L1 召回每轮跟着用户问题变化，如果也放进 system，就会频繁让系统上下文失效。
+把动态 L1 移到 user 前缀，既保持本轮相关性，也让稳定 system-tail 内容更可能复用缓存。
 </p>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/types.ts</span>：<span class="inline">HostAdapter</span>、<span class="inline">LLMRunner</span>、<span class="inline">LLMRunnerFactory</span></li>
-    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>：<span class="inline">OpenClawHostAdapter</span> 包装 OpenClaw API、logger、plugin data dir</li>
-    <li><span class="inline">src/adapters/openclaw/llm-runner.ts</span>：<span class="inline">OpenClawLLMRunnerFactory</span> 包装 CleanContextRunner / runtime agent</li>
-    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>：<span class="inline">StandaloneHostAdapter</span> 使用直接配置与请求上下文</li>
-    <li><span class="inline">src/adapters/standalone/llm-runner.ts</span>：<span class="inline">StandaloneLLMRunnerFactory</span> 使用 OpenAI-compatible 配置和可选工具沙箱</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：读取 L1、persona、scene index；用 <span class="inline">stripSceneNavigation</span> 清理 persona；生成 <span class="inline">prependContext</span> 与 <span class="inline">appendSystemContext</span>；追加 <span class="inline">MEMORY_TOOLS_GUIDE</span>。</li>
+    <li><span class="inline">src/core/scene/scene-navigation.ts</span>：<span class="inline">generateSceneNavigation</span> 输出 read-file-ready 的场景地图；<span class="inline">stripSceneNavigation</span> 删除旧导航段。</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>：生成 persona 时先剥离旧导航，LLM 写完后再追加新的 Scene Navigation 到 <span class="inline">persona.md</span>。</li>
+    <li><span class="inline">src/core/tools/memory-search.ts</span>：显式 L1 deeper retrieval；自动召回不够时由 agent 主动查结构化记忆。</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>：L0 evidence search tool，用于补充或校验原始对话证据。</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  <span class="inline">HostAdapter</span> 隔离宿主运行时差异；<span class="inline">LLMRunner</span> 隔离模型执行差异。
-  这让 core、prompt 与测试都围绕稳定接口组织，也让 Gateway/Hermes 成为 OpenClaw 之外的另一条干净接入路径。
+  Recall output 被拆成动态和稳定两类：L1 相关片段进入 <span class="inline">prependContext</span>，L3 persona、L2 navigation 与工具指南进入 <span class="inline">appendSystemContext</span>。
+  Persona 注入前要剥离旧导航；Scene Navigation 只给可 <span class="inline">read_file</span> 下钻的地图；稳定 system-tail 内容更有利于 prompt cache。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. HostAdapter 隔离的是什么？</div>
+  <div class="qn">1. 为什么 L3 persona 和 L2 navigation 放在 appendSystemContext，而 L1 放在 prependContext？</div>
   <ol class="opts">
-    <li>HTML 颜色变量</li>
-    <li>用户浏览器语言</li>
-    <li>宿主运行时差异，例如日志、数据目录、LLM runner</li>
-    <li>Git commit 消息</li>
+    <li>persona/navigation 较稳定，L1 每轮变化；这样更利于 prompt cache</li>
+    <li>因为 navigation 是 CSS</li>
+    <li>因为 L1 不能被模型看到</li>
+    <li>因为 persona 必须写进 README</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：C</strong>。Adapter 让 core 不依赖 OpenClaw 或 Gateway 细节。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：A</strong>。稳定上下文与动态片段分离，减少缓存失效并保持每轮相关性。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>如果要新增第三个宿主，应优先实现哪些 adapter 能力？</li>
+    <li>什么时候 agent 应使用 Scene Navigation 的 read_file，而不是依赖自动注入？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-<span class="inline">HostAdapter</span> is the seam between the host and the core: host context, logging, data directories, and LLM execution enter through it.
-<span class="inline">TdaiCore</span> depends on the unified interface instead of OpenClaw, Gateway, or Hermes implementation details.
+Lessons 22 and 23 covered Auto Recall and L1 search. This lesson explains how recall output is split before prompt injection: per-turn L1 snippets go into
+<span class="inline">prependContext</span>, before the user prompt; relatively stable L3 persona, L2 Scene Navigation, and the tool guide go into
+<span class="inline">appendSystemContext</span>, appended to the system prompt tail. The model sees long-term profile and scene maps, while provider prompt caching stays friendlier.
 </p>
 
 <div class="card analogy">
-  <div class="tag">🧩 Analogy</div>
-  The same appliance can work in different countries because a power adapter normalizes the socket. The core is the appliance; OpenClaw and Gateway/Hermes are different sockets;
-  <span class="inline">HostAdapter</span> and <span class="inline">LLMRunner</span> translate voltage, plug shape, and power delivery into stable interfaces the core can use.
+  <div class="tag">🧭 Analogy</div>
+  Think of a meeting assistant preparing materials. Today's relevant sticky notes go at the front of your speaking notes; stable preferences, the project directory, and "where to look next" instructions live in an appendix.
+  Sticky notes change every turn; the appendix mostly stays the same, so it is cache-friendly.
 </div>
 
-<h2>The adapter is the host/core boundary</h2>
+<h2>Three prompt positions</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway / Hermes</span></div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">TdaiCore, recall, capture, pipeline, persona prompts: interface-only, host-free.</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">system tail</span><span class="name">appendSystemContext</span></div><div class="ld">Stable context: <span class="inline">&lt;user-persona&gt;</span> wraps persona after old navigation is stripped, <span class="inline">&lt;scene-navigation&gt;</span> wraps the scene index navigation, then <span class="inline">MEMORY_TOOLS_GUIDE</span> is appended.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">user prefix</span><span class="name">prependContext</span></div><div class="ld">Dynamic context: this turn's L1 snippets from <span class="inline">searchMemories()</span>, wrapped in <span class="inline">&lt;relevant-memories&gt;</span> and placed near the user request.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">user text</span><span class="name">current request</span></div><div class="ld">The user's real input remains after the prefix; capture still uses the original prompt so injected content is not written back into L0/L1 evidence.</div></div>
 </div>
 
-<p>
-In <span class="inline">src/core/types.ts</span>, <span class="inline">HostAdapter</span> answers three questions:
-“Where do I log?”, “Who is the current user/session/data directory?”, and “How do I create an LLM runner?”.
-That boundary lets the core treat <span class="inline">RuntimeContext</span> as the single source for identity and paths, and LLM execution as a replaceable capability.
-</p>
-
-<h2>Two adapter paths</h2>
-<div class="cols">
-  <div class="col"><h4>OpenClaw adapter</h4><p><span class="inline">src/adapters/openclaw/host-adapter.ts</span> holds <span class="inline">OpenClawPluginApi</span>, the plugin data directory, and OpenClaw config. It uses <span class="inline">api.logger</span>, builds context from hook sessions, and passes <span class="inline">api.runtime.agent</span> into <span class="inline">OpenClawLLMRunnerFactory</span>.</p></div>
-  <div class="col"><h4>Standalone / Gateway adapter</h4><p><span class="inline">src/adapters/standalone/host-adapter.ts</span> does not depend on OpenClaw. It receives <span class="inline">dataDir</span>, logger, default user, and OpenAI-compatible LLM config directly; each Gateway request can override user/session.</p></div>
-</div>
-
-<h2>LLMRunnerFactory hides model execution behind an interface</h2>
+<h2>How persona and navigation combine</h2>
 <div class="flow">
-  <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw or Gateway/Hermes</div></div>
+  <div class="node"><div class="nt">persona.md</div><div class="nd">May already include Scene Navigation appended during an earlier persona generation.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="node"><div class="nt">strip navigation</div><div class="nd"><span class="inline">stripSceneNavigation()</span> removes the old navigation so injection does not carry duplicate or stale maps.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
+  <div class="node hl"><div class="nt">user-persona tag</div><div class="nd">Only clean persona is wrapped in <span class="inline">&lt;user-persona&gt;</span>.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">Core prompts</div><div class="nd">L1 extraction / L2 scene / L3 persona</div></div>
+  <div class="node"><div class="nt">scene index</div><div class="nd"><span class="inline">generateSceneNavigation()</span> builds paths, heat, update time, and summaries from the latest index.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">scene-navigation tag</div><div class="nd">Wrapped in <span class="inline">&lt;scene-navigation&gt;</span> so the agent can drill down with <span class="inline">read_file</span>.</div></div>
 </div>
 
 <p>
-The <span class="inline">LLMRunner</span> boundary matters: L1 extraction, L1 dedup, L2 scene generation, and L3 persona generation prompts only call
-<span class="inline">runner.run({prompt, systemPrompt, taskId})</span>. The OpenClaw path can keep using
-<span class="inline">CleanContextRunner</span> and the embedded agent runtime; the standalone path can call OpenAI-compatible HTTP with optional file tools.
-The prompt code does not need to know how the host launches the model. Context Offload follows the same goal of keeping prompts away from host SDKs,
-but today it uses a parallel <span class="inline">BackendClient</span> / <span class="inline">LocalLlmClient</span> abstraction rather than this core runner factory.
+<span class="inline">persona-generator.ts</span> also strips old navigation before writing <span class="inline">persona.md</span>, then appends fresh Scene Navigation back to the file.
+Auto Recall strips again when reading <span class="inline">persona.md</span>: that is a second guard. Keeping navigation in the file helps humans and agents explore from persona, while injection separates persona from navigation so stale maps do not become profile content.
 </p>
 
-<h2>Pseudocode</h2>
-<pre class="code">interface HostAdapter:
-    getLogger()
-    getRuntimeContext()
-    getLLMRunnerFactory()
+<h2>Why not inject full scenes automatically</h2>
+<div class="cols">
+  <div class="col"><h4>Automatic injection</h4><p>The automatic path gives a map: scene file path, heat, update time, and summary. It tells the model where full evidence may live without dumping every scene block into the prompt.</p></div>
+  <div class="col"><h4>Explicit tool search</h4><p>When an answer needs detail, the agent should call <span class="inline">read_file</span> for the relevant scene, or use <span class="inline">tdai_memory_search</span> for L1 and <span class="inline">tdai_conversation_search</span> for raw L0 evidence.</p></div>
+</div>
 
-core = TdaiCore({
-    hostAdapter,
-    config
-})</pre>
-
-<h2>Why this matters for testing and Hermes</h2>
 <p>
-Tests can give the core a tiny fake adapter: fixed logger, controlled dataDir, and predictable fake runner. That verifies recall/capture/pipeline behavior without starting OpenClaw or a real Gateway.
-Hermes support is also cleaner: Hermes/Gateway only implements the standalone adapter and runner configuration, without copying the memory algorithms from OpenClaw hooks.
+Scene Navigation is progressive disclosure: index first, full content only on demand. Full scenes can be long and are not relevant to every turn; automatic full injection would crowd out the user request, system rules, and relevant L1 snippets.
+Absolute paths in navigation let the agent drill down with <span class="inline">read_file</span> only when it needs project background, event history, or stage conclusions.
+</p>
+
+<h2>Core pseudocode</h2>
+<pre class="code">stableParts = []
+if persona.md exists:
+    stableParts.append("&lt;user-persona&gt;" + stripSceneNavigation(persona) + "&lt;/user-persona&gt;")
+if scene_index exists:
+    stableParts.append("&lt;scene-navigation&gt;" + generateSceneNavigation(index, dataDir) + "&lt;/scene-navigation&gt;")
+if stableParts or l1Lines:
+    stableParts.append(MEMORY_TOOLS_GUIDE)
+prependContext = format_relevant_l1(l1Lines)
+appendSystemContext = join(stableParts)</pre>
+
+<h2>Why this is better for prompt cache</h2>
+<p>
+Many providers make prompt caching friendlier for stable prefixes or stable system regions. L3 persona, L2 navigation, and the tool guide change infrequently, so placing them at the system tail lets consecutive turns keep identical content; L1 recall changes with each user request.
+If dynamic L1 also lived in system context, it would frequently bust the system cache. Moving L1 to the user prefix keeps turn relevance while letting stable system-tail content be reused more often.
 </p>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/types.ts</span>: <span class="inline">HostAdapter</span>, <span class="inline">LLMRunner</span>, <span class="inline">LLMRunnerFactory</span></li>
-    <li><span class="inline">src/adapters/openclaw/host-adapter.ts</span>: <span class="inline">OpenClawHostAdapter</span> wraps OpenClaw API, logger, plugin data dir</li>
-    <li><span class="inline">src/adapters/openclaw/llm-runner.ts</span>: <span class="inline">OpenClawLLMRunnerFactory</span> wraps CleanContextRunner / runtime agent</li>
-    <li><span class="inline">src/adapters/standalone/host-adapter.ts</span>: <span class="inline">StandaloneHostAdapter</span> uses direct config and request context</li>
-    <li><span class="inline">src/adapters/standalone/llm-runner.ts</span>: <span class="inline">StandaloneLLMRunnerFactory</span> uses OpenAI-compatible config and an optional tool sandbox</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: reads L1, persona, and scene index; strips persona navigation; creates <span class="inline">prependContext</span> and <span class="inline">appendSystemContext</span>; appends <span class="inline">MEMORY_TOOLS_GUIDE</span>.</li>
+    <li><span class="inline">src/core/scene/scene-navigation.ts</span>: <span class="inline">generateSceneNavigation</span> emits a read-file-ready scene map; <span class="inline">stripSceneNavigation</span> removes old navigation blocks.</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>: strips old navigation during persona generation, then appends fresh Scene Navigation to <span class="inline">persona.md</span>.</li>
+    <li><span class="inline">src/core/tools/memory-search.ts</span>: explicit L1 deeper retrieval when automatic recall is not enough.</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>: L0 evidence search tool for supplementing or verifying raw conversation evidence.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  <span class="inline">HostAdapter</span> isolates host runtime differences; <span class="inline">LLMRunner</span> isolates model execution differences.
-  That keeps the core, prompts, and tests organized around stable interfaces, and gives Gateway/Hermes a clean path alongside OpenClaw.
+  Recall output is split into dynamic and stable parts: relevant L1 snippets go into <span class="inline">prependContext</span>, while L3 persona, L2 navigation, and the tool guide go into <span class="inline">appendSystemContext</span>.
+  Persona is stripped of old navigation before injection; Scene Navigation provides a <span class="inline">read_file</span> drill-down map; stable system-tail content is better for prompt caching.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. What does HostAdapter isolate?</div>
+  <div class="qn">1. Why do L3 persona and L2 navigation go into appendSystemContext while L1 goes into prependContext?</div>
   <ol class="opts">
-    <li>HTML color variables</li>
-    <li>The browser language</li>
-    <li>Host runtime differences such as logging, data dirs, and LLM runner</li>
-    <li>Git commit messages</li>
+    <li>Persona/navigation are relatively stable while L1 changes each turn, which is better for prompt caching</li>
+    <li>Because navigation is CSS</li>
+    <li>Because L1 cannot be seen by the model</li>
+    <li>Because persona must be written into README</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: C</strong>. The adapter keeps core independent of OpenClaw or Gateway details.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Separating stable context from dynamic snippets reduces cache busting while keeping each turn relevant.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>If adding a third host, which adapter capabilities would you implement first?</li>
+    <li>When should the agent use read_file from Scene Navigation instead of relying on automatic injection?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="09-tdai-core-facade.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">TdaiCore：宿主无关核心门面</span><span class="lang-en">TdaiCore: host-neutral facade</span></div></a><a class="next" href="11-runtime-init-config.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></div></a></div>
+  <div class="footnav"><a class="prev" href="23-l1-search-recall-budget.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">L1 记忆搜索与召回预算</span><span class="lang-en">L1 memory search and recall budgeting</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

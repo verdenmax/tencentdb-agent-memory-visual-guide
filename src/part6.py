@@ -323,3 +323,173 @@ return applyRecallBudget(lines, cfg.recall)</pre>
 </div>
 """,
 }
+
+
+LESSON_24 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+第 22、23 课解释了 Auto Recall 与 L1 搜索。本课看召回结果如何分层注入：每轮变化的 L1 片段进入
+<span class="inline">prependContext</span>，贴在 user prompt 前；相对稳定的 L3 persona、L2 Scene Navigation 与工具指南进入
+<span class="inline">appendSystemContext</span>，追加到 system prompt 末尾。这样既让模型看到长期画像和场景地图，又尽量不破坏 provider 的 prompt cache。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  这像助理给你准备会议材料：今天临时相关的便签放在发言稿最前面；长期稳定的个人偏好、项目目录和“需要时去哪里查”的说明放在会议手册后附录。
+  便签每轮都换，附录大多不变，所以缓存友好。
+</div>
+
+<h2>三段 prompt 位置</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">system tail</span><span class="name">appendSystemContext</span></div><div class="ld">稳定上下文：<span class="inline">&lt;user-persona&gt;</span> 包住去掉旧导航后的 persona，<span class="inline">&lt;scene-navigation&gt;</span> 包住场景索引导航，再追加 <span class="inline">MEMORY_TOOLS_GUIDE</span>。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">user prefix</span><span class="name">prependContext</span></div><div class="ld">动态上下文：本轮 <span class="inline">searchMemories()</span> 找到的 L1 snippets，放在 <span class="inline">&lt;relevant-memories&gt;</span> 中，贴近用户问题。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">user text</span><span class="name">current request</span></div><div class="ld">用户真正输入的问题保持在后面；capture 仍使用原始 prompt，避免把注入内容写回 L0/L1 证据。</div></div>
+</div>
+
+<h2>persona 与 navigation 怎么组合</h2>
+<div class="flow">
+  <div class="node"><div class="nt">persona.md</div><div class="nd">可能已经带有上一轮追加的 Scene Navigation。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">strip navigation</div><div class="nd"><span class="inline">stripSceneNavigation()</span> 去掉旧导航，避免 persona 注入时重复携带过期地图。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">user-persona tag</div><div class="nd">只把纯 persona 包进 <span class="inline">&lt;user-persona&gt;</span>。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">scene index</div><div class="nd"><span class="inline">generateSceneNavigation()</span> 从最新 index 生成路径、热度、摘要。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">scene-navigation tag</div><div class="nd">包进 <span class="inline">&lt;scene-navigation&gt;</span>，指导 agent 用 <span class="inline">read_file</span> 下钻。</div></div>
+</div>
+
+<p>
+<span class="inline">persona-generator.ts</span> 写 <span class="inline">persona.md</span> 时也会先 strip 旧导航，再把新的 Scene Navigation 追加回文件。
+Auto Recall 再次读取 <span class="inline">persona.md</span> 时仍会 strip：这是“双保险”。文件里保留导航方便人和 agent 打开 persona 后继续探索；注入时拆成 persona 与 navigation 两块，避免旧导航混进 persona 画像本体。
+</p>
+
+<h2>为什么不是注入完整场景</h2>
+<div class="cols">
+  <div class="col"><h4>自动注入</h4><p>自动路径只提供地图：场景文件 path、热度、更新时间和 summary。它告诉模型“哪里可能有完整证据”，但不把所有 scene block 塞进 prompt。</p></div>
+  <div class="col"><h4>显式工具搜索</h4><p>当回答需要细节时，agent 应主动调用 <span class="inline">read_file</span> 读取相关场景，或用 <span class="inline">tdai_memory_search</span> 查 L1、<span class="inline">tdai_conversation_search</span> 查 L0 原文证据。</p></div>
+</div>
+
+<p>
+Scene Navigation 的设计是 progressive disclosure：先给索引，不给全集。完整场景可能很长，而且不是每轮都相关；把它们全部自动注入会挤占用户问题、系统规则和 L1 相关片段。
+导航里的绝对路径让 agent 在确实需要“项目背景、事件经过、阶段结论”时，用 <span class="inline">read_file</span> 精准下钻。
+</p>
+
+<h2>核心伪代码</h2>
+<pre class="code">stableParts = []
+if persona.md exists:
+    stableParts.append("&lt;user-persona&gt;" + stripSceneNavigation(persona) + "&lt;/user-persona&gt;")
+if scene_index exists:
+    stableParts.append("&lt;scene-navigation&gt;" + generateSceneNavigation(index, dataDir) + "&lt;/scene-navigation&gt;")
+if stableParts or l1Lines:
+    stableParts.append(MEMORY_TOOLS_GUIDE)
+prependContext = format_relevant_l1(l1Lines)
+appendSystemContext = join(stableParts)</pre>
+
+<h2>为什么更利于 prompt cache</h2>
+<p>
+很多 provider 的 prompt cache 对稳定前缀或稳定 system 区域更友好。L3 persona、L2 navigation 和工具指南变化频率低，放在 system 末尾可以在连续多轮中保持相同内容；L1 召回每轮跟着用户问题变化，如果也放进 system，就会频繁让系统上下文失效。
+把动态 L1 移到 user 前缀，既保持本轮相关性，也让稳定 system-tail 内容更可能复用缓存。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：读取 L1、persona、scene index；用 <span class="inline">stripSceneNavigation</span> 清理 persona；生成 <span class="inline">prependContext</span> 与 <span class="inline">appendSystemContext</span>；追加 <span class="inline">MEMORY_TOOLS_GUIDE</span>。</li>
+    <li><span class="inline">src/core/scene/scene-navigation.ts</span>：<span class="inline">generateSceneNavigation</span> 输出 read-file-ready 的场景地图；<span class="inline">stripSceneNavigation</span> 删除旧导航段。</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>：生成 persona 时先剥离旧导航，LLM 写完后再追加新的 Scene Navigation 到 <span class="inline">persona.md</span>。</li>
+    <li><span class="inline">src/core/tools/memory-search.ts</span>：显式 L1 deeper retrieval；自动召回不够时由 agent 主动查结构化记忆。</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>：L0 evidence search tool，用于补充或校验原始对话证据。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  Recall output 被拆成动态和稳定两类：L1 相关片段进入 <span class="inline">prependContext</span>，L3 persona、L2 navigation 与工具指南进入 <span class="inline">appendSystemContext</span>。
+  Persona 注入前要剥离旧导航；Scene Navigation 只给可 <span class="inline">read_file</span> 下钻的地图；稳定 system-tail 内容更有利于 prompt cache。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Lessons 22 and 23 covered Auto Recall and L1 search. This lesson explains how recall output is split before prompt injection: per-turn L1 snippets go into
+<span class="inline">prependContext</span>, before the user prompt; relatively stable L3 persona, L2 Scene Navigation, and the tool guide go into
+<span class="inline">appendSystemContext</span>, appended to the system prompt tail. The model sees long-term profile and scene maps, while provider prompt caching stays friendlier.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Think of a meeting assistant preparing materials. Today's relevant sticky notes go at the front of your speaking notes; stable preferences, the project directory, and "where to look next" instructions live in an appendix.
+  Sticky notes change every turn; the appendix mostly stays the same, so it is cache-friendly.
+</div>
+
+<h2>Three prompt positions</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">system tail</span><span class="name">appendSystemContext</span></div><div class="ld">Stable context: <span class="inline">&lt;user-persona&gt;</span> wraps persona after old navigation is stripped, <span class="inline">&lt;scene-navigation&gt;</span> wraps the scene index navigation, then <span class="inline">MEMORY_TOOLS_GUIDE</span> is appended.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">user prefix</span><span class="name">prependContext</span></div><div class="ld">Dynamic context: this turn's L1 snippets from <span class="inline">searchMemories()</span>, wrapped in <span class="inline">&lt;relevant-memories&gt;</span> and placed near the user request.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">user text</span><span class="name">current request</span></div><div class="ld">The user's real input remains after the prefix; capture still uses the original prompt so injected content is not written back into L0/L1 evidence.</div></div>
+</div>
+
+<h2>How persona and navigation combine</h2>
+<div class="flow">
+  <div class="node"><div class="nt">persona.md</div><div class="nd">May already include Scene Navigation appended during an earlier persona generation.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">strip navigation</div><div class="nd"><span class="inline">stripSceneNavigation()</span> removes the old navigation so injection does not carry duplicate or stale maps.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">user-persona tag</div><div class="nd">Only clean persona is wrapped in <span class="inline">&lt;user-persona&gt;</span>.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">scene index</div><div class="nd"><span class="inline">generateSceneNavigation()</span> builds paths, heat, update time, and summaries from the latest index.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">scene-navigation tag</div><div class="nd">Wrapped in <span class="inline">&lt;scene-navigation&gt;</span> so the agent can drill down with <span class="inline">read_file</span>.</div></div>
+</div>
+
+<p>
+<span class="inline">persona-generator.ts</span> also strips old navigation before writing <span class="inline">persona.md</span>, then appends fresh Scene Navigation back to the file.
+Auto Recall strips again when reading <span class="inline">persona.md</span>: that is a second guard. Keeping navigation in the file helps humans and agents explore from persona, while injection separates persona from navigation so stale maps do not become profile content.
+</p>
+
+<h2>Why not inject full scenes automatically</h2>
+<div class="cols">
+  <div class="col"><h4>Automatic injection</h4><p>The automatic path gives a map: scene file path, heat, update time, and summary. It tells the model where full evidence may live without dumping every scene block into the prompt.</p></div>
+  <div class="col"><h4>Explicit tool search</h4><p>When an answer needs detail, the agent should call <span class="inline">read_file</span> for the relevant scene, or use <span class="inline">tdai_memory_search</span> for L1 and <span class="inline">tdai_conversation_search</span> for raw L0 evidence.</p></div>
+</div>
+
+<p>
+Scene Navigation is progressive disclosure: index first, full content only on demand. Full scenes can be long and are not relevant to every turn; automatic full injection would crowd out the user request, system rules, and relevant L1 snippets.
+Absolute paths in navigation let the agent drill down with <span class="inline">read_file</span> only when it needs project background, event history, or stage conclusions.
+</p>
+
+<h2>Core pseudocode</h2>
+<pre class="code">stableParts = []
+if persona.md exists:
+    stableParts.append("&lt;user-persona&gt;" + stripSceneNavigation(persona) + "&lt;/user-persona&gt;")
+if scene_index exists:
+    stableParts.append("&lt;scene-navigation&gt;" + generateSceneNavigation(index, dataDir) + "&lt;/scene-navigation&gt;")
+if stableParts or l1Lines:
+    stableParts.append(MEMORY_TOOLS_GUIDE)
+prependContext = format_relevant_l1(l1Lines)
+appendSystemContext = join(stableParts)</pre>
+
+<h2>Why this is better for prompt cache</h2>
+<p>
+Many providers make prompt caching friendlier for stable prefixes or stable system regions. L3 persona, L2 navigation, and the tool guide change infrequently, so placing them at the system tail lets consecutive turns keep identical content; L1 recall changes with each user request.
+If dynamic L1 also lived in system context, it would frequently bust the system cache. Moving L1 to the user prefix keeps turn relevance while letting stable system-tail content be reused more often.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: reads L1, persona, and scene index; strips persona navigation; creates <span class="inline">prependContext</span> and <span class="inline">appendSystemContext</span>; appends <span class="inline">MEMORY_TOOLS_GUIDE</span>.</li>
+    <li><span class="inline">src/core/scene/scene-navigation.ts</span>: <span class="inline">generateSceneNavigation</span> emits a read-file-ready scene map; <span class="inline">stripSceneNavigation</span> removes old navigation blocks.</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>: strips old navigation during persona generation, then appends fresh Scene Navigation to <span class="inline">persona.md</span>.</li>
+    <li><span class="inline">src/core/tools/memory-search.ts</span>: explicit L1 deeper retrieval when automatic recall is not enough.</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>: L0 evidence search tool for supplementing or verifying raw conversation evidence.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Recall output is split into dynamic and stable parts: relevant L1 snippets go into <span class="inline">prependContext</span>, while L3 persona, L2 navigation, and the tool guide go into <span class="inline">appendSystemContext</span>.
+  Persona is stripped of old navigation before injection; Scene Navigation provides a <span class="inline">read_file</span> drill-down map; stable system-tail content is better for prompt caching.
+</div>
+""",
+}

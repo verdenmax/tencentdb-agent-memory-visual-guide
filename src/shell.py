@@ -92,6 +92,8 @@ PAGES = [
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
     ("23-l1-search-recall-budget.html", "L1 记忆搜索与召回预算", "L1 memory search and recall budgeting",
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
+    ("24-l2-navigation-l3-persona-injection.html", "L2 导航与 L3 Persona 注入", "L2 navigation plus L3 persona injection",
+     "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
 ]
 
 def bi(zh, en):
@@ -571,6 +573,8 @@ SUBTITLES = {
                                       "before_prompt_build calls performAutoRecall; timeout skips injection to protect the main chat"),
     "23-l1-search-recall-budget.html": ("keyword、embedding、hybrid 策略先找相关 L1，再用 maxResults 与字符预算裁剪",
                                     "keyword, embedding, and hybrid strategies find relevant L1, then maxResults and character budgets trim output"),
+    "24-l2-navigation-l3-persona-injection.html": ("稳定上下文进 system 末尾，动态 L1 进 user 前缀，保留 prompt cache 友好性",
+                                               "stable context goes to the system tail; dynamic L1 goes to the user prefix for prompt-cache friendliness"),
 }
 
 def index_page(lesson_prefix="lessons/"):

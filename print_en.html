@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 23 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">23 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 24 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">24 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -355,6 +355,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">L2/L3 调度与触发规则</span><span class="lang-en">L2/L3 scheduling and trigger rules</span></li>
   <li><span class="lang-zh">Prompt 构建前的 Auto Recall</span><span class="lang-en">Auto-recall before prompt build</span></li>
   <li><span class="lang-zh">L1 记忆搜索与召回预算</span><span class="lang-en">L1 memory search and recall budgeting</span></li>
+  <li><span class="lang-zh">L2 导航与 L3 Persona 注入</span><span class="lang-en">L2 navigation plus L3 persona injection</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -2864,6 +2865,114 @@ return applyRecallBudget(lines, cfg.recall)</pre>
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>When does embedding or hybrid degrade to keyword, and why is that safe?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">L2 导航与 L3 Persona 注入</span><span class="lang-en">L2 navigation plus L3 persona injection</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Lessons 22 and 23 covered Auto Recall and L1 search. This lesson explains how recall output is split before prompt injection: per-turn L1 snippets go into
+<span class="inline">prependContext</span>, before the user prompt; relatively stable L3 persona, L2 Scene Navigation, and the tool guide go into
+<span class="inline">appendSystemContext</span>, appended to the system prompt tail. The model sees long-term profile and scene maps, while provider prompt caching stays friendlier.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Think of a meeting assistant preparing materials. Today's relevant sticky notes go at the front of your speaking notes; stable preferences, the project directory, and "where to look next" instructions live in an appendix.
+  Sticky notes change every turn; the appendix mostly stays the same, so it is cache-friendly.
+</div>
+
+<h2>Three prompt positions</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">system tail</span><span class="name">appendSystemContext</span></div><div class="ld">Stable context: <span class="inline">&lt;user-persona&gt;</span> wraps persona after old navigation is stripped, <span class="inline">&lt;scene-navigation&gt;</span> wraps the scene index navigation, then <span class="inline">MEMORY_TOOLS_GUIDE</span> is appended.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">user prefix</span><span class="name">prependContext</span></div><div class="ld">Dynamic context: this turn's L1 snippets from <span class="inline">searchMemories()</span>, wrapped in <span class="inline">&lt;relevant-memories&gt;</span> and placed near the user request.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">user text</span><span class="name">current request</span></div><div class="ld">The user's real input remains after the prefix; capture still uses the original prompt so injected content is not written back into L0/L1 evidence.</div></div>
+</div>
+
+<h2>How persona and navigation combine</h2>
+<div class="flow">
+  <div class="node"><div class="nt">persona.md</div><div class="nd">May already include Scene Navigation appended during an earlier persona generation.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">strip navigation</div><div class="nd"><span class="inline">stripSceneNavigation()</span> removes the old navigation so injection does not carry duplicate or stale maps.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">user-persona tag</div><div class="nd">Only clean persona is wrapped in <span class="inline">&lt;user-persona&gt;</span>.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">scene index</div><div class="nd"><span class="inline">generateSceneNavigation()</span> builds paths, heat, update time, and summaries from the latest index.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">scene-navigation tag</div><div class="nd">Wrapped in <span class="inline">&lt;scene-navigation&gt;</span> so the agent can drill down with <span class="inline">read_file</span>.</div></div>
+</div>
+
+<p>
+<span class="inline">persona-generator.ts</span> also strips old navigation before writing <span class="inline">persona.md</span>, then appends fresh Scene Navigation back to the file.
+Auto Recall strips again when reading <span class="inline">persona.md</span>: that is a second guard. Keeping navigation in the file helps humans and agents explore from persona, while injection separates persona from navigation so stale maps do not become profile content.
+</p>
+
+<h2>Why not inject full scenes automatically</h2>
+<div class="cols">
+  <div class="col"><h4>Automatic injection</h4><p>The automatic path gives a map: scene file path, heat, update time, and summary. It tells the model where full evidence may live without dumping every scene block into the prompt.</p></div>
+  <div class="col"><h4>Explicit tool search</h4><p>When an answer needs detail, the agent should call <span class="inline">read_file</span> for the relevant scene, or use <span class="inline">tdai_memory_search</span> for L1 and <span class="inline">tdai_conversation_search</span> for raw L0 evidence.</p></div>
+</div>
+
+<p>
+Scene Navigation is progressive disclosure: index first, full content only on demand. Full scenes can be long and are not relevant to every turn; automatic full injection would crowd out the user request, system rules, and relevant L1 snippets.
+Absolute paths in navigation let the agent drill down with <span class="inline">read_file</span> only when it needs project background, event history, or stage conclusions.
+</p>
+
+<h2>Core pseudocode</h2>
+<pre class="code">stableParts = []
+if persona.md exists:
+    stableParts.append("&lt;user-persona&gt;" + stripSceneNavigation(persona) + "&lt;/user-persona&gt;")
+if scene_index exists:
+    stableParts.append("&lt;scene-navigation&gt;" + generateSceneNavigation(index, dataDir) + "&lt;/scene-navigation&gt;")
+if stableParts or l1Lines:
+    stableParts.append(MEMORY_TOOLS_GUIDE)
+prependContext = format_relevant_l1(l1Lines)
+appendSystemContext = join(stableParts)</pre>
+
+<h2>Why this is better for prompt cache</h2>
+<p>
+Many providers make prompt caching friendlier for stable prefixes or stable system regions. L3 persona, L2 navigation, and the tool guide change infrequently, so placing them at the system tail lets consecutive turns keep identical content; L1 recall changes with each user request.
+If dynamic L1 also lived in system context, it would frequently bust the system cache. Moving L1 to the user prefix keeps turn relevance while letting stable system-tail content be reused more often.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: reads L1, persona, and scene index; strips persona navigation; creates <span class="inline">prependContext</span> and <span class="inline">appendSystemContext</span>; appends <span class="inline">MEMORY_TOOLS_GUIDE</span>.</li>
+    <li><span class="inline">src/core/scene/scene-navigation.ts</span>: <span class="inline">generateSceneNavigation</span> emits a read-file-ready scene map; <span class="inline">stripSceneNavigation</span> removes old navigation blocks.</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>: strips old navigation during persona generation, then appends fresh Scene Navigation to <span class="inline">persona.md</span>.</li>
+    <li><span class="inline">src/core/tools/memory-search.ts</span>: explicit L1 deeper retrieval when automatic recall is not enough.</li>
+    <li><span class="inline">src/core/tools/conversation-search.ts</span>: L0 evidence search tool for supplementing or verifying raw conversation evidence.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Recall output is split into dynamic and stable parts: relevant L1 snippets go into <span class="inline">prependContext</span>, while L3 persona, L2 navigation, and the tool guide go into <span class="inline">appendSystemContext</span>.
+  Persona is stripped of old navigation before injection; Scene Navigation provides a <span class="inline">read_file</span> drill-down map; stable system-tail content is better for prompt caching.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Why do L3 persona and L2 navigation go into appendSystemContext while L1 goes into prependContext?</div>
+  <ol class="opts">
+    <li>Persona/navigation are relatively stable while L1 changes each turn, which is better for prompt caching</li>
+    <li>Because navigation is CSS</li>
+    <li>Because L1 cannot be seen by the model</li>
+    <li>Because persona must be written into README</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Separating stable context from dynamic snippets reduces cache busting while keeping each turn relevant.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>When should the agent use read_file from Scene Navigation instead of relying on automatic injection?</li>
   </ul>
 </div>
 </div>

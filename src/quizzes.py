@@ -422,6 +422,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "什么时候 embedding 或 hybrid 会退化成 keyword？这种降级为什么安全？", "en": "When does embedding or hybrid degrade to keyword, and why is that safe?"}],
     },
+    "24-l2-navigation-l3-persona-injection.html": {
+        "mcq": [{
+            "q": {"zh": "为什么 L3 persona 和 L2 navigation 放在 appendSystemContext，而 L1 放在 prependContext？", "en": "Why do L3 persona and L2 navigation go into appendSystemContext while L1 goes into prependContext?"},
+            "opts": [
+                {"zh": "persona/navigation 较稳定，L1 每轮变化；这样更利于 prompt cache", "en": "Persona/navigation are relatively stable while L1 changes each turn, which is better for prompt caching"},
+                {"zh": "因为 L1 不能被模型看到", "en": "Because L1 cannot be seen by the model"},
+                {"zh": "因为 navigation 是 CSS", "en": "Because navigation is CSS"},
+                {"zh": "因为 persona 必须写进 README", "en": "Because persona must be written into README"},
+            ],
+            "answer": 0,
+            "why": {"zh": "稳定上下文与动态片段分离，减少缓存失效并保持每轮相关性。", "en": "Separating stable context from dynamic snippets reduces cache busting while keeping each turn relevant."},
+        }],
+        "open": [{"zh": "什么时候 agent 应使用 Scene Navigation 的 read_file，而不是依赖自动注入？", "en": "When should the agent use read_file from Scene Navigation instead of relying on automatic injection?"}],
+    },
 }
 
 
