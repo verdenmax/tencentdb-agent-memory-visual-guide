@@ -2920,6 +2920,16 @@ Scene Navigation is progressive disclosure: index first, full content only on de
 Absolute paths in navigation let the agent drill down with <span class="inline">read_file</span> only when it needs project background, event history, or stage conclusions.
 </p>
 
+<div class="card detail">
+  <div class="tag">🧰 MEMORY_TOOLS_GUIDE runtime limits</div>
+  <ul>
+    <li><span class="inline">tdai_memory_search</span> searches L1 structured memory: facts, preferences, decisions, and summaries.</li>
+    <li><span class="inline">tdai_conversation_search</span> searches L0 raw conversation evidence for supplementing or verifying original dialogue.</li>
+    <li><span class="inline">read_file</span> follows Scene Navigation paths: inspect the map first, then open the relevant scene file for detail.</li>
+    <li><span class="inline">tdai_memory_search</span> + <span class="inline">tdai_conversation_search</span> are limited to 3 total calls per turn; after 3 failed searches, stop searching and answer from available context.</li>
+  </ul>
+</div>
+
 <h2>Core pseudocode</h2>
 <pre class="code">stableParts = []
 if persona.md exists:
@@ -2942,6 +2952,7 @@ If dynamic L1 also lived in system context, it would frequently bust the system 
   <ul>
     <li><span class="inline">src/core/hooks/auto-recall.ts</span>: reads L1, persona, and scene index; strips persona navigation; creates <span class="inline">prependContext</span> and <span class="inline">appendSystemContext</span>; appends <span class="inline">MEMORY_TOOLS_GUIDE</span>.</li>
     <li><span class="inline">src/core/scene/scene-navigation.ts</span>: <span class="inline">generateSceneNavigation</span> emits a read-file-ready scene map; <span class="inline">stripSceneNavigation</span> removes old navigation blocks.</li>
+    <li><span class="inline">src/core/scene/scene-extractor.ts</span>: refreshes scene files and indexes so Scene Navigation points to current readable scene paths.</li>
     <li><span class="inline">src/core/persona/persona-generator.ts</span>: strips old navigation during persona generation, then appends fresh Scene Navigation to <span class="inline">persona.md</span>.</li>
     <li><span class="inline">src/core/tools/memory-search.ts</span>: explicit L1 deeper retrieval when automatic recall is not enough.</li>
     <li><span class="inline">src/core/tools/conversation-search.ts</span>: L0 evidence search tool for supplementing or verifying raw conversation evidence.</li>
