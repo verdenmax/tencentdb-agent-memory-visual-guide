@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 15 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">15 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 16 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">16 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -347,6 +347,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></li>
   <li><span class="lang-zh">Checkpoint：游标、锁与防重复</span><span class="lang-en">Checkpoints: cursors, locks, and duplicate prevention</span></li>
   <li><span class="lang-zh">L1 抽取：从对话到原子记忆</span><span class="lang-en">L1 extraction: conversation to memory atoms</span></li>
+  <li><span class="lang-zh">L1 去重、冲突检测与写入</span><span class="lang-en">L1 dedup, conflict detection, and write path</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1977,6 +1978,118 @@ During parsing, <span class="inline">parseExtractionResult</span> first removes 
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>Why does the L1 prompt need both new messages and background messages?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">L1 去重、冲突检测与写入</span><span class="lang-en">L1 dedup, conflict detection, and write path</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+L1 extraction turns L0 messages into structured memories, but the extracted batch can contain duplicates or facts that conflict with existing memory.
+Before writing, <span class="inline">batchDedup</span> acts as quality control: recall similar candidates, decide whether the new memory should be kept, used to update an existing memory, or skipped.
+It governs searchable L1 facts; it does not delete raw L0 evidence.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  L0 is the meeting recording archive; L1 is the team's index-card shelf. You do not cut the recording when a new card is written.
+  Dedup only asks whether the card already exists, should revise an older card, or conflicts with one, so the shelf stays useful.
+</div>
+
+<h2>From extraction to write decision</h2>
+<div class="flow">
+  <div class="node"><div class="nt">extracted memories</div><div class="nd">LLM / logic emits candidate L1 atoms</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">candidate recall</div><div class="nd">when vector store is available, recall similar existing memories</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">dedup decision</div><div class="nd">choose keep / update / skip and explain conflicts</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">write / update / skip</div><div class="nd">only qualified L1 enters JSONL and searchable store</div></div>
+</div>
+
+<p>
+<span class="inline">batchDedup</span> in <span class="inline">src/core/record/l1-dedup.ts</span>
+runs before batch writes. It prefers store similarity search for candidates: repeated preferences can be skipped,
+corrected preferences can update an existing record, and unrelated new facts can be kept. The decision can come from the LLM prompt in
+<span class="inline">src/core/prompts/l1-dedup.ts</span>, or from conservative rule logic in degraded paths.
+</p>
+
+<h2>Why dedup does not discard evidence</h2>
+<div class="cols">
+  <div class="col"><h4>L0 evidence layer</h4><p>Raw conversation JSONL records who said what, when, and under which message ID. It supports audit, replay, and re-extraction; dedup should not rewrite this source evidence.</p></div>
+  <div class="col"><h4>L1 quality layer</h4><p>Structured facts are optimized for future recall. Dedup only decides whether a new L1 fact would make the fact store repetitive, stale, or conflicting.</p></div>
+</div>
+
+<h2>Write path: JSONL plus store upsert</h2>
+<p>
+Accepted memories enter <span class="inline">writeMemory</span>. The writer uses
+<span class="inline">generateMemoryId</span> to create a stable record ID, then appends the L1 record to JSONL.
+After that, the store upsert path keeps the same record searchable: local <span class="inline">sqlite</span>
+can provide vector / FTS search, while <span class="inline">TCVDB</span> can provide managed vector search.
+JSONL is durable evidence; the store is the retrieval index. Together they make memory auditable and recallable.
+</p>
+
+<div class="cols">
+  <div class="col"><h4>SQLite local store</h4><p><span class="inline">src/core/store/sqlite.ts</span> fits zero-config or local development. It maintains local vector and FTS indexes so L1 records remain discoverable through similarity or keyword search without a remote service.</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p><span class="inline">src/core/store/tcvdb.ts</span> integrates a managed vector database. <span class="inline">createStoreBundle</span> wires embedding, store backend, and fallback behavior so the writer does not depend on backend details.</p></div>
+</div>
+
+<h2>Degraded mode: keep memory when embedding / store is unavailable</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>embedding unavailable</h4><p>Without vectors, similar-candidate recall becomes weaker, so <span class="inline">batchDedup</span> must use available candidates, keywords, or conservative rules.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>store unavailable</h4><p>If index upsert fails, the system should not drop L1 output; the store is a retrieval accelerator, not the only persistence path.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>JSONL fallback</h4><p><span class="inline">writeMemory</span> still appends L1 JSONL with content, source messages, type, priority, and time metadata.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>later rebuild</h4><p>When services recover, the store index can be rebuilt from JSONL; the evidence chain was not lost during the outage.</p></div></div>
+</div>
+
+<h2>Pseudocode</h2>
+<pre class="code">for memory in extracted:
+    candidates = recall_similar(memory)
+    decision = dedup(memory, candidates)
+    if decision.keep:
+        record = writeMemory(memory)
+        store.upsert(record)
+    elif decision.update:
+        update_existing(record)</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/record/l1-dedup.ts</span>: <span class="inline">batchDedup</span> recalls candidates before writes and decides keep / update / skip</li>
+    <li><span class="inline">src/core/prompts/l1-dedup.ts</span>: dedup prompt for comparing a new memory with candidates and detecting duplicates or conflicts</li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>: <span class="inline">writeMemory</span> and <span class="inline">generateMemoryId</span> generate and append L1 JSONL records</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> connects embedding, store backends, and degraded fallback</li>
+    <li><span class="inline">src/core/store/sqlite.ts</span>: local vector / FTS store; <span class="inline">src/core/store/tcvdb.ts</span>: TCVDB store</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  L1 dedup runs before writing because extraction can produce duplicate or conflicting memories. <span class="inline">batchDedup</span>
+  recalls similar candidates when the store is available and chooses keep / update / skip. <span class="inline">writeMemory</span>
+  writes L1 JSONL, store upsert maintains the searchable index, and JSONL fallback still preserves auditable memory evidence when embedding or store services are unavailable.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Why does L1 dedup not delete raw L0 text?</div>
+  <ol class="opts">
+    <li>Because TCVDB forbids updates</li>
+    <li>L0 is the evidence layer; dedup controls structured L1 memory quality</li>
+    <li>Because dedup only changes CSS</li>
+    <li>Because L0 does not exist</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: B</strong>. Raw evidence must remain; dedup handles whether recallable structured facts duplicate or conflict.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>If the embedding service is unavailable, what capability should the L1 write path still preserve?</li>
   </ul>
 </div>
 </div>

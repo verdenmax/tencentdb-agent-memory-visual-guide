@@ -76,6 +76,8 @@ PAGES = [
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
     ("15-l1-extraction.html", "L1 抽取：从对话到原子记忆", "L1 extraction: conversation to memory atoms",
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
+    ("16-l1-dedup-write.html", "L1 去重、冲突检测与写入", "L1 dedup, conflict detection, and write path",
+     "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
 ]
 
 def bi(zh, en):
@@ -539,6 +541,8 @@ SUBTITLES = {
                                   "captureAtomically, timestamp cursor, position slice, scheduler start gate"),
     "15-l1-extraction.html": ("质量门、背景窗口、场景分段、LLM JSON 输出、source_message_ids",
                               "quality gate, background window, scene segments, LLM JSON, source_message_ids"),
+    "16-l1-dedup-write.html": ("batchDedup、向量候选、JSONL 写入、store upsert、失败降级",
+                               "batchDedup, vector candidates, JSONL write, store upsert, degraded fallback"),
 }
 
 def index_page(lesson_prefix="lessons/"):

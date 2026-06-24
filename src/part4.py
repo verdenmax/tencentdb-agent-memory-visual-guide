@@ -664,3 +664,181 @@ During parsing, <span class="inline">parseExtractionResult</span> first removes 
 </div>
 """,
 }
+
+
+LESSON_16 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+L1 抽取会把多条 L0 消息变成结构化记忆，但抽取结果可能重复，也可能与已有记忆冲突。写入前的
+<span class="inline">batchDedup</span> 是质量控制：先召回相似候选，再判断这条新记忆应该保留、更新已有记忆，还是跳过。
+它控制的是可搜索 L1 事实的质量，而不是删除 L0 原文证据。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  L0 像会议录音库，L1 像团队知识卡片。录音库不能因为有人做了新卡片就剪掉原声；
+  去重只是检查“这张卡是不是已经有了、是不是需要修订旧卡、是不是与旧卡冲突”，让知识卡片架保持清晰。
+</div>
+
+<h2>从抽取结果到写入决策</h2>
+<div class="flow">
+  <div class="node"><div class="nt">extracted memories</div><div class="nd">LLM / logic 产出候选 L1 原子记忆</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">candidate recall</div><div class="nd">向量 store 可用时召回相似已有记忆</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">dedup decision</div><div class="nd">判断 keep / update / skip 与冲突说明</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">write / update / skip</div><div class="nd">只把合格 L1 进入 JSONL 与可搜索 store</div></div>
+</div>
+
+<p>
+<span class="inline">src/core/record/l1-dedup.ts</span> 中的 <span class="inline">batchDedup</span>
+会在批量写入前处理抽取结果。它优先利用 store 的相似检索找候选：同一偏好被重复表达时可跳过；
+用户纠正旧偏好时可更新；新事实没有相似候选时保留。判断可以来自
+<span class="inline">src/core/prompts/l1-dedup.ts</span> 中的 LLM prompt，也可以在降级路径中使用规则逻辑。
+</p>
+
+<h2>为什么去重不是丢弃证据</h2>
+<div class="cols">
+  <div class="col"><h4>L0 证据层</h4><p>保存原始对话 JSONL：谁说了什么、什么时候说、消息 ID 是什么。它服务审计、回放和重新抽取，去重不应改写这层原始证据。</p></div>
+  <div class="col"><h4>L1 质量层</h4><p>保存可召回的结构化事实。去重只决定新 L1 是否会让事实库重复、过时或冲突，从而控制未来 recall 的噪声。</p></div>
+</div>
+
+<h2>写入路径：JSONL 与 store upsert</h2>
+<p>
+通过去重的记忆进入 <span class="inline">writeMemory</span>。writer 先用
+<span class="inline">generateMemoryId</span> 生成稳定记录 ID，再把 L1 记录追加到 JSONL。
+随后 store upsert 路径把同一条记录维护到可搜索后端：本地
+<span class="inline">sqlite</span> 可提供向量 / FTS 检索，远端 <span class="inline">TCVDB</span>
+可提供托管向量检索。JSONL 是持久证据，store 是检索索引；两者一起让记忆既可审计又可召回。
+</p>
+
+<div class="cols">
+  <div class="col"><h4>SQLite local store</h4><p><span class="inline">src/core/store/sqlite.ts</span> 适合零配置或本地开发。它在本地数据库维护向量与 FTS 索引，让 L1 记录即使没有远端服务也能被相似搜索或关键词搜索找到。</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p><span class="inline">src/core/store/tcvdb.ts</span> 适合接入托管向量数据库。<span class="inline">createStoreBundle</span> 根据配置组装 embedding、store 与 fallback，使上层写入逻辑不需要知道具体后端。</p></div>
+</div>
+
+<h2>降级模式：embedding / store 不可用时仍保留记忆</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>embedding unavailable</h4><p>无法生成向量时，相似召回质量下降，<span class="inline">batchDedup</span> 只能使用已有候选、关键词或保守规则。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>store unavailable</h4><p>无法 upsert 索引时，系统不应把 L1 结果直接丢弃；索引只是检索加速层。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>JSONL fallback</h4><p><span class="inline">writeMemory</span> 仍追加 L1 JSONL，保留内容、来源消息、类型、优先级和时间元数据。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>later rebuild</h4><p>服务恢复后，可依据 JSONL 重新建立 store 索引；证据链没有因为临时故障丢失。</p></div></div>
+</div>
+
+<h2>伪代码</h2>
+<pre class="code">for memory in extracted:
+    candidates = recall_similar(memory)
+    decision = dedup(memory, candidates)
+    if decision.keep:
+        record = writeMemory(memory)
+        store.upsert(record)
+    elif decision.update:
+        update_existing(record)</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/record/l1-dedup.ts</span>：<span class="inline">batchDedup</span> 在写入前批量召回候选并决定 keep / update / skip</li>
+    <li><span class="inline">src/core/prompts/l1-dedup.ts</span>：去重 prompt 描述如何比较新记忆与候选记忆、发现重复或冲突</li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>：<span class="inline">writeMemory</span> 与 <span class="inline">generateMemoryId</span> 负责生成并追加 L1 JSONL 记录</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：<span class="inline">createStoreBundle</span> 连接 embedding、store 后端与降级路径</li>
+    <li><span class="inline">src/core/store/sqlite.ts</span>：本地 vector / FTS store；<span class="inline">src/core/store/tcvdb.ts</span>：TCVDB store</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  L1 去重发生在写入前，因为抽取可能产生重复或冲突记忆；<span class="inline">batchDedup</span>
+  在 store 可用时召回相似候选并决定 keep / update / skip；<span class="inline">writeMemory</span>
+  写入 L1 JSONL，store upsert 维护可搜索索引；embedding 或 store 不可用时，JSONL fallback 仍保留可审计的记忆证据。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+L1 extraction turns L0 messages into structured memories, but the extracted batch can contain duplicates or facts that conflict with existing memory.
+Before writing, <span class="inline">batchDedup</span> acts as quality control: recall similar candidates, decide whether the new memory should be kept, used to update an existing memory, or skipped.
+It governs searchable L1 facts; it does not delete raw L0 evidence.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  L0 is the meeting recording archive; L1 is the team's index-card shelf. You do not cut the recording when a new card is written.
+  Dedup only asks whether the card already exists, should revise an older card, or conflicts with one, so the shelf stays useful.
+</div>
+
+<h2>From extraction to write decision</h2>
+<div class="flow">
+  <div class="node"><div class="nt">extracted memories</div><div class="nd">LLM / logic emits candidate L1 atoms</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">candidate recall</div><div class="nd">when vector store is available, recall similar existing memories</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">dedup decision</div><div class="nd">choose keep / update / skip and explain conflicts</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">write / update / skip</div><div class="nd">only qualified L1 enters JSONL and searchable store</div></div>
+</div>
+
+<p>
+<span class="inline">batchDedup</span> in <span class="inline">src/core/record/l1-dedup.ts</span>
+runs before batch writes. It prefers store similarity search for candidates: repeated preferences can be skipped,
+corrected preferences can update an existing record, and unrelated new facts can be kept. The decision can come from the LLM prompt in
+<span class="inline">src/core/prompts/l1-dedup.ts</span>, or from conservative rule logic in degraded paths.
+</p>
+
+<h2>Why dedup does not discard evidence</h2>
+<div class="cols">
+  <div class="col"><h4>L0 evidence layer</h4><p>Raw conversation JSONL records who said what, when, and under which message ID. It supports audit, replay, and re-extraction; dedup should not rewrite this source evidence.</p></div>
+  <div class="col"><h4>L1 quality layer</h4><p>Structured facts are optimized for future recall. Dedup only decides whether a new L1 fact would make the fact store repetitive, stale, or conflicting.</p></div>
+</div>
+
+<h2>Write path: JSONL plus store upsert</h2>
+<p>
+Accepted memories enter <span class="inline">writeMemory</span>. The writer uses
+<span class="inline">generateMemoryId</span> to create a stable record ID, then appends the L1 record to JSONL.
+After that, the store upsert path keeps the same record searchable: local <span class="inline">sqlite</span>
+can provide vector / FTS search, while <span class="inline">TCVDB</span> can provide managed vector search.
+JSONL is durable evidence; the store is the retrieval index. Together they make memory auditable and recallable.
+</p>
+
+<div class="cols">
+  <div class="col"><h4>SQLite local store</h4><p><span class="inline">src/core/store/sqlite.ts</span> fits zero-config or local development. It maintains local vector and FTS indexes so L1 records remain discoverable through similarity or keyword search without a remote service.</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p><span class="inline">src/core/store/tcvdb.ts</span> integrates a managed vector database. <span class="inline">createStoreBundle</span> wires embedding, store backend, and fallback behavior so the writer does not depend on backend details.</p></div>
+</div>
+
+<h2>Degraded mode: keep memory when embedding / store is unavailable</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>embedding unavailable</h4><p>Without vectors, similar-candidate recall becomes weaker, so <span class="inline">batchDedup</span> must use available candidates, keywords, or conservative rules.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>store unavailable</h4><p>If index upsert fails, the system should not drop L1 output; the store is a retrieval accelerator, not the only persistence path.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>JSONL fallback</h4><p><span class="inline">writeMemory</span> still appends L1 JSONL with content, source messages, type, priority, and time metadata.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>later rebuild</h4><p>When services recover, the store index can be rebuilt from JSONL; the evidence chain was not lost during the outage.</p></div></div>
+</div>
+
+<h2>Pseudocode</h2>
+<pre class="code">for memory in extracted:
+    candidates = recall_similar(memory)
+    decision = dedup(memory, candidates)
+    if decision.keep:
+        record = writeMemory(memory)
+        store.upsert(record)
+    elif decision.update:
+        update_existing(record)</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/record/l1-dedup.ts</span>: <span class="inline">batchDedup</span> recalls candidates before writes and decides keep / update / skip</li>
+    <li><span class="inline">src/core/prompts/l1-dedup.ts</span>: dedup prompt for comparing a new memory with candidates and detecting duplicates or conflicts</li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>: <span class="inline">writeMemory</span> and <span class="inline">generateMemoryId</span> generate and append L1 JSONL records</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> connects embedding, store backends, and degraded fallback</li>
+    <li><span class="inline">src/core/store/sqlite.ts</span>: local vector / FTS store; <span class="inline">src/core/store/tcvdb.ts</span>: TCVDB store</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  L1 dedup runs before writing because extraction can produce duplicate or conflicting memories. <span class="inline">batchDedup</span>
+  recalls similar candidates when the store is available and chooses keep / update / skip. <span class="inline">writeMemory</span>
+  writes L1 JSONL, store upsert maintains the searchable index, and JSONL fallback still preserves auditable memory evidence when embedding or store services are unavailable.
+</div>
+""",
+}

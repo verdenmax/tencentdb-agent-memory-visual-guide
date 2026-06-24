@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 15 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">15 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 16 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">16 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -347,6 +347,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></li>
   <li><span class="lang-zh">Checkpoint：游标、锁与防重复</span><span class="lang-en">Checkpoints: cursors, locks, and duplicate prevention</span></li>
   <li><span class="lang-zh">L1 抽取：从对话到原子记忆</span><span class="lang-en">L1 extraction: conversation to memory atoms</span></li>
+  <li><span class="lang-zh">L1 去重、冲突检测与写入</span><span class="lang-en">L1 dedup, conflict detection, and write path</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1991,6 +1992,118 @@ prompt 的输出按 scene 分段：一个场景可包含多条 memory atom，每
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>为什么 L1 prompt 同时需要 new messages 和 background messages？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">L1 去重、冲突检测与写入</span><span class="lang-en">L1 dedup, conflict detection, and write path</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+L1 抽取会把多条 L0 消息变成结构化记忆，但抽取结果可能重复，也可能与已有记忆冲突。写入前的
+<span class="inline">batchDedup</span> 是质量控制：先召回相似候选，再判断这条新记忆应该保留、更新已有记忆，还是跳过。
+它控制的是可搜索 L1 事实的质量，而不是删除 L0 原文证据。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  L0 像会议录音库，L1 像团队知识卡片。录音库不能因为有人做了新卡片就剪掉原声；
+  去重只是检查“这张卡是不是已经有了、是不是需要修订旧卡、是不是与旧卡冲突”，让知识卡片架保持清晰。
+</div>
+
+<h2>从抽取结果到写入决策</h2>
+<div class="flow">
+  <div class="node"><div class="nt">extracted memories</div><div class="nd">LLM / logic 产出候选 L1 原子记忆</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">candidate recall</div><div class="nd">向量 store 可用时召回相似已有记忆</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">dedup decision</div><div class="nd">判断 keep / update / skip 与冲突说明</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">write / update / skip</div><div class="nd">只把合格 L1 进入 JSONL 与可搜索 store</div></div>
+</div>
+
+<p>
+<span class="inline">src/core/record/l1-dedup.ts</span> 中的 <span class="inline">batchDedup</span>
+会在批量写入前处理抽取结果。它优先利用 store 的相似检索找候选：同一偏好被重复表达时可跳过；
+用户纠正旧偏好时可更新；新事实没有相似候选时保留。判断可以来自
+<span class="inline">src/core/prompts/l1-dedup.ts</span> 中的 LLM prompt，也可以在降级路径中使用规则逻辑。
+</p>
+
+<h2>为什么去重不是丢弃证据</h2>
+<div class="cols">
+  <div class="col"><h4>L0 证据层</h4><p>保存原始对话 JSONL：谁说了什么、什么时候说、消息 ID 是什么。它服务审计、回放和重新抽取，去重不应改写这层原始证据。</p></div>
+  <div class="col"><h4>L1 质量层</h4><p>保存可召回的结构化事实。去重只决定新 L1 是否会让事实库重复、过时或冲突，从而控制未来 recall 的噪声。</p></div>
+</div>
+
+<h2>写入路径：JSONL 与 store upsert</h2>
+<p>
+通过去重的记忆进入 <span class="inline">writeMemory</span>。writer 先用
+<span class="inline">generateMemoryId</span> 生成稳定记录 ID，再把 L1 记录追加到 JSONL。
+随后 store upsert 路径把同一条记录维护到可搜索后端：本地
+<span class="inline">sqlite</span> 可提供向量 / FTS 检索，远端 <span class="inline">TCVDB</span>
+可提供托管向量检索。JSONL 是持久证据，store 是检索索引；两者一起让记忆既可审计又可召回。
+</p>
+
+<div class="cols">
+  <div class="col"><h4>SQLite local store</h4><p><span class="inline">src/core/store/sqlite.ts</span> 适合零配置或本地开发。它在本地数据库维护向量与 FTS 索引，让 L1 记录即使没有远端服务也能被相似搜索或关键词搜索找到。</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p><span class="inline">src/core/store/tcvdb.ts</span> 适合接入托管向量数据库。<span class="inline">createStoreBundle</span> 根据配置组装 embedding、store 与 fallback，使上层写入逻辑不需要知道具体后端。</p></div>
+</div>
+
+<h2>降级模式：embedding / store 不可用时仍保留记忆</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>embedding unavailable</h4><p>无法生成向量时，相似召回质量下降，<span class="inline">batchDedup</span> 只能使用已有候选、关键词或保守规则。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>store unavailable</h4><p>无法 upsert 索引时，系统不应把 L1 结果直接丢弃；索引只是检索加速层。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>JSONL fallback</h4><p><span class="inline">writeMemory</span> 仍追加 L1 JSONL，保留内容、来源消息、类型、优先级和时间元数据。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>later rebuild</h4><p>服务恢复后，可依据 JSONL 重新建立 store 索引；证据链没有因为临时故障丢失。</p></div></div>
+</div>
+
+<h2>伪代码</h2>
+<pre class="code">for memory in extracted:
+    candidates = recall_similar(memory)
+    decision = dedup(memory, candidates)
+    if decision.keep:
+        record = writeMemory(memory)
+        store.upsert(record)
+    elif decision.update:
+        update_existing(record)</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/record/l1-dedup.ts</span>：<span class="inline">batchDedup</span> 在写入前批量召回候选并决定 keep / update / skip</li>
+    <li><span class="inline">src/core/prompts/l1-dedup.ts</span>：去重 prompt 描述如何比较新记忆与候选记忆、发现重复或冲突</li>
+    <li><span class="inline">src/core/record/l1-writer.ts</span>：<span class="inline">writeMemory</span> 与 <span class="inline">generateMemoryId</span> 负责生成并追加 L1 JSONL 记录</li>
+    <li><span class="inline">src/core/store/factory.ts</span>：<span class="inline">createStoreBundle</span> 连接 embedding、store 后端与降级路径</li>
+    <li><span class="inline">src/core/store/sqlite.ts</span>：本地 vector / FTS store；<span class="inline">src/core/store/tcvdb.ts</span>：TCVDB store</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  L1 去重发生在写入前，因为抽取可能产生重复或冲突记忆；<span class="inline">batchDedup</span>
+  在 store 可用时召回相似候选并决定 keep / update / skip；<span class="inline">writeMemory</span>
+  写入 L1 JSONL，store upsert 维护可搜索索引；embedding 或 store 不可用时，JSONL fallback 仍保留可审计的记忆证据。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. L1 去重为什么不是删除 L0 原文？</div>
+  <ol class="opts">
+    <li>因为 TCVDB 禁止更新</li>
+    <li>L0 是证据层，去重只控制结构化 L1 记忆质量</li>
+    <li>因为 dedup 只改 CSS</li>
+    <li>因为 L0 不存在</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：B</strong>。原文证据必须保留；去重处理的是可召回结构化事实是否重复/冲突。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>如果 embedding 服务不可用，L1 写入路径还应保留什么能力？</li>
   </ul>
 </div>
 </div>

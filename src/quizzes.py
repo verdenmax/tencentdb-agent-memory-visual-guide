@@ -310,6 +310,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "为什么 L1 prompt 同时需要 new messages 和 background messages？", "en": "Why does the L1 prompt need both new messages and background messages?"}],
     },
+    "16-l1-dedup-write.html": {
+        "mcq": [{
+            "q": {"zh": "L1 去重为什么不是删除 L0 原文？", "en": "Why does L1 dedup not delete raw L0 text?"},
+            "opts": [
+                {"zh": "L0 是证据层，去重只控制结构化 L1 记忆质量", "en": "L0 is the evidence layer; dedup controls structured L1 memory quality"},
+                {"zh": "因为 L0 不存在", "en": "Because L0 does not exist"},
+                {"zh": "因为 dedup 只改 CSS", "en": "Because dedup only changes CSS"},
+                {"zh": "因为 TCVDB 禁止更新", "en": "Because TCVDB forbids updates"},
+            ],
+            "answer": 0,
+            "why": {"zh": "原文证据必须保留；去重处理的是可召回结构化事实是否重复/冲突。", "en": "Raw evidence must remain; dedup handles whether recallable structured facts duplicate or conflict."},
+        }],
+        "open": [{"zh": "如果 embedding 服务不可用，L1 写入路径还应保留什么能力？", "en": "If the embedding service is unavailable, what capability should the L1 write path still preserve?"}],
+    },
 }
 
 
