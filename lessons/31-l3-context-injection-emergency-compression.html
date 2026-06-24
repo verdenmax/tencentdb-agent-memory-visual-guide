@@ -369,7 +369,7 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
 <div class="timeline">
   <div class="tl"><div class="tm">before_prompt_build</div><div class="td">跳过内部 memory-pipeline session；注入 active MMD；重放 <span class="inline">offloaded: true</span> 的确定性替换；写 token guard 快照。</div></div>
   <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> 用精确计数按真实顺序执行：超过激进阈值先 <span class="inline">aggressiveCompressUntilBelowThreshold</span>，再用 <span class="inline">compressByScoreCascade</span> 清理；中等压力只跑温和替换；最后才 <span class="inline">emergencyCompress</span>。</div></div>
-  <div class="tl"><div class="tm">model call</div><div class="td">如果入口抛出 token overflow，<span class="inline">isTokenOverflowError</span> 设置 <span class="inline">_forceEmergencyNext</span>，让下一次 L3 pass 走紧急压缩，而不是在错误处理里直接内联返回。</div></div>
+  <div class="tl"><div class="tm">model call</div><div class="td">如果入口抛出 token overflow，<span class="inline">isTokenOverflowError</span> 设置 <span class="inline">_forceEmergencyNext</span>，让下一次越过 below-mild gate 的 L3 pass 走紧急压缩，而不是在错误处理里直接内联返回。</div></div>
   <div class="tl"><div class="tm">after_tool_call</div><div class="td">工具返回后刷新 active MMD，报告 patch effectiveness，并让下一轮知道哪些替换真正节省了 token。</div></div>
 </div>
 
@@ -379,8 +379,8 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
   <ul>
     <li>保留最新用户消息：它定义当前意图，不能为了省 token 删除。</li>
     <li>保持 tool-use / tool-result 成对有效：不能只删 tool-use 或只删 tool-result，避免宿主协议损坏。</li>
-    <li>温和/激进阶段保护当前任务节点：<span class="inline">l3-helpers.ts</span> 的 current-task node 保护，避免把 active MMD 指向的证据刚好删掉。</li>
-    <li>紧急阶段保护 MMD task-map 消息、最新用户消息、有效工具对和最小保留集，而不是继续做节点级 current-task 过滤。</li>
+    <li>温和阶段保护当前任务节点：<span class="inline">compressByScoreCascade</span> / <span class="inline">l3-helpers.ts</span> 使用 <span class="inline">currentTaskNodeIds</span>，避免把 active MMD 指向的证据刚好替换掉。</li>
+    <li>激进/紧急阶段保护结构边界：激进删除按旧 offloaded 区域前缀推进；紧急保留 MMD task-map 消息、最新用户消息、有效工具对和最小保留集，而不是继续做节点级 current-task 过滤。</li>
     <li>JSONL 写清状态：使用 <span class="inline">markOffloadStatus</span> 标记 <span class="inline">true</span> 和 <span class="inline">"deleted"</span>，让快路径可重复。</li>
     <li>跳过内部 memory-pipeline session：记忆流水线自己的压缩/生成不应递归触发 Context Offload。</li>
   </ul>
@@ -397,11 +397,11 @@ L3 是 Context Offload 真正进入模型前的最后一道运行时循环：先
     return messages, snapshot
 
 on_llm_input_l3(messages, snapshot, state):
+    if snapshot.total_tokens &lt; mild_threshold:
+        return messages
+
     force_emergency = state._forceEmergencyNext
     state._forceEmergencyNext = False
-
-    if snapshot.total_tokens &lt; mild_threshold and not force_emergency:
-        return messages
 
     if snapshot.total_tokens >= aggressive_threshold:
         messages = aggressiveCompressUntilBelowThreshold(messages, inject_history_mmd=True)
@@ -425,9 +425,10 @@ on_llm_input_l3(messages, snapshot, state):
 
 # inside on_llm_input_l3 outer try/catch:
 except error:
+    log_l3_error(error)
     if isTokenOverflowError(error):
-        state._forceEmergencyNext = True  # consumed by the next L3 pass
-    raise error</pre>
+        state._forceEmergencyNext = True  # consumed by a later L3 pass after the below-mild gate
+    return messages  # swallow: llm_input_l3 logs and does not re-raise</pre>
 
 <h2>源码锚点</h2>
 <div class="card detail">
@@ -437,7 +438,7 @@ except error:
     <li><span class="inline">src/offload/hooks/before-prompt-build.ts</span>：实现 fast-path re-apply、token guard，以及 prompt build 前的 MMD injection。</li>
     <li><span class="inline">src/offload/hooks/llm-input-l3.ts</span>：<span class="inline">createLlmInputL3Handler</span> 编排 <span class="inline">compressByScoreCascade</span>、<span class="inline">aggressiveCompressUntilBelowThreshold</span>、<span class="inline">emergencyCompress</span> 与 <span class="inline">isTokenOverflowError</span>。</li>
     <li><span class="inline">src/offload/mmd-injector.ts</span>：active MMD 插入、marker 识别和重复注入处理。</li>
-    <li><span class="inline">src/offload/l3-helpers.ts</span>：替换 helper、lookup map 和 current-task node protection。</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>：替换 helper、lookup map 和温和阶段 current-task node protection。</li>
     <li><span class="inline">src/offload/hooks/after-tool-call.ts</span>：工具循环内刷新 active MMD，并报告 patch effectiveness。</li>
     <li><span class="inline">src/offload/context-token-tracker.ts</span> 与 <span class="inline">src/offload/l3-token-counter.ts</span>：记录 token snapshot 并做 L3 计数。</li>
   </ul>
@@ -514,7 +515,7 @@ the latest user message, or tool-call structure.
 <div class="timeline">
   <div class="tl"><div class="tm">before_prompt_build</div><div class="td">Skip internal memory-pipeline sessions; inject active MMD; replay deterministic replacements for <span class="inline">offloaded: true</span>; write the token guard snapshot.</div></div>
   <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> uses precise counts in the real order: above the aggressive threshold it runs <span class="inline">aggressiveCompressUntilBelowThreshold</span> first, then <span class="inline">compressByScoreCascade</span>; medium pressure runs only mild replacement; <span class="inline">emergencyCompress</span> is last.</div></div>
-  <div class="tl"><div class="tm">model call</div><div class="td">If the entry throws token overflow, <span class="inline">isTokenOverflowError</span> sets <span class="inline">_forceEmergencyNext</span> so the next L3 pass runs emergency compression, rather than returning inline emergency output from the error handler.</div></div>
+  <div class="tl"><div class="tm">model call</div><div class="td">If the entry throws token overflow, <span class="inline">isTokenOverflowError</span> sets <span class="inline">_forceEmergencyNext</span> so the next L3 pass that proceeds past the below-mild gate runs emergency compression, rather than returning inline emergency output from the error handler.</div></div>
   <div class="tl"><div class="tm">after_tool_call</div><div class="td">After a tool returns, active MMD is refreshed, patch effectiveness is reported, and the next turn knows which replacements actually saved tokens.</div></div>
 </div>
 
@@ -524,8 +525,8 @@ the latest user message, or tool-call structure.
   <ul>
     <li>Preserve the latest user message: it defines the current intent and must not be deleted to save tokens.</li>
     <li>Keep tool-use / tool-result pairs valid: never delete only one side of a pair, or the host protocol can break.</li>
-    <li>Protect current-task nodes during mild/aggressive stages: <span class="inline">l3-helpers.ts</span> current-task node protection prevents deleting evidence targeted by the active MMD.</li>
-    <li>In emergency mode, protect MMD task-map messages, the latest user message, valid tool pairs, and the minimum keep set rather than continuing node-level current-task filtering.</li>
+    <li>Protect current-task nodes during the mild stage: <span class="inline">compressByScoreCascade</span> / <span class="inline">l3-helpers.ts</span> use <span class="inline">currentTaskNodeIds</span> to avoid replacing evidence targeted by the active MMD.</li>
+    <li>Protect structural boundaries during aggressive/emergency stages: aggressive deletion advances by old offloaded-region prefixes; emergency keeps MMD task-map messages, the latest user message, valid tool pairs, and the minimum keep set rather than continuing node-level current-task filtering.</li>
     <li>Write JSONL status clearly: use <span class="inline">markOffloadStatus</span> with <span class="inline">true</span> and <span class="inline">"deleted"</span> so the fast path is repeatable.</li>
     <li>Skip internal memory-pipeline sessions: the memory pipeline's own compression/generation should not recursively trigger Context Offload.</li>
   </ul>
@@ -542,11 +543,11 @@ the latest user message, or tool-call structure.
     return messages, snapshot
 
 on_llm_input_l3(messages, snapshot, state):
+    if snapshot.total_tokens &lt; mild_threshold:
+        return messages
+
     force_emergency = state._forceEmergencyNext
     state._forceEmergencyNext = False
-
-    if snapshot.total_tokens &lt; mild_threshold and not force_emergency:
-        return messages
 
     if snapshot.total_tokens >= aggressive_threshold:
         messages = aggressiveCompressUntilBelowThreshold(messages, inject_history_mmd=True)
@@ -570,9 +571,10 @@ on_llm_input_l3(messages, snapshot, state):
 
 # inside on_llm_input_l3 outer try/catch:
 except error:
+    log_l3_error(error)
     if isTokenOverflowError(error):
-        state._forceEmergencyNext = True  # consumed by the next L3 pass
-    raise error</pre>
+        state._forceEmergencyNext = True  # consumed by a later L3 pass after the below-mild gate
+    return messages  # swallow: llm_input_l3 logs and does not re-raise</pre>
 
 <h2>Source anchors</h2>
 <div class="card detail">
@@ -582,7 +584,7 @@ except error:
     <li><span class="inline">src/offload/hooks/before-prompt-build.ts</span>: implements fast-path re-apply, token guard, and MMD injection before prompt build.</li>
     <li><span class="inline">src/offload/hooks/llm-input-l3.ts</span>: <span class="inline">createLlmInputL3Handler</span> orchestrates <span class="inline">compressByScoreCascade</span>, <span class="inline">aggressiveCompressUntilBelowThreshold</span>, <span class="inline">emergencyCompress</span>, and <span class="inline">isTokenOverflowError</span>.</li>
     <li><span class="inline">src/offload/mmd-injector.ts</span>: active MMD insertion, marker recognition, and duplicate-injection handling.</li>
-    <li><span class="inline">src/offload/l3-helpers.ts</span>: replacement helpers, lookup maps, and current-task node protection.</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>: replacement helpers, lookup maps, and mild-stage current-task node protection.</li>
     <li><span class="inline">src/offload/hooks/after-tool-call.ts</span>: refreshes active MMD inside the tool loop and reports patch effectiveness.</li>
     <li><span class="inline">src/offload/context-token-tracker.ts</span> and <span class="inline">src/offload/l3-token-counter.ts</span>: record token snapshots and count L3 input.</li>
   </ul>

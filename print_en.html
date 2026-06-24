@@ -3775,7 +3775,7 @@ the latest user message, or tool-call structure.
 <div class="timeline">
   <div class="tl"><div class="tm">before_prompt_build</div><div class="td">Skip internal memory-pipeline sessions; inject active MMD; replay deterministic replacements for <span class="inline">offloaded: true</span>; write the token guard snapshot.</div></div>
   <div class="tl"><div class="tm">llm_input_l3</div><div class="td"><span class="inline">createLlmInputL3Handler</span> uses precise counts in the real order: above the aggressive threshold it runs <span class="inline">aggressiveCompressUntilBelowThreshold</span> first, then <span class="inline">compressByScoreCascade</span>; medium pressure runs only mild replacement; <span class="inline">emergencyCompress</span> is last.</div></div>
-  <div class="tl"><div class="tm">model call</div><div class="td">If the entry throws token overflow, <span class="inline">isTokenOverflowError</span> sets <span class="inline">_forceEmergencyNext</span> so the next L3 pass runs emergency compression, rather than returning inline emergency output from the error handler.</div></div>
+  <div class="tl"><div class="tm">model call</div><div class="td">If the entry throws token overflow, <span class="inline">isTokenOverflowError</span> sets <span class="inline">_forceEmergencyNext</span> so the next L3 pass that proceeds past the below-mild gate runs emergency compression, rather than returning inline emergency output from the error handler.</div></div>
   <div class="tl"><div class="tm">after_tool_call</div><div class="td">After a tool returns, active MMD is refreshed, patch effectiveness is reported, and the next turn knows which replacements actually saved tokens.</div></div>
 </div>
 
@@ -3785,8 +3785,8 @@ the latest user message, or tool-call structure.
   <ul>
     <li>Preserve the latest user message: it defines the current intent and must not be deleted to save tokens.</li>
     <li>Keep tool-use / tool-result pairs valid: never delete only one side of a pair, or the host protocol can break.</li>
-    <li>Protect current-task nodes during mild/aggressive stages: <span class="inline">l3-helpers.ts</span> current-task node protection prevents deleting evidence targeted by the active MMD.</li>
-    <li>In emergency mode, protect MMD task-map messages, the latest user message, valid tool pairs, and the minimum keep set rather than continuing node-level current-task filtering.</li>
+    <li>Protect current-task nodes during the mild stage: <span class="inline">compressByScoreCascade</span> / <span class="inline">l3-helpers.ts</span> use <span class="inline">currentTaskNodeIds</span> to avoid replacing evidence targeted by the active MMD.</li>
+    <li>Protect structural boundaries during aggressive/emergency stages: aggressive deletion advances by old offloaded-region prefixes; emergency keeps MMD task-map messages, the latest user message, valid tool pairs, and the minimum keep set rather than continuing node-level current-task filtering.</li>
     <li>Write JSONL status clearly: use <span class="inline">markOffloadStatus</span> with <span class="inline">true</span> and <span class="inline">"deleted"</span> so the fast path is repeatable.</li>
     <li>Skip internal memory-pipeline sessions: the memory pipeline's own compression/generation should not recursively trigger Context Offload.</li>
   </ul>
@@ -3803,11 +3803,11 @@ the latest user message, or tool-call structure.
     return messages, snapshot
 
 on_llm_input_l3(messages, snapshot, state):
+    if snapshot.total_tokens &lt; mild_threshold:
+        return messages
+
     force_emergency = state._forceEmergencyNext
     state._forceEmergencyNext = False
-
-    if snapshot.total_tokens &lt; mild_threshold and not force_emergency:
-        return messages
 
     if snapshot.total_tokens >= aggressive_threshold:
         messages = aggressiveCompressUntilBelowThreshold(messages, inject_history_mmd=True)
@@ -3831,9 +3831,10 @@ on_llm_input_l3(messages, snapshot, state):
 
 # inside on_llm_input_l3 outer try/catch:
 except error:
+    log_l3_error(error)
     if isTokenOverflowError(error):
-        state._forceEmergencyNext = True  # consumed by the next L3 pass
-    raise error</pre>
+        state._forceEmergencyNext = True  # consumed by a later L3 pass after the below-mild gate
+    return messages  # swallow: llm_input_l3 logs and does not re-raise</pre>
 
 <h2>Source anchors</h2>
 <div class="card detail">
@@ -3843,7 +3844,7 @@ except error:
     <li><span class="inline">src/offload/hooks/before-prompt-build.ts</span>: implements fast-path re-apply, token guard, and MMD injection before prompt build.</li>
     <li><span class="inline">src/offload/hooks/llm-input-l3.ts</span>: <span class="inline">createLlmInputL3Handler</span> orchestrates <span class="inline">compressByScoreCascade</span>, <span class="inline">aggressiveCompressUntilBelowThreshold</span>, <span class="inline">emergencyCompress</span>, and <span class="inline">isTokenOverflowError</span>.</li>
     <li><span class="inline">src/offload/mmd-injector.ts</span>: active MMD insertion, marker recognition, and duplicate-injection handling.</li>
-    <li><span class="inline">src/offload/l3-helpers.ts</span>: replacement helpers, lookup maps, and current-task node protection.</li>
+    <li><span class="inline">src/offload/l3-helpers.ts</span>: replacement helpers, lookup maps, and mild-stage current-task node protection.</li>
     <li><span class="inline">src/offload/hooks/after-tool-call.ts</span>: refreshes active MMD inside the tool loop and reports patch effectiveness.</li>
     <li><span class="inline">src/offload/context-token-tracker.ts</span> and <span class="inline">src/offload/l3-token-counter.ts</span>: record token snapshots and count L3 input.</li>
   </ul>
