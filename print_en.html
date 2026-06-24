@@ -2565,7 +2565,7 @@ That batches active chats while still capturing low-frequency chats after they g
 </div>
 
 <p>
-L2 also has two protections: after a successful L2 run, <span class="inline">maxInterval</span> arms the next poll so active sessions are periodically consolidated even without fresh L1;
+L2 also has two protections: L2 scheduling paths, including successful runs and retry/skip exits, use <span class="inline">maxInterval</span> to arm the next poll so active sessions are periodically consolidated even without fresh L1;
 when the periodic maxInterval timer fires, <span class="inline">sessionActiveWindowHours</span> stops polling cold sessions until the next successful L1 wakes them again.
 So downward-only does not mean "always sooner"; it balances delay-after-L1 responsiveness, minInterval rate limiting, and the maxInterval guarantee.
 </p>
@@ -2610,7 +2610,7 @@ on_l2_success():
     <li><span class="inline">src/utils/pipeline-manager.ts</span>: <span class="inline">notifyConversation</span>, <span class="inline">enqueueL1</span>, <span class="inline">enqueueL2</span>, <span class="inline">enqueueL3</span>, and <span class="inline">destroy</span> connect L1/L2/L3 scheduling.</li>
     <li><span class="inline">src/utils/managed-timer.ts</span>: <span class="inline">schedule()</span> implements resettable timers; <span class="inline">tryAdvanceTo()</span> implements the downward-only timer that can move earlier but not later.</li>
     <li><span class="inline">src/utils/serial-queue.ts</span>: L1, L2, and L3 all use FIFO queues with concurrency=1; L3 also deduplicates outside the queue with <span class="inline">l3Running</span>/<span class="inline">l3Pending</span>.</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">PipelineSessionState</span> stores conversation_count, last_active_time, L2 cursors, and warm-up threshold.</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">PipelineSessionState</span> stores <span class="inline">conversation_count</span>, <span class="inline">last_active_time</span>, <span class="inline">last_extraction_updated_time</span>, <span class="inline">l2_pending_l1_count</span>, <span class="inline">l2_last_extraction_time</span>, and warm-up threshold.</li>
     <li><span class="inline">src/core/persona/persona-trigger.ts</span>: inside the L3 runner, explicit request, cold start, recovery, first scene, and threshold conditions decide whether persona should actually be generated.</li>
   </ul>
 </div>
