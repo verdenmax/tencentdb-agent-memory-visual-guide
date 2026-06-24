@@ -771,6 +771,7 @@ recall_hybrid(queryText, sparseVector, topK):
     params = {
         ann,
         match,
+        limit: topK,
         outputFields: [...],
         rerank: { method: "rrf", k: 60 }
     }
@@ -887,6 +888,7 @@ recall_hybrid(queryText, sparseVector, topK):
     params = {
         ann,
         match,
+        limit: topK,
         outputFields: [...],
         rerank: { method: "rrf", k: 60 }
     }

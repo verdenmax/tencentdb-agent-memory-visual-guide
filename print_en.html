@@ -2043,7 +2043,7 @@ JSONL is durable evidence; the store is the retrieval index. Together they make 
 
 <div class="cols">
   <div class="col"><h4>SQLite local store</h4><p><span class="inline">src/core/store/sqlite.ts</span> fits zero-config or local development. It maintains local vector and FTS indexes so L1 records remain discoverable through similarity or keyword search without a remote service.</p></div>
-  <div class="col"><h4>TCVDB backend</h4><p><span class="inline">src/core/store/tcvdb.ts</span> integrates a managed vector database. <span class="inline">createStoreBundle</span> wires embedding, store backend, and fallback behavior so the writer does not depend on backend details.</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p><span class="inline">src/core/store/tcvdb.ts</span> integrates a managed vector database. <span class="inline">createStoreBundle</span> wires embedding, store backend selection, and degradation behavior so the writer does not depend on backend details.</p></div>
 </div>
 
 <h2>Recall fallback: keep new memories when recall is unavailable</h2>
@@ -2068,7 +2068,7 @@ for memory in memories:
     <li><span class="inline">src/core/record/l1-dedup.ts</span>: <span class="inline">batchDedup</span> recalls candidates before writes and decides store / update / merge / skip</li>
     <li><span class="inline">src/core/prompts/l1-dedup.ts</span>: dedup prompt for comparing a new memory with candidates and detecting duplicates or conflicts</li>
     <li><span class="inline">src/core/record/l1-writer.ts</span>: <span class="inline">writeMemory</span> uses the preassigned record ID when appending or upserting L1 JSONL / store records</li>
-    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> connects embedding, store backends, and the embedding/store fallback path</li>
+    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> connects embedding, store backends, and backend selection/degradation behavior</li>
     <li><span class="inline">src/core/store/sqlite.ts</span>: local vector / FTS store; <span class="inline">src/core/store/tcvdb.ts</span>: TCVDB store</li>
   </ul>
 </div>
@@ -3177,6 +3177,7 @@ recall_hybrid(queryText, sparseVector, topK):
     params = {
         ann,
         match,
+        limit: topK,
         outputFields: [...],
         rerank: { method: "rrf", k: 60 }
     }
