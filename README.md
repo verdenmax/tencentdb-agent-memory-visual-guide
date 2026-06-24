@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 33 lessons.
+The guide currently contains 34 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -43,6 +43,7 @@ The guide currently contains 33 lessons.
 | 31 | L3 context injection and emergency compression |
 | 32 | Hermes Gateway, HTTP endpoints, and security knobs |
 | 33 | Seed CLI, migration/export/read scripts, and operational workflows |
+| 34 | Debugging checklist, tests, contribution path, and glossary |
 
 ## How to view locally
 

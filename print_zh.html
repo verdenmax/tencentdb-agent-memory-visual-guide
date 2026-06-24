@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 33 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">33 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 34 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">34 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -365,6 +365,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></li>
   <li><span class="lang-zh">Hermes Gateway、HTTP 端点与安全开关</span><span class="lang-en">Hermes Gateway, HTTP endpoints, and security knobs</span></li>
   <li><span class="lang-zh">Seed CLI、迁移/导出/读取脚本与运维工作流</span><span class="lang-en">Seed CLI, migration/export/read scripts, and operational workflows</span></li>
+  <li><span class="lang-zh">调试清单、测试、贡献路径与词汇表</span><span class="lang-en">Debugging checklist, tests, contribution path, and glossary</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -4160,6 +4161,154 @@ if operator_approves_exact_plan:
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>设计一次从本地 SQLite 到 Tencent VectorDB 的迁移演练：你会备份哪些文件，manifest 记录哪些字段，提交写入后怎样验证 recall/search 没有退化？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">调试清单、测试、贡献路径与词汇表</span><span class="lang-en">Debugging checklist, tests, contribution path, and glossary</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+本指南最后一课把读者从“理解系统”带到“能排查、能验证、能贡献”。遇到记忆问题时，不要从猜测开始；先把症状归类，再按
+运行时文件、Gateway 状态、配置、recall/search 行为、capture checkpoints、Context Offload artifacts、日志和测试逐层收敛。贡献代码时，则从
+<span class="inline">CONTRIBUTING.md</span>、<span class="inline">CONTRIBUTING_CN.md</span>、<span class="inline">package.json</span> scripts 和
+<span class="inline">vitest.config.ts</span> 找到项目认可的验证路径。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  调试记忆系统像修一条城市快递链路：先问包裹是没寄出、没入库、找不到、送错人，还是路上被压缩归档；再查网点台账、分拣规则、路由状态、签收记录和质检报告。贡献代码则像改配送规则：先读规章，再改小步，最后用演练和测试证明没有把别的路线弄坏。
+</div>
+
+<h2>从症状到贡献路径的闭环</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>symptom</h4><p>把用户反馈写成可观察症状：没有 capture、recall 为空、搜索命中错误、Gateway 无响应、offload 下钻失败，或测试失败。</p><div class="mono">name the failure before fixing it</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>config check</h4><p>核对 enable flags、data dir、recall budget、embedding / tcvdb 后端和 offload 开关；不要先删除数据或改真实凭据。</p><div class="mono">config explains many silent fallbacks</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>runtime files</h4><p>打开 L0 JSONL、L1 records、scene_blocks、persona、vectors.db 和 context-offload artifacts，确认问题发生在哪一层。</p><div class="mono">files are evidence, not guesses</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>recall / search</h4><p>用安全查询复现召回或搜索；检查 source ids、预算裁剪、hybrid strategy、降级路径和排序解释。</p><div class="mono">query -&gt; candidates -&gt; injected context</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>capture / offload</h4><p>检查 capture checkpoint、cursor、锁、refs、JSONL 摘要、MMD、node_id 和 drill-down 链路是否连续。</p><div class="mono">checkpoint -&gt; evidence -&gt; compressed map</div></div></div>
+  <div class="step"><div class="num">6</div><div class="sc"><h4>tests</h4><p>先写能复现问题的测试，再运行项目已有脚本；通过后才进入贡献文档要求的提交流程。</p><div class="mono">red -&gt; green -&gt; contribution path</div></div></div>
+</div>
+
+<h2>运维调试清单 vs 贡献者验证清单</h2>
+<div class="cols">
+  <div class="col">
+    <h4>Operator debugging checklist</h4>
+    <ol>
+      <li><strong>症状</strong>：确认是 capture、recall、search、Gateway、offload、seed/migration 还是测试问题。</li>
+      <li><strong>运行时文件</strong>：检查 conversations / JSONL、records、scene_blocks、persona、vectors.db、context-offload。</li>
+      <li><strong>Gateway status</strong>：检查 <span class="inline">GET /health</span>、helper status、监听地址、CORS、auth 和日志脱敏。</li>
+      <li><strong>配置</strong>：核对默认值、data dir、embedding dimensions、backend、timeouts、budgets 和 feature flags。</li>
+      <li><strong>召回 / 搜索</strong>：用只读查询查看候选、source ids、排序、预算裁剪和降级原因。</li>
+      <li><strong>capture checkpoints</strong>：检查 cursor、position slice、锁和重复写入线索。</li>
+      <li><strong>offload artifacts</strong>：确认 refs、JSONL、MMD、node_id 和 drill-down 文件都能互相指向。</li>
+      <li><strong>日志</strong>：保留 route、status、duration、request id；不要输出 token、endpoint、完整 prompt 或用户隐私。</li>
+      <li><strong>测试</strong>：用现有测试复现问题，再确认修复没有破坏其他路径。</li>
+    </ol>
+  </div>
+  <div class="col">
+    <h4>Contributor validation checklist</h4>
+    <ol>
+      <li>先读 <span class="inline">CONTRIBUTING.md</span> 与 <span class="inline">CONTRIBUTING_CN.md</span>，确认分支、提交、测试和 PR 预期。</li>
+      <li>阅读 <span class="inline">package.json</span> scripts，使用项目已有命令，不临时添加安装或验证工具。</li>
+      <li>阅读 <span class="inline">vitest.config.ts</span>，理解测试环境、include/exclude、setup 和超时。</li>
+      <li>改动指南时同步 <span class="inline">src/shell.py</span>、<span class="inline">src/registry.py</span>、<span class="inline">src/quizzes.py</span> 与对应 <span class="inline">part*.py</span>。</li>
+      <li>改动核心项目时把新行为连接到真实边界：TdaiCore、HostAdapter、Gateway route、store backend 或 pipeline scheduler。</li>
+      <li>测试必须证明行为：先失败，再通过；不要只测试 mock 调用次数。</li>
+      <li>更新文档和 glossary 链接，确保术语能回到主要课程页。</li>
+      <li>提交前运行共享验证块，确认没有 broken links、HTML 错误、真实密钥或生成文件漂移。</li>
+    </ol>
+  </div>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">def debug_memory_issue(symptom):
+    case = classify(symptom, [
+        "capture_missing", "recall_empty", "search_wrong",
+        "gateway_down", "offload_broken", "test_failure",
+    ])
+
+    runtime = inspect_runtime_files(DATA_DIR_PLACEHOLDER)
+    gateway = check_gateway_health(GATEWAY_URL_PLACEHOLDER)
+    config = load_redacted_config(CONFIG_PATH_PLACEHOLDER)
+
+    if case in ["recall_empty", "search_wrong"]:
+        candidates = run_readonly_search(SAFE_QUERY_PLACEHOLDER)
+        explain_budget_and_ranking(candidates)
+
+    if case == "capture_missing":
+        inspect_checkpoints_and_locks(runtime.checkpoints)
+
+    if case == "offload_broken":
+        verify_refs_jsonl_mmd_node_ids(runtime.offload_dir)
+
+    collect_redacted_logs(request_id=REQUEST_ID_PLACEHOLDER)
+    write_or_update_test_that_fails(case)
+    run_existing_project_scripts(["test", "lint", "build"])
+    follow_contributing_docs_before_pr()</pre>
+
+<h2>Glossary / index：术语要能回到主课</h2>
+<table class="t">
+  <tr><th>Term</th><th>Meaning</th><th>Primary lesson link</th></tr>
+  <tr><td class="mono">L0</td><td>原始对话证据层，一行一条 JSONL 记录，支撑追溯。</td><td><a href="13-l0-jsonl-recorder.html">Lesson 13</a></td></tr>
+  <tr><td class="mono">L1</td><td>从对话抽取出的原子记忆，带 source ids、去重和写入路径。</td><td><a href="15-l1-extraction.html">Lesson 15</a></td></tr>
+  <tr><td class="mono">L2</td><td>把 L1 组织成可导航的场景块，服务中期情境理解。</td><td><a href="17-why-l2-scene-blocks.html">Lesson 17</a></td></tr>
+  <tr><td class="mono">L3 Persona</td><td>从场景中增量生成的用户画像 / 偏好摘要，注入为稳定上下文。</td><td><a href="20-persona-generator-incremental.html">Lesson 20</a></td></tr>
+  <tr><td class="mono">Scene Block</td><td>可增长、可追溯、可 read_file 下钻的场景文件。</td><td><a href="17-why-l2-scene-blocks.html">Lesson 17</a></td></tr>
+  <tr><td class="mono">Auto Capture</td><td>对话提交后可靠写入 L0、索引和通知 pipeline 的路径。</td><td><a href="12-auto-capture-hook.html">Lesson 12</a></td></tr>
+  <tr><td class="mono">Auto Recall</td><td>prompt 构建前按预算注入相关记忆，超时则保护主对话。</td><td><a href="22-auto-recall-before-prompt.html">Lesson 22</a></td></tr>
+  <tr><td class="mono">TdaiCore</td><td>宿主无关的 recall、capture、search、pipeline 门面。</td><td><a href="09-tdai-core-facade.html">Lesson 09</a></td></tr>
+  <tr><td class="mono">HostAdapter</td><td>隔离 OpenClaw、Gateway 等宿主差异的边界。</td><td><a href="10-host-adapter-boundaries.html">Lesson 10</a></td></tr>
+  <tr><td class="mono">Hermes Gateway</td><td>外部 HTTP 入口，必须处理 health、CORS、auth、日志与部署边界。</td><td><a href="32-hermes-gateway-http-security.html">Lesson 32</a></td></tr>
+  <tr><td class="mono">SQLite</td><td>本地元数据、FTS、BM25 和向量表的默认存储线索。</td><td><a href="25-sqlite-vec-fts-bm25-hybrid.html">Lesson 25</a></td></tr>
+  <tr><td class="mono">Tencent VectorDB</td><td>远程向量后端，配合 embedding、hybrid search 和降级策略。</td><td><a href="26-tencent-vectordb-embedding.html">Lesson 26</a></td></tr>
+  <tr><td class="mono">Context Offload</td><td>短期符号记忆，把长任务工具日志压缩成可恢复地图。</td><td><a href="27-why-long-task-logs-symbolic-compression.html">Lesson 27</a></td></tr>
+  <tr><td class="mono">refs</td><td>Offload 摘要回到工具结果证据的引用链。</td><td><a href="28-after-tool-call-refs-offload-jsonl.html">Lesson 28</a></td></tr>
+  <tr><td class="mono">JSONL</td><td>追加友好的逐行 JSON 证据格式，用于 L0 与 offload 摘要。</td><td><a href="13-l0-jsonl-recorder.html">Lesson 13</a></td></tr>
+  <tr><td class="mono">MMD</td><td>Mermaid 任务地图，概括长任务结构并支持下钻。</td><td><a href="30-mermaid-mmd-node-id-drill-down.html">Lesson 30</a></td></tr>
+  <tr><td class="mono">node_id</td><td>MMD 节点与 JSONL / refs 证据之间的稳定索引。</td><td><a href="30-mermaid-mmd-node-id-drill-down.html">Lesson 30</a></td></tr>
+  <tr><td class="mono">seed</td><td>将初始记忆数据导入系统的运维动作，必须先验证和 dry run。</td><td><a href="33-seed-cli-migration-export-read.html">Lesson 33</a></td></tr>
+  <tr><td class="mono">migration</td><td>例如 SQLite 到 Tencent VectorDB 的可备份、可审计数据移动。</td><td><a href="33-seed-cli-migration-export-read.html">Lesson 33</a></td></tr>
+  <tr><td class="mono">glossary</td><td>把术语映射回主要课程页，减少读者和贡献者的上下文漂移。</td><td><a href="34-debug-tests-contribution-glossary.html">Lesson 34</a></td></tr>
+</table>
+
+<h2>源码锚点</h2>
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li>批准规格 final guide expectations：最终指南应提供 operator / contributor map、调试清单、测试路径、贡献路径和 glossary。</li>
+    <li><span class="inline">CONTRIBUTING.md</span> 与 <span class="inline">CONTRIBUTING_CN.md</span>：贡献前应阅读的流程、测试、提交和 PR 说明。</li>
+    <li><span class="inline">package.json</span> scripts 与 <span class="inline">vitest.config.ts</span>：项目认可的 test / lint / build 入口和 Vitest 配置。</li>
+    <li>本图解指南源码：<span class="inline">README.md</span>、<span class="inline">src/shell.py</span>、<span class="inline">src/registry.py</span>、<span class="inline">src/quizzes.py</span>、<span class="inline">src/part1.py</span> 到 <span class="inline">src/part8.py</span>。</li>
+    <li>Glossary lesson links：L0、L1、L2、L3 Persona、Scene Block、Auto Capture、Auto Recall、TdaiCore、HostAdapter、Hermes Gateway、SQLite、Tencent VectorDB、Context Offload、refs、JSONL、MMD、node_id、seed、migration 和 glossary 都应指向现有课程页。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  调试顺序是：症状 -&gt; 运行时文件 -&gt; Gateway 状态 -&gt; 配置 -&gt; recall/search -&gt; capture checkpoints -&gt; offload artifacts -&gt; 日志 -&gt; 测试。
+  贡献顺序是：读 CONTRIBUTING、读 package scripts / Vitest 配置、写能失败的测试、小步修复、更新指南索引和 glossary、运行共享验证块，再提交。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. 遇到“召回错了”这类反馈时，为什么清单要先从症状和运行时文件开始，而不是直接改搜索算法？</div>
+  <ol class="opts">
+    <li>因为 glossary 链接会自动修复数据文件</li>
+    <li>因为测试只能在提交之后运行</li>
+    <li>因为搜索算法从来不会出错</li>
+    <li>因为问题可能发生在 capture、配置、Gateway、checkpoint、offload、预算裁剪或日志误读，运行时证据能先定位层级</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。调试顺序把猜测变成证据链：先确认问题在哪一层，再写复现测试和最小修复。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>任选一个术语（例如 refs、node_id 或 Auto Recall），说明它的主要课程页、常见故障现象，以及你会用哪条测试或检查证明它工作正常。</li>
   </ul>
 </div>
 </div>

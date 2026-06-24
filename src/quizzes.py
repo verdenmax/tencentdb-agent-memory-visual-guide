@@ -563,6 +563,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "设计一次从本地 SQLite 到 Tencent VectorDB 的迁移演练：你会备份哪些文件，manifest 记录哪些字段，提交写入后怎样验证 recall/search 没有退化？", "en": "Design a rehearsal for migrating local SQLite to Tencent VectorDB: which files would you back up, which manifest fields would you record, and how would you verify recall/search after commit?"}],
     },
+    "34-debug-tests-contribution-glossary.html": {
+        "mcq": [{
+            "q": {"zh": "遇到“召回错了”这类反馈时，为什么清单要先从症状和运行时文件开始，而不是直接改搜索算法？", "en": "When hearing feedback such as \"recall is wrong,\" why should the checklist start with symptoms and runtime files instead of changing the search algorithm immediately?"},
+            "opts": [
+                {"zh": "因为问题可能发生在 capture、配置、Gateway、checkpoint、offload、预算裁剪或日志误读，运行时证据能先定位层级", "en": "Because the issue may be in capture, config, Gateway, checkpoints, offload, budget trimming, or log interpretation, and runtime evidence locates the layer first"},
+                {"zh": "因为搜索算法从来不会出错", "en": "Because search algorithms can never be wrong"},
+                {"zh": "因为测试只能在提交之后运行", "en": "Because tests can only run after committing"},
+                {"zh": "因为 glossary 链接会自动修复数据文件", "en": "Because glossary links automatically repair data files"},
+            ],
+            "answer": 0,
+            "why": {"zh": "调试顺序把猜测变成证据链：先确认问题在哪一层，再写复现测试和最小修复。", "en": "The debugging order turns guesses into an evidence chain: locate the failing layer first, then write a reproducing test and the smallest fix."},
+        }],
+        "open": [{"zh": "任选一个术语（例如 refs、node_id 或 Auto Recall），说明它的主要课程页、常见故障现象，以及你会用哪条测试或检查证明它工作正常。", "en": "Pick one term such as refs, node_id, or Auto Recall. Name its primary lesson page, a common failure symptom, and the test or check you would use to prove it works."}],
+    },
 }
 
 

@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 33 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">33 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 34 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">34 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -365,6 +365,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">L3 上下文注入与紧急压缩</span><span class="lang-en">L3 context injection and emergency compression</span></li>
   <li><span class="lang-zh">Hermes Gateway、HTTP 端点与安全开关</span><span class="lang-en">Hermes Gateway, HTTP endpoints, and security knobs</span></li>
   <li><span class="lang-zh">Seed CLI、迁移/导出/读取脚本与运维工作流</span><span class="lang-en">Seed CLI, migration/export/read scripts, and operational workflows</span></li>
+  <li><span class="lang-zh">调试清单、测试、贡献路径与词汇表</span><span class="lang-en">Debugging checklist, tests, contribution path, and glossary</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -4150,6 +4151,153 @@ if operator_approves_exact_plan:
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>Design a rehearsal for migrating local SQLite to Tencent VectorDB: which files would you back up, which manifest fields would you record, and how would you verify recall/search after commit?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">调试清单、测试、贡献路径与词汇表</span><span class="lang-en">Debugging checklist, tests, contribution path, and glossary</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+The final lesson moves from understanding the system to debugging, validating, and contributing to it. When memory behavior fails, do not start with guesses: classify the symptom, then narrow it through runtime files, Gateway status, config, recall/search behavior, capture checkpoints, Context Offload artifacts, logs, and tests. When contributing code, use
+<span class="inline">CONTRIBUTING.md</span>, <span class="inline">CONTRIBUTING_CN.md</span>, <span class="inline">package.json</span> scripts, and
+<span class="inline">vitest.config.ts</span> as the accepted validation path.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Debugging a memory system is like repairing a city delivery chain: first ask whether the package was never sent, never warehoused, hard to find, delivered to the wrong person, or compressed into archive on the road; then inspect branch ledgers, sorting rules, route status, signatures, and quality reports. Contributing code is changing a delivery rule: read the rules, make a small change, then prove with drills and tests that other routes still work.
+</div>
+
+<h2>From symptom to contribution path</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>symptom</h4><p>Write the report as an observable symptom: missing capture, empty recall, wrong search hit, unresponsive Gateway, broken offload drill-down, or failing tests.</p><div class="mono">name the failure before fixing it</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>config check</h4><p>Check enable flags, data dir, recall budget, embedding / tcvdb backend, and offload switches before deleting data or changing real credentials.</p><div class="mono">config explains many silent fallbacks</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>runtime files</h4><p>Open L0 JSONL, L1 records, scene_blocks, persona, vectors.db, and context-offload artifacts to locate the layer where the issue begins.</p><div class="mono">files are evidence, not guesses</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>recall / search</h4><p>Reproduce recall or search with a safe query; inspect source ids, budget trimming, hybrid strategy, fallback path, and ranking explanation.</p><div class="mono">query -&gt; candidates -&gt; injected context</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>capture / offload</h4><p>Check capture checkpoint, cursor, lock, refs, JSONL summaries, MMD, node_id, and drill-down continuity.</p><div class="mono">checkpoint -&gt; evidence -&gt; compressed map</div></div></div>
+  <div class="step"><div class="num">6</div><div class="sc"><h4>tests</h4><p>Write the test that reproduces the problem first, then run existing project scripts; only after it passes should the contribution docs guide the submission.</p><div class="mono">red -&gt; green -&gt; contribution path</div></div></div>
+</div>
+
+<h2>Operator debugging checklist vs contributor validation checklist</h2>
+<div class="cols">
+  <div class="col">
+    <h4>Operator debugging checklist</h4>
+    <ol>
+      <li><strong>Symptom</strong>: decide whether this is capture, recall, search, Gateway, offload, seed/migration, or test behavior.</li>
+      <li><strong>Runtime files</strong>: inspect conversations / JSONL, records, scene_blocks, persona, vectors.db, and context-offload.</li>
+      <li><strong>Gateway status</strong>: check <span class="inline">GET /health</span>, helper status, bind address, CORS, auth, and redacted logs.</li>
+      <li><strong>Config</strong>: verify defaults, data dir, embedding dimensions, backend, timeouts, budgets, and feature flags.</li>
+      <li><strong>Recall / search</strong>: use read-only queries to inspect candidates, source ids, ranking, budget cuts, and fallback reasons.</li>
+      <li><strong>Capture checkpoints</strong>: inspect cursor, position slice, locks, and duplicate-write clues.</li>
+      <li><strong>Offload artifacts</strong>: confirm refs, JSONL, MMD, node_id, and drill-down files point to each other.</li>
+      <li><strong>Logs</strong>: keep route, status, duration, and request id; never print tokens, endpoints, full prompts, or private user data.</li>
+      <li><strong>Tests</strong>: reproduce the issue with existing tests, then confirm the fix does not break other paths.</li>
+    </ol>
+  </div>
+  <div class="col">
+    <h4>Contributor validation checklist</h4>
+    <ol>
+      <li>Read <span class="inline">CONTRIBUTING.md</span> and <span class="inline">CONTRIBUTING_CN.md</span> for branch, commit, test, and PR expectations.</li>
+      <li>Read <span class="inline">package.json</span> scripts and use existing commands instead of adding ad hoc install or validation tools.</li>
+      <li>Read <span class="inline">vitest.config.ts</span> to understand test environment, include/exclude rules, setup, and timeouts.</li>
+      <li>For guide changes, keep <span class="inline">src/shell.py</span>, <span class="inline">src/registry.py</span>, <span class="inline">src/quizzes.py</span>, and the matching <span class="inline">part*.py</span> in sync.</li>
+      <li>For core changes, connect new behavior to a real boundary: TdaiCore, HostAdapter, Gateway route, store backend, or pipeline scheduler.</li>
+      <li>Tests must prove behavior: fail first, then pass; do not only test mock call counts.</li>
+      <li>Update docs and glossary links so terms return to their primary lesson pages.</li>
+      <li>Before committing, run the shared validation block and check for broken links, HTML mistakes, real secrets, or generated-file drift.</li>
+    </ol>
+  </div>
+</div>
+
+<h2>Core pseudocode</h2>
+<pre class="code">def debug_memory_issue(symptom):
+    case = classify(symptom, [
+        "capture_missing", "recall_empty", "search_wrong",
+        "gateway_down", "offload_broken", "test_failure",
+    ])
+
+    runtime = inspect_runtime_files(DATA_DIR_PLACEHOLDER)
+    gateway = check_gateway_health(GATEWAY_URL_PLACEHOLDER)
+    config = load_redacted_config(CONFIG_PATH_PLACEHOLDER)
+
+    if case in ["recall_empty", "search_wrong"]:
+        candidates = run_readonly_search(SAFE_QUERY_PLACEHOLDER)
+        explain_budget_and_ranking(candidates)
+
+    if case == "capture_missing":
+        inspect_checkpoints_and_locks(runtime.checkpoints)
+
+    if case == "offload_broken":
+        verify_refs_jsonl_mmd_node_ids(runtime.offload_dir)
+
+    collect_redacted_logs(request_id=REQUEST_ID_PLACEHOLDER)
+    write_or_update_test_that_fails(case)
+    run_existing_project_scripts(["test", "lint", "build"])
+    follow_contributing_docs_before_pr()</pre>
+
+<h2>Glossary / index: terms should return to the main lesson</h2>
+<table class="t">
+  <tr><th>Term</th><th>Meaning</th><th>Primary lesson link</th></tr>
+  <tr><td class="mono">L0</td><td>Raw conversation evidence, stored as JSONL records for traceability.</td><td><a href="13-l0-jsonl-recorder.html">Lesson 13</a></td></tr>
+  <tr><td class="mono">L1</td><td>Atomic memory extracted from conversations, with source ids, dedup, and write path.</td><td><a href="15-l1-extraction.html">Lesson 15</a></td></tr>
+  <tr><td class="mono">L2</td><td>Navigable scene blocks that organize L1 into mid-term context.</td><td><a href="17-why-l2-scene-blocks.html">Lesson 17</a></td></tr>
+  <tr><td class="mono">L3 Persona</td><td>Incremental profile / preference summary generated from scenes and injected as stable context.</td><td><a href="20-persona-generator-incremental.html">Lesson 20</a></td></tr>
+  <tr><td class="mono">Scene Block</td><td>A growing, traceable scene file that supports read_file drill-down.</td><td><a href="17-why-l2-scene-blocks.html">Lesson 17</a></td></tr>
+  <tr><td class="mono">Auto Capture</td><td>The path that writes L0, indexes vectors, and notifies pipeline after a turn commits.</td><td><a href="12-auto-capture-hook.html">Lesson 12</a></td></tr>
+  <tr><td class="mono">Auto Recall</td><td>Before-prompt memory injection under budget, with timeout fallback to protect the main chat.</td><td><a href="22-auto-recall-before-prompt.html">Lesson 22</a></td></tr>
+  <tr><td class="mono">TdaiCore</td><td>The host-neutral facade for recall, capture, search, and pipeline operations.</td><td><a href="09-tdai-core-facade.html">Lesson 09</a></td></tr>
+  <tr><td class="mono">HostAdapter</td><td>The boundary that isolates host differences such as OpenClaw and Gateway.</td><td><a href="10-host-adapter-boundaries.html">Lesson 10</a></td></tr>
+  <tr><td class="mono">Hermes Gateway</td><td>The external HTTP entry that owns health, CORS, auth, logging, and deployment-boundary concerns.</td><td><a href="32-hermes-gateway-http-security.html">Lesson 32</a></td></tr>
+  <tr><td class="mono">SQLite</td><td>Local storage clues for metadata tables, FTS, BM25, and vectors.</td><td><a href="25-sqlite-vec-fts-bm25-hybrid.html">Lesson 25</a></td></tr>
+  <tr><td class="mono">Tencent VectorDB</td><td>Remote vector backend used with embedding, hybrid search, and degradation strategy.</td><td><a href="26-tencent-vectordb-embedding.html">Lesson 26</a></td></tr>
+  <tr><td class="mono">Context Offload</td><td>Short-term symbolic memory that compresses long-task tool logs into a recoverable map.</td><td><a href="27-why-long-task-logs-symbolic-compression.html">Lesson 27</a></td></tr>
+  <tr><td class="mono">refs</td><td>The reference chain from Offload summaries back to tool-result evidence.</td><td><a href="28-after-tool-call-refs-offload-jsonl.html">Lesson 28</a></td></tr>
+  <tr><td class="mono">JSONL</td><td>Append-friendly one-JSON-object-per-line evidence used by L0 and offload summaries.</td><td><a href="13-l0-jsonl-recorder.html">Lesson 13</a></td></tr>
+  <tr><td class="mono">MMD</td><td>Mermaid task map that summarizes long-task structure and supports drill-down.</td><td><a href="30-mermaid-mmd-node-id-drill-down.html">Lesson 30</a></td></tr>
+  <tr><td class="mono">node_id</td><td>The stable index between MMD nodes and JSONL / refs evidence.</td><td><a href="30-mermaid-mmd-node-id-drill-down.html">Lesson 30</a></td></tr>
+  <tr><td class="mono">seed</td><td>The operational import of initial memory data, requiring validation and dry run first.</td><td><a href="33-seed-cli-migration-export-read.html">Lesson 33</a></td></tr>
+  <tr><td class="mono">migration</td><td>Auditable, backed-up data movement such as SQLite to Tencent VectorDB.</td><td><a href="33-seed-cli-migration-export-read.html">Lesson 33</a></td></tr>
+  <tr><td class="mono">glossary</td><td>The map from terms back to primary lesson pages, reducing context drift for readers and contributors.</td><td><a href="34-debug-tests-contribution-glossary.html">Lesson 34</a></td></tr>
+</table>
+
+<h2>Source anchors</h2>
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li>Approved spec final guide expectations: the closing guide should provide an operator / contributor map, debugging checklist, test path, contribution path, and glossary.</li>
+    <li><span class="inline">CONTRIBUTING.md</span> and <span class="inline">CONTRIBUTING_CN.md</span>: contribution flow, tests, commits, and PR expectations to read before changing behavior.</li>
+    <li><span class="inline">package.json</span> scripts and <span class="inline">vitest.config.ts</span>: accepted test / lint / build entry points and Vitest configuration.</li>
+    <li>Visual-guide source: <span class="inline">README.md</span>, <span class="inline">src/shell.py</span>, <span class="inline">src/registry.py</span>, <span class="inline">src/quizzes.py</span>, and <span class="inline">src/part1.py</span> through <span class="inline">src/part8.py</span>.</li>
+    <li>Glossary lesson links: L0, L1, L2, L3 Persona, Scene Block, Auto Capture, Auto Recall, TdaiCore, HostAdapter, Hermes Gateway, SQLite, Tencent VectorDB, Context Offload, refs, JSONL, MMD, node_id, seed, migration, and glossary should all point to existing lesson pages.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Debug in this order: symptom -&gt; runtime files -&gt; Gateway status -&gt; config -&gt; recall/search -&gt; capture checkpoints -&gt; offload artifacts -&gt; logs -&gt; tests.
+  Contribute in this order: read CONTRIBUTING, read package scripts / Vitest config, write the failing test, make the small fix, update guide indexes and glossary, run the shared validation block, then commit.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. When hearing feedback such as "recall is wrong," why should the checklist start with symptoms and runtime files instead of changing the search algorithm immediately?</div>
+  <ol class="opts">
+    <li>Because glossary links automatically repair data files</li>
+    <li>Because tests can only run after committing</li>
+    <li>Because search algorithms can never be wrong</li>
+    <li>Because the issue may be in capture, config, Gateway, checkpoints, offload, budget trimming, or log interpretation, and runtime evidence locates the layer first</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. The debugging order turns guesses into an evidence chain: locate the failing layer first, then write a reproducing test and the smallest fix.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Pick one term such as refs, node_id, or Auto Recall. Name its primary lesson page, a common failure symptom, and the test or check you would use to prove it works.</li>
   </ul>
 </div>
 </div>

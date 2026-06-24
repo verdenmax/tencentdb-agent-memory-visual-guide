@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-lang="zh"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
+<title>34 · 调试清单、测试、贡献路径与词汇表 / Debugging checklist, tests, contribution path, and glossary - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第八部分 · 生态、运维、调试与词汇表｜调试清单、测试、贡献路径与词汇表 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
+<meta property="og:title" content="34 · 调试清单、测试、贡献路径与词汇表 / Debugging checklist, tests, contribution path, and glossary - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第八部分 · 生态、运维、调试与词汇表｜调试清单、测试、贡献路径与词汇表 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="34 · 调试清单、测试、贡献路径与词汇表 / Debugging checklist, tests, contribution path, and glossary - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第八部分 · 生态、运维、调试与词汇表｜调试清单、测试、贡献路径与词汇表 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --ink: #1d2129;
+  --muted: #5b6470; --faint: #8a939f; --line: #e1e5ea;
+  --accent: #0f766e; --accent-soft: #dff7f3; --accent-ink: #115e59;
+  --blue: #2563eb; --blue-soft: #e7efff; --amber: #b4690e; --amber-soft: #fdf1dd;
+  --purple: #7c3aed; --purple-soft: #f0e9ff; --red: #d23f3f; --red-soft: #fbe6e6;
+  --code-bg: #0f172a; --code-ink: #e2e8f0; --code-line: #1e293b;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1116; --panel: #161b22; --panel-2: #1c232c; --ink: #e6edf3;
+    --muted: #9aa6b2; --faint: #6e7a86; --line: #2a323c;
+    --accent: #2dd4bf; --accent-soft: #123b38; --accent-ink: #7dd3c7;
+    --blue: #6ea8fe; --blue-soft: #16243f; --amber: #e0a44a; --amber-soft: #33270f;
+    --purple: #b794f6; --purple-soft: #271a40; --red: #f08080; --red-soft: #3a1a1a;
+    --code-bg: #0a0f1a; --code-ink: #d8e2f0; --code-line: #14202f;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+html { scroll-behavior: smooth; overflow-x: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+    "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  background: var(--bg); color: var(--ink); line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+code, .mono { font-family: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace; overflow-wrap: break-word; }
+
+/* ---- top progress bar ---- */
+.topbar {
+  position: sticky; top: 0; z-index: 50; background: var(--panel);
+  border-bottom: 1px solid var(--line); backdrop-filter: blur(8px);
+}
+.topbar-inner {
+  max-width: 960px; margin: 0 auto; padding: .7rem 1.25rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.topbar .home { font-size: .82rem; color: var(--muted); font-weight: 600; display:flex; gap:.5rem; align-items:center; }
+.topbar .home b { color: var(--accent); }
+.topbar .pill { font-size: .72rem; color: var(--muted); background: var(--panel-2);
+  padding: .2rem .6rem; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.progress { height: 3px; background: var(--panel-2); }
+.progress > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--blue)); }
+
+.wrap { max-width: 820px; margin: 0 auto; padding: 2.4rem 1.25rem 5rem; }
+
+/* ---- hero ---- */
+.hero { margin-bottom: 2rem; }
+.hero .part { font-size: .76rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700; margin-bottom: .55rem; }
+.hero h1 { font-size: 2.05rem; line-height: 1.2; letter-spacing: -.01em; font-weight: 750; }
+.hero .lead { margin-top: .9rem; font-size: 1.06rem; color: var(--muted); }
+
+h2 { font-size: 1.32rem; margin: 2.4rem 0 .9rem; letter-spacing: -.01em;
+  display: flex; align-items: center; gap: .55rem; }
+h2::before { content: ""; width: 4px; height: 1.05em; background: var(--accent); border-radius: 3px; display: inline-block; }
+h3 { font-size: 1.05rem; margin: 1.4rem 0 .5rem; }
+p { margin: .7rem 0; }
+ul, ol { margin: .6rem 0 .6rem 1.3rem; }
+li { margin: .3rem 0; }
+strong { color: var(--ink); font-weight: 680; }
+.inline { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
+  padding: .08em .4em; font-size: .9em; color: var(--accent-ink); }
+
+/* ---- callout cards ---- */
+.card { border-radius: var(--radius); padding: 1.05rem 1.2rem; margin: 1.2rem 0;
+  border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); }
+.card .tag { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: .4rem; margin-bottom: .5rem; }
+.card.macro { border-left: 4px solid var(--blue); }
+.card.macro .tag { color: var(--blue); }
+.card.detail { border-left: 4px solid var(--purple); }
+.card.detail .tag { color: var(--purple); }
+.card.analogy { border-left: 4px solid var(--amber); background: var(--amber-soft); }
+.card.analogy .tag { color: var(--amber); }
+.card.key { border-left: 4px solid var(--accent); background: var(--accent-soft); }
+.card.key .tag { color: var(--accent-ink); }
+.card.warn { border-left: 4px solid var(--red); background: var(--red-soft); }
+.card.warn .tag { color: var(--red); }
+.card.spark { border-left: 4px solid #e0a000;
+  background: linear-gradient(100deg, rgba(224,160,0,.12), transparent 70%); }
+.card.spark .tag { color: #c98a00; }
+@media (prefers-color-scheme: dark) { .card.spark .tag { color: #f0c050; } }
+
+/* ---- code file callout ---- */
+.codefile { margin: 1.2rem 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line);
+  box-shadow: var(--shadow); }
+.codefile .cf-head { display: flex; align-items: center; gap: .55rem; padding: .5rem .85rem;
+  background: var(--panel-2); border-bottom: 1px solid var(--line); font-size: .8rem; }
+.codefile .cf-head .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex-shrink:0; }
+.codefile .cf-head .path { font-family: ui-monospace, monospace; color: var(--ink); font-weight: 600; }
+.codefile .cf-head .ln { margin-left: auto; color: var(--faint); font-size: .72rem; }
+.codefile pre { background: var(--code-bg); color: var(--code-ink); padding: .9rem 1rem;
+  overflow-x: auto; font-size: .82rem; line-height: 1.6; }
+.codefile pre .cm { color: #7d8aa3; }
+.codefile pre .kw { color: #c792ea; }
+.codefile pre .fn { color: #82aaff; }
+.codefile pre .st { color: #c3e88d; }
+.codefile pre .nb { color: #f78c6c; }
+
+pre.code { background: var(--code-bg); color: var(--code-ink); padding: .9rem 1rem; border-radius: 12px;
+  overflow-x: auto; font-size: .83rem; line-height: 1.6; margin: 1.1rem 0; box-shadow: var(--shadow); }
+pre.code .cm { color: #7d8aa3; } pre.code .kw { color: #c792ea; }
+pre.code .fn { color: #82aaff; } pre.code .st { color: #c3e88d; } pre.code .nb { color: #f78c6c; }
+
+/* ---- collapsible accordion (details/summary) ---- */
+.accordion { border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+  margin: .7rem 0; box-shadow: var(--shadow); overflow: hidden; }
+.accordion > summary { cursor: pointer; padding: .85rem 1.1rem; font-weight: 650; font-size: .96rem;
+  list-style: none; display: flex; align-items: center; gap: .6rem; user-select: none; }
+.accordion > summary::-webkit-details-marker { display: none; }
+.accordion > summary::after { content: "▶"; font-size: .68rem; color: var(--accent);
+  margin-left: auto; transition: transform .15s ease; }
+.accordion[open] > summary::after { transform: rotate(90deg); }
+.accordion > summary:hover { background: var(--panel-2); }
+.accordion[open] > summary { border-bottom: 1px solid var(--line); }
+.accordion .badge-num { background: var(--accent-soft); color: var(--accent-ink);
+  width: 1.6rem; height: 1.6rem; border-radius: 7px; display: inline-flex; align-items: center;
+  justify-content: center; font-size: .82rem; font-weight: 700; flex-shrink: 0; }
+.accordion .hint { font-size: .72rem; color: var(--faint); font-weight: 400; }
+.acc-body { padding: .9rem 1.1rem 1.1rem; }
+.acc-intro { color: var(--muted); font-size: .9rem; margin: .2rem 0 .4rem; }
+.qa { margin: 1rem 0; }
+.qa:first-child { margin-top: .3rem; }
+.qa .q { font-weight: 680; font-size: .9rem; display: flex; gap: .45rem; align-items: center; margin-bottom: .3rem; }
+.qa .a { color: var(--muted); font-size: .9rem; }
+.qa .a strong { color: var(--ink); }
+.qa pre.code { margin: .5rem 0 0; font-size: .78rem; }
+
+/* ---- flow diagram ---- */
+.flow { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; margin: 1.3rem 0;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 1.2rem 1rem; box-shadow: var(--shadow); }
+.flow .node { flex: 1 1 0; min-width: 110px; text-align: center; padding: .7rem .5rem;
+  border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
+.flow .node .nt { font-weight: 700; font-size: .92rem; }
+.flow .node .nd { font-size: .76rem; color: var(--muted); margin-top: .2rem; }
+.flow .node.hl { background: var(--accent-soft); border-color: var(--accent); }
+.flow .arrow { align-self: center; color: var(--faint); font-size: 1.3rem; padding: 0 .35rem; }
+
+/* vertical flow */
+.vflow { margin: 1.3rem 0; }
+.vflow .step { display: flex; gap: .9rem; position: relative; padding-bottom: 1.1rem; }
+.vflow .step:not(:last-child)::before { content:""; position:absolute; left: 15px; top: 34px; bottom: -2px;
+  width: 2px; background: var(--line); }
+.vflow .num { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; flex-shrink: 0; z-index:1; }
+.vflow .sc h4 { margin: .25rem 0 .2rem; font-size: 1rem; }
+.vflow .sc p { margin: .15rem 0; font-size: .92rem; color: var(--muted); }
+.vflow .sc .mono { font-size: .8rem; color: var(--accent-ink); }
+
+/* layered architecture */
+.layers { margin: 1.3rem 0; display: flex; flex-direction: column; gap: .55rem; }
+.layer { border-radius: 12px; padding: .85rem 1.1rem; border: 1px solid var(--line); background: var(--panel);
+  box-shadow: var(--shadow); }
+.layer .lh { display: flex; align-items: center; gap: .6rem; }
+.layer .lh .badge { font-size: .7rem; font-weight: 700; padding: .12rem .5rem; border-radius: 999px; }
+.layer .lh .name { font-weight: 700; font-family: ui-monospace, monospace; }
+.layer .ld { font-size: .85rem; color: var(--muted); margin-top: .35rem; }
+.layer.l-core { border-left: 4px solid var(--accent); } .layer.l-core .badge { background: var(--accent-soft); color: var(--accent-ink); }
+.layer.l-main { border-left: 4px solid var(--blue); } .layer.l-main .badge { background: var(--blue-soft); color: var(--blue); }
+.layer.l-part { border-left: 4px solid var(--purple); } .layer.l-part .badge { background: var(--purple-soft); color: var(--purple); }
+.layer.l-app { border-left: 4px solid var(--amber); } .layer.l-app .badge { background: var(--amber-soft); color: var(--amber); }
+
+/* two-column compare */
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.2rem 0; }
+@media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+.col { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; box-shadow: var(--shadow); min-width: 0; }
+.col h4 { margin: 0 0 .4rem; font-size: .95rem; }
+
+table.t { width: 100%; border-collapse: collapse; margin: 1.1rem 0; font-size: .9rem;
+  background: var(--panel); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+table.t th, table.t td { padding: .6rem .8rem; text-align: left; border-bottom: 1px solid var(--line); }
+table.t th { background: var(--panel-2); font-size: .8rem; letter-spacing: .02em; }
+table.t tr:last-child td { border-bottom: none; }
+table.t td.mono, table.t td .mono { font-family: ui-monospace, monospace; font-size: .82rem; color: var(--accent-ink); }
+@media (max-width: 640px) {
+  /* Wide multi-column tables: scroll within their own box instead of
+     forcing page-level horizontal overflow (which clipped right columns). */
+  table.t { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.t th, table.t td { padding: .5rem .6rem; }
+}
+.selftest { margin: 2.2rem 0 0; border-top: 2px dashed var(--line); padding-top: 1.2rem; }
+.selftest > h2 { margin-top: .2rem; }
+.quiz { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--blue);
+  border-radius: 12px; padding: .9rem 1.1rem; margin: 1rem 0; box-shadow: var(--shadow); }
+.quiz .qn { font-weight: 650; }
+.quiz ol.opts { list-style: upper-alpha; margin: .55rem 0 .6rem 1.5rem; padding: 0; }
+.quiz ol.opts li { margin: .3rem 0; padding-left: .15rem; }
+.quiz details.accordion { margin: .5rem 0 0; }
+.selftest code { font-family: ui-monospace, monospace; font-size: .9em; color: var(--accent-ink);
+  background: var(--accent-soft); padding: 0 .28em; border-radius: 4px; }
+
+/* footer nav */
+.footnav { display: flex; justify-content: space-between; gap: 1rem; margin-top: 3rem;
+  padding-top: 1.4rem; border-top: 1px solid var(--line); }
+.footnav a { flex: 1; padding: .85rem 1.1rem; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--panel); box-shadow: var(--shadow); transition: .15s; }
+.footnav a:hover { border-color: var(--accent); transform: translateY(-1px); }
+.footnav a.next { text-align: right; }
+.footnav .dir { font-size: .72rem; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; }
+.footnav .ttl { font-weight: 700; color: var(--ink); margin-top: .15rem; }
+.footnav a.disabled { opacity: .35; pointer-events: none; }
+
+/* index page */
+.toc { display: grid; gap: .7rem; margin-top: 1.6rem; }
+.toc-part { font-size: .78rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--accent); margin: 1.4rem 0 .2rem; }
+.toc a { display: flex; align-items: center; gap: .9rem; padding: .85rem 1.05rem; border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); transition: .15s; }
+.toc a:hover { border-color: var(--accent); transform: translateX(3px); }
+.toc .n { width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink);
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; flex-shrink: 0; }
+.toc .tt { font-weight: 650; color: var(--ink); }
+.toc .ts { font-size: .8rem; color: var(--muted); margin-left: auto; text-align: right; }
+.toc-search { position: relative; margin: 1.6rem 0 -.4rem; }
+.toc-search input { width: 100%; box-sizing: border-box; padding: .75rem 2.8rem .75rem 1rem;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  font-size: .98rem; box-shadow: var(--shadow); }
+.toc-search input:focus { outline: none; border-color: var(--accent); }
+.toc-search .qcount { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
+  color: var(--faint); font-size: .8rem; pointer-events: none; }
+.toc a.hide, .toc .toc-part.hide { display: none; }
+.toc-empty { display: none; color: var(--muted); padding: 1rem; text-align: center; }
+.toc-empty.show { display: block; }
+.hero.index h1 { font-size: 2.3rem; }
+.legend { display:flex; gap:1.2rem; flex-wrap:wrap; margin-top:1rem; font-size:.8rem; color:var(--muted); }
+.legend span { display:flex; align-items:center; gap:.4rem; }
+.legend i { width:12px; height:12px; border-radius:3px; display:inline-block; }
+.pdf-btn { display:inline-flex; align-items:center; gap:.4rem; padding:.55rem 1.1rem;
+  background:var(--accent); color:#fff; border-radius:10px; font-size:.9rem; font-weight:650;
+  box-shadow:var(--shadow); transition:.15s; }
+.pdf-btn:hover { background:var(--accent-ink); transform:translateY(-1px); }
+
+/* ---- bilingual language switch ----
+   Contract: <html> must carry data-lang="zh" (default) or "en".
+   page()/index_page() hard-code data-lang="zh"; LANG_BOOT may switch to "en". */
+html[data-lang="en"] .lang-zh { display: none !important; }
+html[data-lang="zh"] .lang-en { display: none !important; }
+.langtoggle { font-size:.72rem; font-weight:700; color:var(--accent-ink);
+  background:var(--accent-soft); border:1px solid var(--accent); border-radius:999px;
+  padding:.22rem .7rem; cursor:pointer; line-height:1.4; white-space:nowrap; }
+.langtoggle:hover { background:var(--accent); color:#fff; }
+
+/* ---- schematic: cell strips (memory and data-flow blocks) ---- */
+.cellgroup { margin: 1.2rem 0; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+.cellgroup .cg-cap { font-size: .82rem; color: var(--muted); margin-bottom: .55rem; }
+.cellgroup .cg-cap b { color: var(--ink); }
+.cells { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.cells + .cells { margin-top: .5rem; }
+.cell { min-width: 2.1rem; padding: .38rem .5rem; text-align: center; border-radius: 8px;
+  background: var(--panel-2); border: 1px solid var(--line); font-size: .78rem;
+  font-family: ui-monospace, monospace; white-space: nowrap; }
+.cell.scale { background: var(--amber-soft); border-color: var(--amber); color: var(--amber); font-weight: 700; }
+.cell.hl    { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.cell.q     { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+.cell.dim   { opacity: .45; }
+.cells .lab { font-size: .76rem; color: var(--faint); padding: 0 .35rem; }
+.cells .sep { color: var(--faint); padding: 0 .1rem; }
+
+/* ---- schematic: timeline lanes (step-by-step data movement) ---- */
+.timeline { margin: 1.2rem 0; display: flex; flex-direction: column; gap: .5rem;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+.timeline .lane { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.timeline .lane-label { min-width: 6rem; font-size: .8rem; font-weight: 700; color: var(--muted); }
+.timeline .tslot { padding: .4rem .6rem; border-radius: 8px; background: var(--panel-2);
+  border: 1px solid var(--line); font-size: .78rem; text-align: center; font-family: ui-monospace, monospace; }
+.timeline .tslot.span { flex: 1; min-width: 8rem; background: var(--blue-soft); border-color: var(--blue);
+  color: var(--blue); font-weight: 700; }
+.timeline .tslot.now { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+
+/* ---- worked-example trace: one concrete input, stepped through ---- */
+.trace { margin: 1.3rem 0; background: var(--panel); border: 1px solid var(--line);
+  border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+.trace .tcap { font-size: .82rem; color: var(--muted); margin-bottom: .7rem; }
+.trace .tcap b { color: var(--accent-ink); }
+.trace .stations { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
+.trace .stn { flex: 1 1 0; min-width: 116px; border: 1px solid var(--line); border-radius: 10px;
+  padding: .55rem; background: var(--bg); }
+.trace .stn h5 { margin: 0 0 .45rem; font-size: .8rem; color: var(--ink); }
+.trace .cellrow { display: flex; gap: .3rem; align-items: center; flex-wrap: wrap; }
+.trace .vc { min-width: 2.1rem; padding: .32rem .45rem; text-align: center; border-radius: 7px;
+  background: var(--panel-2); border: 1px solid var(--line); font: 600 .76rem ui-monospace, monospace; white-space: nowrap; }
+.trace .vc.hot  { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.trace .vc.blue { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+.trace .vc.dim  { opacity: .42; }
+.trace .tlab { font-size: .68rem; color: var(--faint); margin-top: .35rem; }
+.trace .op { align-self: center; color: var(--accent); font: 700 .72rem ui-monospace, monospace;
+  padding: 0 .5rem; text-align: center; white-space: nowrap; }
+.trace svg { max-width: 100%; height: auto; display: block; margin: .3rem auto; }
+@media (max-width: 640px) { .trace .stations { flex-direction: column; } .trace .op { padding: .3rem 0; } }
+</style>
+</head><body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
+    <span class="pill"><span class="lang-zh">第八部分 · 生态、运维、调试与词汇表</span><span class="lang-en">Part 8 · Ecosystem, operations, debugging, and glossary</span></span>
+    <span class="pill">34 / 34</span>
+    <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
+  </div>
+  <div class="progress"><span style="width:100%"></span></div>
+</div>
+<div class="wrap">
+  <div class="hero">
+    <div class="part"><span class="lang-zh">第八部分 · 生态、运维、调试与词汇表</span><span class="lang-en">Part 8 · Ecosystem, operations, debugging, and glossary</span></div>
+    <h1><span class="lang-zh">调试清单、测试、贡献路径与词汇表</span><span class="lang-en">Debugging checklist, tests, contribution path, and glossary</span></h1>
+  </div>
+  <div class="lang-zh">
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+本指南最后一课把读者从“理解系统”带到“能排查、能验证、能贡献”。遇到记忆问题时，不要从猜测开始；先把症状归类，再按
+运行时文件、Gateway 状态、配置、recall/search 行为、capture checkpoints、Context Offload artifacts、日志和测试逐层收敛。贡献代码时，则从
+<span class="inline">CONTRIBUTING.md</span>、<span class="inline">CONTRIBUTING_CN.md</span>、<span class="inline">package.json</span> scripts 和
+<span class="inline">vitest.config.ts</span> 找到项目认可的验证路径。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  调试记忆系统像修一条城市快递链路：先问包裹是没寄出、没入库、找不到、送错人，还是路上被压缩归档；再查网点台账、分拣规则、路由状态、签收记录和质检报告。贡献代码则像改配送规则：先读规章，再改小步，最后用演练和测试证明没有把别的路线弄坏。
+</div>
+
+<h2>从症状到贡献路径的闭环</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>symptom</h4><p>把用户反馈写成可观察症状：没有 capture、recall 为空、搜索命中错误、Gateway 无响应、offload 下钻失败，或测试失败。</p><div class="mono">name the failure before fixing it</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>config check</h4><p>核对 enable flags、data dir、recall budget、embedding / tcvdb 后端和 offload 开关；不要先删除数据或改真实凭据。</p><div class="mono">config explains many silent fallbacks</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>runtime files</h4><p>打开 L0 JSONL、L1 records、scene_blocks、persona、vectors.db 和 context-offload artifacts，确认问题发生在哪一层。</p><div class="mono">files are evidence, not guesses</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>recall / search</h4><p>用安全查询复现召回或搜索；检查 source ids、预算裁剪、hybrid strategy、降级路径和排序解释。</p><div class="mono">query -&gt; candidates -&gt; injected context</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>capture / offload</h4><p>检查 capture checkpoint、cursor、锁、refs、JSONL 摘要、MMD、node_id 和 drill-down 链路是否连续。</p><div class="mono">checkpoint -&gt; evidence -&gt; compressed map</div></div></div>
+  <div class="step"><div class="num">6</div><div class="sc"><h4>tests</h4><p>先写能复现问题的测试，再运行项目已有脚本；通过后才进入贡献文档要求的提交流程。</p><div class="mono">red -&gt; green -&gt; contribution path</div></div></div>
+</div>
+
+<h2>运维调试清单 vs 贡献者验证清单</h2>
+<div class="cols">
+  <div class="col">
+    <h4>Operator debugging checklist</h4>
+    <ol>
+      <li><strong>症状</strong>：确认是 capture、recall、search、Gateway、offload、seed/migration 还是测试问题。</li>
+      <li><strong>运行时文件</strong>：检查 conversations / JSONL、records、scene_blocks、persona、vectors.db、context-offload。</li>
+      <li><strong>Gateway status</strong>：检查 <span class="inline">GET /health</span>、helper status、监听地址、CORS、auth 和日志脱敏。</li>
+      <li><strong>配置</strong>：核对默认值、data dir、embedding dimensions、backend、timeouts、budgets 和 feature flags。</li>
+      <li><strong>召回 / 搜索</strong>：用只读查询查看候选、source ids、排序、预算裁剪和降级原因。</li>
+      <li><strong>capture checkpoints</strong>：检查 cursor、position slice、锁和重复写入线索。</li>
+      <li><strong>offload artifacts</strong>：确认 refs、JSONL、MMD、node_id 和 drill-down 文件都能互相指向。</li>
+      <li><strong>日志</strong>：保留 route、status、duration、request id；不要输出 token、endpoint、完整 prompt 或用户隐私。</li>
+      <li><strong>测试</strong>：用现有测试复现问题，再确认修复没有破坏其他路径。</li>
+    </ol>
+  </div>
+  <div class="col">
+    <h4>Contributor validation checklist</h4>
+    <ol>
+      <li>先读 <span class="inline">CONTRIBUTING.md</span> 与 <span class="inline">CONTRIBUTING_CN.md</span>，确认分支、提交、测试和 PR 预期。</li>
+      <li>阅读 <span class="inline">package.json</span> scripts，使用项目已有命令，不临时添加安装或验证工具。</li>
+      <li>阅读 <span class="inline">vitest.config.ts</span>，理解测试环境、include/exclude、setup 和超时。</li>
+      <li>改动指南时同步 <span class="inline">src/shell.py</span>、<span class="inline">src/registry.py</span>、<span class="inline">src/quizzes.py</span> 与对应 <span class="inline">part*.py</span>。</li>
+      <li>改动核心项目时把新行为连接到真实边界：TdaiCore、HostAdapter、Gateway route、store backend 或 pipeline scheduler。</li>
+      <li>测试必须证明行为：先失败，再通过；不要只测试 mock 调用次数。</li>
+      <li>更新文档和 glossary 链接，确保术语能回到主要课程页。</li>
+      <li>提交前运行共享验证块，确认没有 broken links、HTML 错误、真实密钥或生成文件漂移。</li>
+    </ol>
+  </div>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">def debug_memory_issue(symptom):
+    case = classify(symptom, [
+        "capture_missing", "recall_empty", "search_wrong",
+        "gateway_down", "offload_broken", "test_failure",
+    ])
+
+    runtime = inspect_runtime_files(DATA_DIR_PLACEHOLDER)
+    gateway = check_gateway_health(GATEWAY_URL_PLACEHOLDER)
+    config = load_redacted_config(CONFIG_PATH_PLACEHOLDER)
+
+    if case in ["recall_empty", "search_wrong"]:
+        candidates = run_readonly_search(SAFE_QUERY_PLACEHOLDER)
+        explain_budget_and_ranking(candidates)
+
+    if case == "capture_missing":
+        inspect_checkpoints_and_locks(runtime.checkpoints)
+
+    if case == "offload_broken":
+        verify_refs_jsonl_mmd_node_ids(runtime.offload_dir)
+
+    collect_redacted_logs(request_id=REQUEST_ID_PLACEHOLDER)
+    write_or_update_test_that_fails(case)
+    run_existing_project_scripts(["test", "lint", "build"])
+    follow_contributing_docs_before_pr()</pre>
+
+<h2>Glossary / index：术语要能回到主课</h2>
+<table class="t">
+  <tr><th>Term</th><th>Meaning</th><th>Primary lesson link</th></tr>
+  <tr><td class="mono">L0</td><td>原始对话证据层，一行一条 JSONL 记录，支撑追溯。</td><td><a href="13-l0-jsonl-recorder.html">Lesson 13</a></td></tr>
+  <tr><td class="mono">L1</td><td>从对话抽取出的原子记忆，带 source ids、去重和写入路径。</td><td><a href="15-l1-extraction.html">Lesson 15</a></td></tr>
+  <tr><td class="mono">L2</td><td>把 L1 组织成可导航的场景块，服务中期情境理解。</td><td><a href="17-why-l2-scene-blocks.html">Lesson 17</a></td></tr>
+  <tr><td class="mono">L3 Persona</td><td>从场景中增量生成的用户画像 / 偏好摘要，注入为稳定上下文。</td><td><a href="20-persona-generator-incremental.html">Lesson 20</a></td></tr>
+  <tr><td class="mono">Scene Block</td><td>可增长、可追溯、可 read_file 下钻的场景文件。</td><td><a href="17-why-l2-scene-blocks.html">Lesson 17</a></td></tr>
+  <tr><td class="mono">Auto Capture</td><td>对话提交后可靠写入 L0、索引和通知 pipeline 的路径。</td><td><a href="12-auto-capture-hook.html">Lesson 12</a></td></tr>
+  <tr><td class="mono">Auto Recall</td><td>prompt 构建前按预算注入相关记忆，超时则保护主对话。</td><td><a href="22-auto-recall-before-prompt.html">Lesson 22</a></td></tr>
+  <tr><td class="mono">TdaiCore</td><td>宿主无关的 recall、capture、search、pipeline 门面。</td><td><a href="09-tdai-core-facade.html">Lesson 09</a></td></tr>
+  <tr><td class="mono">HostAdapter</td><td>隔离 OpenClaw、Gateway 等宿主差异的边界。</td><td><a href="10-host-adapter-boundaries.html">Lesson 10</a></td></tr>
+  <tr><td class="mono">Hermes Gateway</td><td>外部 HTTP 入口，必须处理 health、CORS、auth、日志与部署边界。</td><td><a href="32-hermes-gateway-http-security.html">Lesson 32</a></td></tr>
+  <tr><td class="mono">SQLite</td><td>本地元数据、FTS、BM25 和向量表的默认存储线索。</td><td><a href="25-sqlite-vec-fts-bm25-hybrid.html">Lesson 25</a></td></tr>
+  <tr><td class="mono">Tencent VectorDB</td><td>远程向量后端，配合 embedding、hybrid search 和降级策略。</td><td><a href="26-tencent-vectordb-embedding.html">Lesson 26</a></td></tr>
+  <tr><td class="mono">Context Offload</td><td>短期符号记忆，把长任务工具日志压缩成可恢复地图。</td><td><a href="27-why-long-task-logs-symbolic-compression.html">Lesson 27</a></td></tr>
+  <tr><td class="mono">refs</td><td>Offload 摘要回到工具结果证据的引用链。</td><td><a href="28-after-tool-call-refs-offload-jsonl.html">Lesson 28</a></td></tr>
+  <tr><td class="mono">JSONL</td><td>追加友好的逐行 JSON 证据格式，用于 L0 与 offload 摘要。</td><td><a href="13-l0-jsonl-recorder.html">Lesson 13</a></td></tr>
+  <tr><td class="mono">MMD</td><td>Mermaid 任务地图，概括长任务结构并支持下钻。</td><td><a href="30-mermaid-mmd-node-id-drill-down.html">Lesson 30</a></td></tr>
+  <tr><td class="mono">node_id</td><td>MMD 节点与 JSONL / refs 证据之间的稳定索引。</td><td><a href="30-mermaid-mmd-node-id-drill-down.html">Lesson 30</a></td></tr>
+  <tr><td class="mono">seed</td><td>将初始记忆数据导入系统的运维动作，必须先验证和 dry run。</td><td><a href="33-seed-cli-migration-export-read.html">Lesson 33</a></td></tr>
+  <tr><td class="mono">migration</td><td>例如 SQLite 到 Tencent VectorDB 的可备份、可审计数据移动。</td><td><a href="33-seed-cli-migration-export-read.html">Lesson 33</a></td></tr>
+  <tr><td class="mono">glossary</td><td>把术语映射回主要课程页，减少读者和贡献者的上下文漂移。</td><td><a href="34-debug-tests-contribution-glossary.html">Lesson 34</a></td></tr>
+</table>
+
+<h2>源码锚点</h2>
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li>批准规格 final guide expectations：最终指南应提供 operator / contributor map、调试清单、测试路径、贡献路径和 glossary。</li>
+    <li><span class="inline">CONTRIBUTING.md</span> 与 <span class="inline">CONTRIBUTING_CN.md</span>：贡献前应阅读的流程、测试、提交和 PR 说明。</li>
+    <li><span class="inline">package.json</span> scripts 与 <span class="inline">vitest.config.ts</span>：项目认可的 test / lint / build 入口和 Vitest 配置。</li>
+    <li>本图解指南源码：<span class="inline">README.md</span>、<span class="inline">src/shell.py</span>、<span class="inline">src/registry.py</span>、<span class="inline">src/quizzes.py</span>、<span class="inline">src/part1.py</span> 到 <span class="inline">src/part8.py</span>。</li>
+    <li>Glossary lesson links：L0、L1、L2、L3 Persona、Scene Block、Auto Capture、Auto Recall、TdaiCore、HostAdapter、Hermes Gateway、SQLite、Tencent VectorDB、Context Offload、refs、JSONL、MMD、node_id、seed、migration 和 glossary 都应指向现有课程页。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  调试顺序是：症状 -&gt; 运行时文件 -&gt; Gateway 状态 -&gt; 配置 -&gt; recall/search -&gt; capture checkpoints -&gt; offload artifacts -&gt; 日志 -&gt; 测试。
+  贡献顺序是：读 CONTRIBUTING、读 package scripts / Vitest 配置、写能失败的测试、小步修复、更新指南索引和 glossary、运行共享验证块，再提交。
+</div>
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. 遇到“召回错了”这类反馈时，为什么清单要先从症状和运行时文件开始，而不是直接改搜索算法？</div>
+  <ol class="opts">
+    <li>因为 glossary 链接会自动修复数据文件</li>
+    <li>因为测试只能在提交之后运行</li>
+    <li>因为搜索算法从来不会出错</li>
+    <li>因为问题可能发生在 capture、配置、Gateway、checkpoint、offload、预算裁剪或日志误读，运行时证据能先定位层级</li>
+  </ol>
+  <details class="accordion">
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：D</strong>。调试顺序把猜测变成证据链：先确认问题在哪一层，再写复现测试和最小修复。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>任选一个术语（例如 refs、node_id 或 Auto Recall），说明它的主要课程页、常见故障现象，以及你会用哪条测试或检查证明它工作正常。</li>
+  </ul>
+</div>
+</div></div>
+  <div class="lang-en">
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+The final lesson moves from understanding the system to debugging, validating, and contributing to it. When memory behavior fails, do not start with guesses: classify the symptom, then narrow it through runtime files, Gateway status, config, recall/search behavior, capture checkpoints, Context Offload artifacts, logs, and tests. When contributing code, use
+<span class="inline">CONTRIBUTING.md</span>, <span class="inline">CONTRIBUTING_CN.md</span>, <span class="inline">package.json</span> scripts, and
+<span class="inline">vitest.config.ts</span> as the accepted validation path.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Debugging a memory system is like repairing a city delivery chain: first ask whether the package was never sent, never warehoused, hard to find, delivered to the wrong person, or compressed into archive on the road; then inspect branch ledgers, sorting rules, route status, signatures, and quality reports. Contributing code is changing a delivery rule: read the rules, make a small change, then prove with drills and tests that other routes still work.
+</div>
+
+<h2>From symptom to contribution path</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>symptom</h4><p>Write the report as an observable symptom: missing capture, empty recall, wrong search hit, unresponsive Gateway, broken offload drill-down, or failing tests.</p><div class="mono">name the failure before fixing it</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>config check</h4><p>Check enable flags, data dir, recall budget, embedding / tcvdb backend, and offload switches before deleting data or changing real credentials.</p><div class="mono">config explains many silent fallbacks</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>runtime files</h4><p>Open L0 JSONL, L1 records, scene_blocks, persona, vectors.db, and context-offload artifacts to locate the layer where the issue begins.</p><div class="mono">files are evidence, not guesses</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>recall / search</h4><p>Reproduce recall or search with a safe query; inspect source ids, budget trimming, hybrid strategy, fallback path, and ranking explanation.</p><div class="mono">query -&gt; candidates -&gt; injected context</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>capture / offload</h4><p>Check capture checkpoint, cursor, lock, refs, JSONL summaries, MMD, node_id, and drill-down continuity.</p><div class="mono">checkpoint -&gt; evidence -&gt; compressed map</div></div></div>
+  <div class="step"><div class="num">6</div><div class="sc"><h4>tests</h4><p>Write the test that reproduces the problem first, then run existing project scripts; only after it passes should the contribution docs guide the submission.</p><div class="mono">red -&gt; green -&gt; contribution path</div></div></div>
+</div>
+
+<h2>Operator debugging checklist vs contributor validation checklist</h2>
+<div class="cols">
+  <div class="col">
+    <h4>Operator debugging checklist</h4>
+    <ol>
+      <li><strong>Symptom</strong>: decide whether this is capture, recall, search, Gateway, offload, seed/migration, or test behavior.</li>
+      <li><strong>Runtime files</strong>: inspect conversations / JSONL, records, scene_blocks, persona, vectors.db, and context-offload.</li>
+      <li><strong>Gateway status</strong>: check <span class="inline">GET /health</span>, helper status, bind address, CORS, auth, and redacted logs.</li>
+      <li><strong>Config</strong>: verify defaults, data dir, embedding dimensions, backend, timeouts, budgets, and feature flags.</li>
+      <li><strong>Recall / search</strong>: use read-only queries to inspect candidates, source ids, ranking, budget cuts, and fallback reasons.</li>
+      <li><strong>Capture checkpoints</strong>: inspect cursor, position slice, locks, and duplicate-write clues.</li>
+      <li><strong>Offload artifacts</strong>: confirm refs, JSONL, MMD, node_id, and drill-down files point to each other.</li>
+      <li><strong>Logs</strong>: keep route, status, duration, and request id; never print tokens, endpoints, full prompts, or private user data.</li>
+      <li><strong>Tests</strong>: reproduce the issue with existing tests, then confirm the fix does not break other paths.</li>
+    </ol>
+  </div>
+  <div class="col">
+    <h4>Contributor validation checklist</h4>
+    <ol>
+      <li>Read <span class="inline">CONTRIBUTING.md</span> and <span class="inline">CONTRIBUTING_CN.md</span> for branch, commit, test, and PR expectations.</li>
+      <li>Read <span class="inline">package.json</span> scripts and use existing commands instead of adding ad hoc install or validation tools.</li>
+      <li>Read <span class="inline">vitest.config.ts</span> to understand test environment, include/exclude rules, setup, and timeouts.</li>
+      <li>For guide changes, keep <span class="inline">src/shell.py</span>, <span class="inline">src/registry.py</span>, <span class="inline">src/quizzes.py</span>, and the matching <span class="inline">part*.py</span> in sync.</li>
+      <li>For core changes, connect new behavior to a real boundary: TdaiCore, HostAdapter, Gateway route, store backend, or pipeline scheduler.</li>
+      <li>Tests must prove behavior: fail first, then pass; do not only test mock call counts.</li>
+      <li>Update docs and glossary links so terms return to their primary lesson pages.</li>
+      <li>Before committing, run the shared validation block and check for broken links, HTML mistakes, real secrets, or generated-file drift.</li>
+    </ol>
+  </div>
+</div>
+
+<h2>Core pseudocode</h2>
+<pre class="code">def debug_memory_issue(symptom):
+    case = classify(symptom, [
+        "capture_missing", "recall_empty", "search_wrong",
+        "gateway_down", "offload_broken", "test_failure",
+    ])
+
+    runtime = inspect_runtime_files(DATA_DIR_PLACEHOLDER)
+    gateway = check_gateway_health(GATEWAY_URL_PLACEHOLDER)
+    config = load_redacted_config(CONFIG_PATH_PLACEHOLDER)
+
+    if case in ["recall_empty", "search_wrong"]:
+        candidates = run_readonly_search(SAFE_QUERY_PLACEHOLDER)
+        explain_budget_and_ranking(candidates)
+
+    if case == "capture_missing":
+        inspect_checkpoints_and_locks(runtime.checkpoints)
+
+    if case == "offload_broken":
+        verify_refs_jsonl_mmd_node_ids(runtime.offload_dir)
+
+    collect_redacted_logs(request_id=REQUEST_ID_PLACEHOLDER)
+    write_or_update_test_that_fails(case)
+    run_existing_project_scripts(["test", "lint", "build"])
+    follow_contributing_docs_before_pr()</pre>
+
+<h2>Glossary / index: terms should return to the main lesson</h2>
+<table class="t">
+  <tr><th>Term</th><th>Meaning</th><th>Primary lesson link</th></tr>
+  <tr><td class="mono">L0</td><td>Raw conversation evidence, stored as JSONL records for traceability.</td><td><a href="13-l0-jsonl-recorder.html">Lesson 13</a></td></tr>
+  <tr><td class="mono">L1</td><td>Atomic memory extracted from conversations, with source ids, dedup, and write path.</td><td><a href="15-l1-extraction.html">Lesson 15</a></td></tr>
+  <tr><td class="mono">L2</td><td>Navigable scene blocks that organize L1 into mid-term context.</td><td><a href="17-why-l2-scene-blocks.html">Lesson 17</a></td></tr>
+  <tr><td class="mono">L3 Persona</td><td>Incremental profile / preference summary generated from scenes and injected as stable context.</td><td><a href="20-persona-generator-incremental.html">Lesson 20</a></td></tr>
+  <tr><td class="mono">Scene Block</td><td>A growing, traceable scene file that supports read_file drill-down.</td><td><a href="17-why-l2-scene-blocks.html">Lesson 17</a></td></tr>
+  <tr><td class="mono">Auto Capture</td><td>The path that writes L0, indexes vectors, and notifies pipeline after a turn commits.</td><td><a href="12-auto-capture-hook.html">Lesson 12</a></td></tr>
+  <tr><td class="mono">Auto Recall</td><td>Before-prompt memory injection under budget, with timeout fallback to protect the main chat.</td><td><a href="22-auto-recall-before-prompt.html">Lesson 22</a></td></tr>
+  <tr><td class="mono">TdaiCore</td><td>The host-neutral facade for recall, capture, search, and pipeline operations.</td><td><a href="09-tdai-core-facade.html">Lesson 09</a></td></tr>
+  <tr><td class="mono">HostAdapter</td><td>The boundary that isolates host differences such as OpenClaw and Gateway.</td><td><a href="10-host-adapter-boundaries.html">Lesson 10</a></td></tr>
+  <tr><td class="mono">Hermes Gateway</td><td>The external HTTP entry that owns health, CORS, auth, logging, and deployment-boundary concerns.</td><td><a href="32-hermes-gateway-http-security.html">Lesson 32</a></td></tr>
+  <tr><td class="mono">SQLite</td><td>Local storage clues for metadata tables, FTS, BM25, and vectors.</td><td><a href="25-sqlite-vec-fts-bm25-hybrid.html">Lesson 25</a></td></tr>
+  <tr><td class="mono">Tencent VectorDB</td><td>Remote vector backend used with embedding, hybrid search, and degradation strategy.</td><td><a href="26-tencent-vectordb-embedding.html">Lesson 26</a></td></tr>
+  <tr><td class="mono">Context Offload</td><td>Short-term symbolic memory that compresses long-task tool logs into a recoverable map.</td><td><a href="27-why-long-task-logs-symbolic-compression.html">Lesson 27</a></td></tr>
+  <tr><td class="mono">refs</td><td>The reference chain from Offload summaries back to tool-result evidence.</td><td><a href="28-after-tool-call-refs-offload-jsonl.html">Lesson 28</a></td></tr>
+  <tr><td class="mono">JSONL</td><td>Append-friendly one-JSON-object-per-line evidence used by L0 and offload summaries.</td><td><a href="13-l0-jsonl-recorder.html">Lesson 13</a></td></tr>
+  <tr><td class="mono">MMD</td><td>Mermaid task map that summarizes long-task structure and supports drill-down.</td><td><a href="30-mermaid-mmd-node-id-drill-down.html">Lesson 30</a></td></tr>
+  <tr><td class="mono">node_id</td><td>The stable index between MMD nodes and JSONL / refs evidence.</td><td><a href="30-mermaid-mmd-node-id-drill-down.html">Lesson 30</a></td></tr>
+  <tr><td class="mono">seed</td><td>The operational import of initial memory data, requiring validation and dry run first.</td><td><a href="33-seed-cli-migration-export-read.html">Lesson 33</a></td></tr>
+  <tr><td class="mono">migration</td><td>Auditable, backed-up data movement such as SQLite to Tencent VectorDB.</td><td><a href="33-seed-cli-migration-export-read.html">Lesson 33</a></td></tr>
+  <tr><td class="mono">glossary</td><td>The map from terms back to primary lesson pages, reducing context drift for readers and contributors.</td><td><a href="34-debug-tests-contribution-glossary.html">Lesson 34</a></td></tr>
+</table>
+
+<h2>Source anchors</h2>
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li>Approved spec final guide expectations: the closing guide should provide an operator / contributor map, debugging checklist, test path, contribution path, and glossary.</li>
+    <li><span class="inline">CONTRIBUTING.md</span> and <span class="inline">CONTRIBUTING_CN.md</span>: contribution flow, tests, commits, and PR expectations to read before changing behavior.</li>
+    <li><span class="inline">package.json</span> scripts and <span class="inline">vitest.config.ts</span>: accepted test / lint / build entry points and Vitest configuration.</li>
+    <li>Visual-guide source: <span class="inline">README.md</span>, <span class="inline">src/shell.py</span>, <span class="inline">src/registry.py</span>, <span class="inline">src/quizzes.py</span>, and <span class="inline">src/part1.py</span> through <span class="inline">src/part8.py</span>.</li>
+    <li>Glossary lesson links: L0, L1, L2, L3 Persona, Scene Block, Auto Capture, Auto Recall, TdaiCore, HostAdapter, Hermes Gateway, SQLite, Tencent VectorDB, Context Offload, refs, JSONL, MMD, node_id, seed, migration, and glossary should all point to existing lesson pages.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Debug in this order: symptom -&gt; runtime files -&gt; Gateway status -&gt; config -&gt; recall/search -&gt; capture checkpoints -&gt; offload artifacts -&gt; logs -&gt; tests.
+  Contribute in this order: read CONTRIBUTING, read package scripts / Vitest config, write the failing test, make the small fix, update guide indexes and glossary, run the shared validation block, then commit.
+</div>
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. When hearing feedback such as "recall is wrong," why should the checklist start with symptoms and runtime files instead of changing the search algorithm immediately?</div>
+  <ol class="opts">
+    <li>Because glossary links automatically repair data files</li>
+    <li>Because tests can only run after committing</li>
+    <li>Because search algorithms can never be wrong</li>
+    <li>Because the issue may be in capture, config, Gateway, checkpoints, offload, budget trimming, or log interpretation, and runtime evidence locates the layer first</li>
+  </ol>
+  <details class="accordion">
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: D</strong>. The debugging order turns guesses into an evidence chain: locate the failing layer first, then write a reproducing test and the smallest fix.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Pick one term such as refs, node_id, or Auto Recall. Name its primary lesson page, a common failure symptom, and the test or check you would use to prove it works.</li>
+  </ul>
+</div>
+</div></div>
+  <div class="footnav"><a class="prev" href="33-seed-cli-migration-export-read.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Seed CLI、迁移/导出/读取脚本与运维工作流</span><span class="lang-en">Seed CLI, migration/export/read scripts, and operational workflows</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
+</div>
+<script>
+function tdamvgSetLang(l){
+  l=(l==='en')?'en':'zh';
+  var d=document.documentElement;
+  d.dataset.lang=l; d.lang=(l==='en'?'en':'zh-CN');
+  try{localStorage.setItem('tdamvg-lang',l);}catch(e){}
+}
+function tdamvgToggleLang(){
+  tdamvgSetLang(document.documentElement.dataset.lang==='en'?'zh':'en');
+}
+</script>
+</body></html>

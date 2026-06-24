@@ -112,6 +112,8 @@ PAGES = [
      "第八部分 · 生态、运维、调试与词汇表", "Part 8 · Ecosystem, operations, debugging, and glossary"),
     ("33-seed-cli-migration-export-read.html", "Seed CLI、迁移/导出/读取脚本与运维工作流", "Seed CLI, migration/export/read scripts, and operational workflows",
      "第八部分 · 生态、运维、调试与词汇表", "Part 8 · Ecosystem, operations, debugging, and glossary"),
+    ("34-debug-tests-contribution-glossary.html", "调试清单、测试、贡献路径与词汇表", "Debugging checklist, tests, contribution path, and glossary",
+     "第八部分 · 生态、运维、调试与词汇表", "Part 8 · Ecosystem, operations, debugging, and glossary"),
 ]
 
 def bi(zh, en):
@@ -609,6 +611,8 @@ SUBTITLES = {
                                                       "inject the task map first, then apply mild, aggressive, and emergency compression by token pressure"),
     "33-seed-cli-migration-export-read.html": ("用可回滚脚本完成初始化、迁移、导出、诊断和本地读取",
                                                "use reversible scripts for seeding, migration, export, diagnostics, and local reads"),
+    "34-debug-tests-contribution-glossary.html": ("用检查清单定位问题，用测试和术语表完成可维护贡献",
+                                                "use checklists to debug, and tests plus glossary terms to make maintainable contributions"),
 }
 
 def index_page(lesson_prefix="lessons/"):
