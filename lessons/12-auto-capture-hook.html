@@ -392,7 +392,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <ul>
     <li><span class="inline">src/core/hooks/auto-capture.ts</span>：<span class="inline">performAutoCapture</span>、L0 写入、L0 vector indexing、<span class="inline">scheduler.notifyConversation</span></li>
     <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：<span class="inline">recordConversation</span>、位置切片、timestamp cursor、JSONL 写入</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>：<span class="inline">captureAtomically</span> 在锁内拥有并读写 cursor 与计数</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：<span class="inline">captureAtomically</span> 在锁内拥有并读写 cursor 与 checkpoint 状态/计数器</li>
     <li><span class="inline">src/core/store/types.ts</span>：<span class="inline">L0Record</span> 的索引记录结构</li>
     <li><span class="inline">src/utils/pipeline-manager.ts</span>：<span class="inline">notifyConversation</span>、L1 threshold / idle trigger</li>
   </ul>
@@ -489,7 +489,7 @@ updates the conversation count, persists state, enqueues L1 when the threshold i
   <ul>
     <li><span class="inline">src/core/hooks/auto-capture.ts</span>: <span class="inline">performAutoCapture</span>, L0 writes, L0 vector indexing, <span class="inline">scheduler.notifyConversation</span></li>
     <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: <span class="inline">recordConversation</span>, position slice, timestamp cursor, JSONL append</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">captureAtomically</span> owns cursor and count read/update inside the lock</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">captureAtomically</span> owns cursor and checkpoint state/counters inside the lock</li>
     <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">L0Record</span> index record shape</li>
     <li><span class="inline">src/utils/pipeline-manager.ts</span>: <span class="inline">notifyConversation</span>, L1 threshold / idle triggers</li>
   </ul>

@@ -1621,7 +1621,7 @@ updates the conversation count, persists state, enqueues L1 when the threshold i
   <ul>
     <li><span class="inline">src/core/hooks/auto-capture.ts</span>: <span class="inline">performAutoCapture</span>, L0 writes, L0 vector indexing, <span class="inline">scheduler.notifyConversation</span></li>
     <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: <span class="inline">recordConversation</span>, position slice, timestamp cursor, JSONL append</li>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">captureAtomically</span> owns cursor and count read/update inside the lock</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">captureAtomically</span> owns cursor and checkpoint state/counters inside the lock</li>
     <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">L0Record</span> index record shape</li>
     <li><span class="inline">src/utils/pipeline-manager.ts</span>: <span class="inline">notifyConversation</span>, L1 threshold / idle triggers</li>
   </ul>
@@ -1794,32 +1794,34 @@ This lesson connects <span class="inline">captureAtomically()</span>, position s
   <div class="step"><div class="num">4</div><div class="sc"><h4>Late advance</h4><p>Writing the checkpoint afterward is too late: duplicate evidence has already entered L0, and L1 may extract it twice.</p></div></div>
 </div>
 
-<h2>With the lock: cursor read, write, and advance are atomic</h2>
+<h2>With the lock: checkpoint file mutations are serialized</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>captureAtomically(sessionKey)</h4><p><span class="inline">CheckpointManager</span> locks by session key so captures for the same session enter serially.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>read checkpoint</h4><p>The timestamp cursor, record count, and checkpoint state are read under the lock; callers do not bring an external stale cursor.</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>captureAtomically(sessionKey)</h4><p><span class="inline">CheckpointManager</span> uses a checkpoint-file async lock to serialize mutations; <span class="inline">sessionKey</span> selects the cursor and state owned by that session inside the lock.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>read checkpoint</h4><p>The checkpoint file lock first serializes file mutations, then reads/updates the <span class="inline">sessionKey</span>-owned cursor and checkpoint state/counters inside the lock; callers do not bring an external stale cursor.</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>record L0</h4><p>The callback calls <span class="inline">recordConversation</span> and writes only messages truly new after the cursor or position slice.</p></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>advance cursor</h4><p>If messages were written, the same lock advances the checkpoint to the maximum timestamp from this capture.</p></div></div>
 </div>
 
 <h2>Pseudocode</h2>
 <pre class="code">captureAtomically(sessionKey):
-    lock(sessionKey)
-    cursor = read_checkpoint()
+    lock(checkpoint_file)
+    state = read_checkpoint_file()
+    cursor = state.sessions[sessionKey].afterTimestamp
     messages = record_after_cursor(cursor)
     if messages:
-        write_checkpoint(max_timestamp(messages))
-    unlock(sessionKey)</pre>
+        state.sessions[sessionKey].afterTimestamp = max_timestamp(messages)
+        write_checkpoint_file(state)
+    unlock(checkpoint_file)</pre>
 
 <h2>Position slice and timestamp cursor solve different problems</h2>
 <div class="cols">
   <div class="col"><h4>position slice</h4><p>The recorder prefers the cached message count from before prompt build, such as <span class="inline">originalUserMessageCount</span>. After commit it slices the array after that position, protecting the turn boundary from timestamp drift, same-millisecond messages, or host timestamp rewrites.</p></div>
-  <div class="col"><h4>timestamp cursor</h4><p>When the position cache is unavailable, the checkpoint <span class="inline">afterTimestamp</span> remains the fallback for incremental capture. It is also evidence: it explains where the previous capture advanced and why this message counted as new.</p></div>
+  <div class="col"><h4>timestamp cursor</h4><p>When stable raw timestamps exist, checkpoint <span class="inline">afterTimestamp</span> can be an incremental-capture fallback and audit clue. If raw timestamps are absent or unreliable, this cursor is weak; missing-cache or restart cases only reduce duplicate risk and provide a weaker guarantee than the turn-boundary protection a position slice would provide.</p></div>
 </div>
 
 <p>
-So they are not substitutes. Position slice protects the structural boundary of “messages added by this turn”.
-Timestamp cursor protects the persistent incremental boundary across calls, restarts, or missing caches.
+So they are not substitutes. Position slice protects the structural boundary of “messages added by this turn” and is generally stronger than a timestamp cursor.
+Timestamp cursor protects the persistent incremental boundary only when stable raw time is available; across missing caches or restarts, it is a weaker fallback rather than an equivalent guarantee.
 </p>
 
 <h2>schedulerStartPromise: restored state must not clobber concurrent capture</h2>
@@ -1842,7 +1844,7 @@ The promise turns startup into a gate, so concurrent callers share the same star
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">CheckpointManager</span>, <span class="inline">captureAtomically</span>, sessionKey-scoped cursor locking</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">CheckpointManager</span>, <span class="inline">captureAtomically</span>, checkpoint file locking plus sessionKey-owned cursor/state updates inside the lock</li>
     <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: position slice, timestamp cursor, incremental user / assistant extraction</li>
     <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">schedulerStartPromise</span> prevents restored state from clobbering concurrent notifications</li>
     <li><span class="inline">src/core/hooks/auto-capture.ts</span>: how <span class="inline">performAutoCapture</span> enters atomic checkpoint capture and notifies the scheduler</li>
@@ -1852,8 +1854,8 @@ The promise turns startup into a gate, so concurrent callers share the same star
 <div class="card key">
   <div class="tag">✅ Key points</div>
   Duplicate capture risk comes from concurrent capture and stale cursors. <span class="inline">captureAtomically()</span>
-  locks “read cursor -&gt; write L0 -&gt; advance cursor” as the critical section; position slice protects the same-turn message boundary first,
-  timestamp cursor remains the persistent fallback and audit evidence; <span class="inline">schedulerStartPromise</span> prevents scheduler startup restore from overwriting concurrent capture notifications.
+  serializes checkpoint file mutations, then reads/advances the <span class="inline">sessionKey</span>-owned cursor inside the lock; position slice protects the same-turn message boundary first,
+  timestamp cursor is only a weaker persistent fallback and audit clue when stable raw time exists; <span class="inline">schedulerStartPromise</span> prevents scheduler startup restore from overwriting concurrent capture notifications.
 </div>
 
 <div class="selftest">
