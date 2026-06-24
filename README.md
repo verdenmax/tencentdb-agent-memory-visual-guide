@@ -67,7 +67,7 @@ This repository is ready for GitHub Pages once it is published on GitHub:
 
 1. Open repository **Settings → Pages**.
 2. Set **Source** to **GitHub Actions**.
-3. Run the **Deploy GitHub Pages** workflow, or push to `main`.
+3. Run the **Deploy GitHub Pages** workflow, or push to `main` or `master`.
 
 The README intentionally does not publish a live Pages URL until the guide repository exists on GitHub.
 
