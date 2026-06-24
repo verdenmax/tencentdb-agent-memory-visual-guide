@@ -354,9 +354,9 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="flow">
   <div class="node"><div class="nt">messages</div><div class="nd">agent_end 提供的会话历史</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">filteredMessages</div><div class="nd">只保留新增 user / assistant，清洗短文本与污染上下文</div></div>
+  <div class="node"><div class="nt">filteredMessages</div><div class="nd">只保留新增 user / assistant，清理召回包裹与结构噪声</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id、sessionKey、sessionId、role、messageText、recordedAt、timestamp</div></div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id、sessionKey、sessionId、role、content、recordedAt、timestamp</div></div>
 </div>
 
 <p>
@@ -451,9 +451,9 @@ It keeps the capture path short and deterministic: write local L0 first, index i
 <div class="flow">
   <div class="node"><div class="nt">messages</div><div class="nd">session history from agent_end</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">filteredMessages</div><div class="nd">new user / assistant messages, sanitized and filtered</div></div>
+  <div class="node"><div class="nt">filteredMessages</div><div class="nd">new user / assistant messages, cleaned of recall wrappers and structural noise</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, messageText, recordedAt, timestamp</div></div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, content, recordedAt, timestamp</div></div>
 </div>
 
 <p>

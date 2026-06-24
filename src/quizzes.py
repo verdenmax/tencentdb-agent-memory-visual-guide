@@ -280,7 +280,7 @@ QUIZZES = {
             "answer": 0,
             "why": {"zh": "JSONL 适合增量写入和排查证据，是 L0 的“原文账本”。", "en": "JSONL fits incremental writes and evidence inspection; it is L0's raw ledger."},
         }],
-        "open": [{"zh": "为什么需要把被 recall prepend 污染过的用户消息替换回原始 prompt？", "en": "Why replace a recall-prepended user message with the original prompt?"}],
+        "open": [{"zh": "recorder 什么时候可以恢复缓存的原始 prompt，什么时候会回退到清洗与日志？", "en": "When can the recorder restore the cached original prompt, and when does it fall back to sanitization and logging?"}],
     },
 }
 

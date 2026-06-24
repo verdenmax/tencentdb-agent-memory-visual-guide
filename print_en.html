@@ -1582,9 +1582,9 @@ It keeps the capture path short and deterministic: write local L0 first, index i
 <div class="flow">
   <div class="node"><div class="nt">messages</div><div class="nd">session history from agent_end</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">filteredMessages</div><div class="nd">new user / assistant messages, sanitized and filtered</div></div>
+  <div class="node"><div class="nt">filteredMessages</div><div class="nd">new user / assistant messages, cleaned of recall wrappers and structural noise</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, messageText, recordedAt, timestamp</div></div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, content, recordedAt, timestamp</div></div>
 </div>
 
 <p>
@@ -1660,7 +1660,7 @@ updates the conversation count, persists state, enqueues L1 when the threshold i
 
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 L0 is not a summary layer. It is the raw conversation evidence layer: append traceable user / assistant messages into local JSONL files.
-<span class="inline">recordConversation</span> finds the new messages in the raw messages array, sanitizes injected tags and noise, then writes one message per line to the daily file.
+<span class="inline">recordConversation</span> finds the new messages in the raw messages array, removes recall wrappers, metadata, and structural noise, then writes one message per line to the daily file.
 </p>
 
 <div class="card analogy">
@@ -1683,7 +1683,7 @@ L0 is not a summary layer. It is the raw conversation evidence layer: append tra
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">filter</div><div class="nd">keep user / assistant and skip non-capturable text</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">sanitize</div><div class="nd">remove injected tags, noise, and unsafe fragments</div></div>
+  <div class="node"><div class="nt">sanitize</div><div class="nd">remove recall wrappers, markers, metadata, and structural noise</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node hl"><div class="nt">JSONL</div><div class="nd">daily append, one message per line</div></div>
 </div>
@@ -1702,7 +1702,7 @@ Then <span class="inline">extractUserAssistantMessages</span> extracts only user
     <tr><td><span class="inline">sessionKey</span></td><td>Logical session key</td><td>Groups records from the same task or window</td></tr>
     <tr><td><span class="inline">sessionId</span></td><td>Host session ID</td><td>Preserves the traceable host source</td></tr>
     <tr><td><span class="inline">role</span></td><td>user or assistant</td><td>Separates requests, answers, and extraction direction</td></tr>
-    <tr><td><span class="inline">messageText</span></td><td>Sanitized message body</td><td>Raw input for L1 extraction and human inspection</td></tr>
+    <tr><td><span class="inline">content</span></td><td>Sanitized message body</td><td>Raw input for L1 extraction and human inspection; vector or indexing layers may map text into different fields</td></tr>
     <tr><td><span class="inline">timestamp</span> / <span class="inline">recordedAt</span></td><td>Message time and record time</td><td>Supports cursor filtering, ordering, and audit</td></tr>
   </tbody>
 </table>
@@ -1715,8 +1715,8 @@ This layout keeps appends cheap and makes inspection date-scoped: today's agent 
 
 <h2>Sanitization and restoring the original prompt</h2>
 <div class="cols">
-  <div class="col"><h4>Sanitize before writing</h4><p><span class="inline">sanitizeText</span> in <span class="inline">src/utils/sanitize.ts</span> removes injected tags, recall wrapper markers, excessive noise, and unsafe fragments; <span class="inline">shouldCaptureL0</span> decides whether the cleaned text is worth capturing.</p></div>
-  <div class="col"><h4>Fall back when prepend polluted it</h4><p><span class="inline">pendingOriginalPrompts</span> in <span class="inline">index.ts</span> caches the original user prompt. If recall prepend changed the user message, the recorder replaces the polluted text with the cached original prompt.</p></div>
+  <div class="col"><h4>Sanitize before writing</h4><p><span class="inline">sanitizeText</span> in <span class="inline">src/utils/sanitize.ts</span> removes injected memory/context wrappers, recall markers, metadata, timestamps, media/base64, and structural noise; prompt-injection and content-quality rejection is deferred to L1 <span class="inline">shouldExtractL1</span>.</p></div>
+  <div class="col"><h4>Fall back when prepend polluted it</h4><p><span class="inline">pendingOriginalPrompts</span> in <span class="inline">index.ts</span> caches the original user prompt. When <span class="inline">originalUserText</span> and a matching target message/timestamp are available, the recorder restores the cached original prompt; otherwise it falls back to sanitization and logging.</p></div>
 </div>
 
 <p>
@@ -1735,7 +1735,7 @@ Otherwise L1 may treat old recalled memory as a new fact from this turn, creatin
   <div class="tag">🔬 Source anchors</div>
   <ul>
     <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: <span class="inline">recordConversation</span>, <span class="inline">extractUserAssistantMessages</span>, position slice, timestamp cursor, JSONL append</li>
-    <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">sanitizeText</span>, <span class="inline">shouldCaptureL0</span>, injected tag and noise filtering</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">sanitizeText</span>, <span class="inline">shouldCaptureL0</span>, recall wrapper, metadata, and structural noise cleanup</li>
     <li><span class="inline">src/utils/time.ts</span>: <span class="inline">formatLocalDate</span>, daily files by local date</li>
     <li><span class="inline">index.ts</span>: <span class="inline">pendingOriginalPrompts</span> caches the original prompt before prepend</li>
   </ul>
@@ -1744,7 +1744,7 @@ Otherwise L1 may treat old recalled memory as a new fact from this turn, creatin
 <div class="card key">
   <div class="tag">✅ Key points</div>
   L0 is the traceable evidence layer: JSONL uses one message per line, appends by day, carries <span class="inline">sessionKey</span> / <span class="inline">sessionId</span>,
-  slices before extracting user / assistant messages, sanitizes injected pollution, and restores the original prompt when recall prepend changed it.
+  slices before extracting user / assistant messages, cleans recall wrappers and structural noise, and restores the original prompt when cached text matches the target message; otherwise it falls back to sanitization and logging.
 </div>
 
 <div class="selftest">
@@ -1765,7 +1765,7 @@ Otherwise L1 may treat old recalled memory as a new fact from this turn, creatin
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>Why replace a recall-prepended user message with the original prompt?</li>
+    <li>When can the recorder restore the cached original prompt, and when does it fall back to sanitization and logging?</li>
   </ul>
 </div>
 </div>
