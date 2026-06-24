@@ -1,0 +1,132 @@
+name: Visual Guide CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Build and validate static guide
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build lesson pages
+        run: python3 src/build.py
+
+      - name: Build print pages
+        run: python3 src/build_print.py
+
+      - name: Check generated HTML structure
+        run: python3 src/check_html.py
+
+      - name: Check internal links
+        run: python3 src/check_links.py
+
+      - name: Check guide invariants
+        run: |
+          python3 - <<'PY'
+          import importlib.util
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          root = Path.cwd()
+          src = root / "src"
+          sys.path.insert(0, str(src))
+          import shell
+          import registry
+          import quizzes
+
+          expected = 34
+          pages = [page[0] for page in shell.PAGES]
+          content = set(registry.CONTENT)
+          quiz_keys = set(quizzes.QUIZZES)
+          lesson_files = sorted(path.name for path in (root / "lessons").glob("*.html"))
+
+          failures = []
+          if len(pages) != expected:
+              failures.append(f"shell.PAGES has {len(pages)} lessons, expected {expected}")
+          if len(content) != expected:
+              failures.append(f"registry.CONTENT has {len(content)} lessons, expected {expected}")
+          if len(quiz_keys) != expected:
+              failures.append(f"quizzes.QUIZZES has {len(quiz_keys)} lessons, expected {expected}")
+          if pages != lesson_files:
+              failures.append("lessons/*.html does not match shell.PAGES order and names")
+          if set(pages) != content:
+              failures.append("registry.CONTENT keys do not match shell.PAGES")
+          if set(pages) != quiz_keys:
+              failures.append("quizzes.QUIZZES keys do not match shell.PAGES")
+
+          for name in ("index.html", "print_zh.html", "print_en.html"):
+              if not (root / name).is_file():
+                  failures.append(f"missing generated file: {name}")
+
+          for name in ("print_zh.html", "print_en.html"):
+              html = (root / name).read_text(encoding="utf-8")
+              count = html.count('class="lesson-print"')
+              if count != expected:
+                  failures.append(f"{name} has {count} print lesson sections, expected {expected}")
+
+          glossary_html = (root / "lessons" / "34-debug-tests-contribution-glossary.html").read_text(encoding="utf-8")
+          for anchor in re.findall(r'id="(glossary-[^"]+)"', glossary_html):
+              if f'#{anchor}' not in glossary_html and anchor == "":
+                  failures.append("invalid empty glossary anchor")
+
+          if failures:
+              print("Guide invariant check failed:")
+              for failure in failures:
+                  print(f"- {failure}")
+              raise SystemExit(1)
+          print("Guide invariant check passed: 34 lessons, content, quizzes, lesson pages, and print pages align.")
+          PY
+
+      - name: Scan for release red flags
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path.cwd()
+          skip_dirs = {".git", ".github", ".pytest_cache", "__pycache__"}
+          scanned_ext = {".py", ".md", ".html", ".yml", ".yaml", ".txt"}
+          bad_terms = ["TO" + "DO", "TB" + "D", "FIX" + "ME"]
+          branding_terms = ["OpenClaw visual guide draft", "planned to build up"]
+          secret_terms = ["BEGIN RSA PRIVATE KEY", "BEGIN OPENSSH PRIVATE KEY", "password=", "api_key=", "secret_key="]
+          matches = []
+
+          for path in root.rglob("*"):
+              if not path.is_file():
+                  continue
+              if any(part in skip_dirs for part in path.parts):
+                  continue
+              if path.suffix not in scanned_ext and path.name not in {"LICENSE", "LICENSE-CONTENT"}:
+                  continue
+              text = path.read_text(encoding="utf-8", errors="ignore")
+              rel = path.relative_to(root)
+              for term in bad_terms + branding_terms + secret_terms:
+                  if term in text:
+                      matches.append(f"{rel}: {term}")
+
+          if matches:
+              print("Release red-flag scan found matches:")
+              for match in matches:
+                  print(f"- {match}")
+              raise SystemExit(1)
+          print("Release red-flag scan passed.")
+          PY
+
+      - name: Check generated-output drift
+        run: |
+          git diff --exit-code -- index.html lessons print_zh.html print_en.html
