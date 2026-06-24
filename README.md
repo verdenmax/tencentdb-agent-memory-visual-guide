@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 19 lessons.
+The guide currently contains 20 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -29,6 +29,7 @@ The guide currently contains 19 lessons.
 | 17 | Why L2 scene blocks exist |
 | 18 | SceneExtractor and sandboxed file-writing tools |
 | 19 | Scene index, navigation, and backups |
+| 20 | PersonaGenerator and incremental profile updates |
 
 ## How to view locally
 

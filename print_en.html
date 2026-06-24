@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 19 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">19 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 20 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">20 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -351,6 +351,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">为什么需要 L2 Scene Blocks</span><span class="lang-en">Why L2 scene blocks exist</span></li>
   <li><span class="lang-zh">SceneExtractor 与沙箱文件写入工具</span><span class="lang-en">SceneExtractor and sandboxed file-writing tools</span></li>
   <li><span class="lang-zh">Scene index、导航与备份</span><span class="lang-en">Scene index, navigation, and backups</span></li>
+  <li><span class="lang-zh">PersonaGenerator 与增量画像更新</span><span class="lang-en">PersonaGenerator and incremental profile updates</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -2411,6 +2412,119 @@ appendSystemContext("&lt;scene-navigation&gt;" + nav + "&lt;/scene-navigation&gt
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>Why should engineering code write scene_index instead of letting the LLM maintain it directly?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">PersonaGenerator 与增量画像更新</span><span class="lang-en">PersonaGenerator and incremental profile updates</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+PersonaGenerator turns L2 scene blocks into the L3 <span class="inline">persona.md</span>: first generation builds the stable profile,
+while later incremental updates prioritize scenes changed since the last persona checkpoint and preserve stable facts from the existing profile.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧑‍🏫 Analogy</div>
+  L2 scenes are project journals; L3 persona is the long-term collaboration brief you give to a new teammate. The first brief needs enough journals.
+  Later updates should not rewrite the entire identity every time; they should read recent/changed journals and revise the brief while keeping stable conclusions.
+</div>
+
+<h2>L3 is injected context, not the evidence layer</h2>
+<div class="layers">
+  <div class="layer l-core"><div class="lh"><span class="badge">L1</span><span class="name">evidence atoms</span></div><div class="ld">Fine-grained facts and <span class="inline">source_message_ids</span> for search and traceability.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">L2</span><span class="name">scene blocks</span></div><div class="ld">Activity narratives, timelines, summaries, and scene navigation built from related L1 records.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">persona.md</span></div><div class="ld">Stable preferences, long-term goals, collaboration style, and background summary for future injection.</div></div>
+</div>
+
+<div class="card warn">
+  <div class="tag">⚠️ Design warning</div>
+  Persona is high-level context injected into the agent, not an immutable source of truth. When claims conflict or need audit,
+  follow Scene Navigation back to L2 scenes, then drill down to L1/L0 evidence instead of treating <span class="inline">persona.md</span> as final truth.
+</div>
+
+<h2>First generation vs incremental update</h2>
+<div class="cols">
+  <div class="col"><h4>First generation</h4><p>When there is no existing persona, the prompt primarily receives available scenes, the scene index, and generation rules. The model summarizes long-term preferences, work style, project background, and stable constraints into a readable <span class="inline">persona.md</span>.</p></div>
+  <div class="col"><h4>Incremental update</h4><p>When persona already exists, code first removes old navigation with <span class="inline">stripSceneNavigation</span>, then sends the existing profile plus changed scenes to the prompt. The model should keep still-valid stable information and absorb only changes supported by new evidence.</p></div>
+</div>
+
+<p>
+The key cursor for incremental mode is <span class="inline">last_persona_time</span>. After reading
+<span class="inline">.metadata/recall_checkpoint.json</span>, PersonaGenerator filters the scene index by
+<span class="inline">updated</span> to find scenes changed since the last persona generation. L3 therefore avoids rescanning every scene on every run,
+and a local activity does not cause the whole long-term profile to be rewritten.
+</p>
+
+<h2>generateLocalPersona flow</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Read checkpoint</h4><p>Read <span class="inline">last_persona_time</span> and processed counts to decide whether enough new change exists.</p><div class="mono">read checkpoint</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Load old persona</h4><p>Read <span class="inline">persona.md</span> and remove old Scene Navigation first, so repeated generation does not duplicate stale navigation.</p><div class="mono">load persona -&gt; strip navigation</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Select changed scenes</h4><p>Filter the scene index with <span class="inline">scene.updated &gt; last_persona_time</span>; incremental mode prioritizes these scenes.</p><div class="mono">select changed scenes</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Back up and let the LLM write</h4><p>Back up <span class="inline">persona.md</span> before writing; the tool-enabled LLM writes the target file in the data directory workspace.</p><div class="mono">backup -&gt; LLM write</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Sanitize, append navigation, advance cursor</h4><p>Read persona again, apply <span class="inline">escapeXmlTags</span> and <span class="inline">stripSceneNavigation</span>, append fresh navigation, then call <span class="inline">markPersonaGenerated</span> only after success.</p><div class="mono">sanitize -&gt; append navigation -&gt; checkpoint</div></div></div>
+</div>
+
+<h2>Engineering code vs LLM boundary</h2>
+<div class="cols">
+  <div class="col"><h4>Engineering code</h4><p>Owns checkpoints, scene-index filtering, backups, runner workspace, post-processing, Scene Navigation appending, and <span class="inline">markPersonaGenerated</span>. State must advance only after a successful write.</p></div>
+  <div class="col"><h4>LLM writer</h4><p>Uses the first or incremental prompt to rewrite the body of <span class="inline">persona.md</span>. It may organize prose, but it does not own checkpoints, indexes, or the decision about which scenes count as changed.</p></div>
+</div>
+
+<h2>Core pseudocode</h2>
+<pre class="code">cp = checkpoint.read()
+existing = stripSceneNavigation(read(persona.md))
+changed = sceneIndex.filter(scene.updated &gt; cp.last_persona_time)
+mode = existing ? "incremental" : "first"
+backup(persona.md)
+llm.run(buildPersonaPrompt(mode, changed, existing), workspaceDir=dataDir)
+persona = escapeXmlTags(stripSceneNavigation(read(persona.md)))
+write(persona.md, persona + generateSceneNavigation(sceneIndex))
+checkpoint.markPersonaGenerated(cp.total_processed)</pre>
+
+<p>
+The final line depends on the preceding work: the checkpoint should advance only after <span class="inline">persona.md</span>
+has been written, sanitized, and given fresh navigation. If writing fails, the next run still sees the same changed scenes,
+avoiding data loss where the profile was not persisted but the cursor skipped ahead.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>: <span class="inline">PersonaGenerator.generateLocalPersona</span> and <span class="inline">generate</span> orchestrate scene reading, backup, LLM writing, post-processing, and checkpoint advancement.</li>
+    <li><span class="inline">src/core/prompts/persona-generation.ts</span>: first and incremental prompt inputs differ; the incremental prompt includes existing persona plus changed scenes.</li>
+    <li><span class="inline">src/core/persona/persona-trigger.ts</span>: contains the helper that decides whether a persona update should run.</li>
+    <li><span class="inline">src/core/profile/profile-sync.ts</span>: shows the profile sync path after generation, clarifying how L3 is consumed by runtime context.</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: stores <span class="inline">last_persona_time</span> and uses <span class="inline">markPersonaGenerated</span> to advance the persona checkpoint after a successful write.</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">escapeXmlTags</span> sanitizes persona text so injection-like tags do not enter later context.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  PersonaGenerator distills L2 scenes into stable L3 persona; first generation builds the profile, while incremental updates read changed scenes and preserve existing stable information.
+  The file is backed up before writing, sanitized and given fresh Scene Navigation after writing, and the checkpoint advances only after persistence succeeds. Persona is injected context, not an immutable source of truth.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. What does incremental persona update analyze first?</div>
+  <ol class="opts">
+    <li>Only browser CSS</li>
+    <li>Scenes changed since the last persona update while preserving the existing profile</li>
+    <li>Deleting the old persona every time</li>
+    <li>Reading only L0 and ignoring L2</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: B</strong>. L3 is a stable profile, so incremental updates focus on changes and avoid rewriting stable information.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>Why append Scene Navigation again after persona.md is written?</li>
   </ul>
 </div>
 </div>

@@ -3,17 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var l=localStorage.getItem('tdamvg-lang');if(l==='en'){document.documentElement.dataset.lang='en';document.documentElement.lang='en';}}catch(e){}</script>
-<title>11 · 运行时初始化与配置解析 / Runtime init and config parsing - TencentDB Agent Memory Visual Guide</title>
-<meta name="description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜运行时初始化与配置解析 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<title>20 · PersonaGenerator 与增量画像更新 / PersonaGenerator and incremental profile updates - TencentDB Agent Memory Visual Guide</title>
+<meta name="description" content="第五部分 · L2/L3：场景与画像记忆｜PersonaGenerator 与增量画像更新 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="theme-color" content="#0f766e">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzBmNzY2ZScvPjx0ZXh0IHg9JzE2JyB5PScyMicgZm9udC1mYW1pbHk9J3N5c3RlbS11aSxzYW5zLXNlcmlmJyBmb250LXNpemU9JzEzJyBmb250LXdlaWdodD0nODAwJyBmaWxsPScjZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz5BTTwvdGV4dD48L3N2Zz4=">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TencentDB Agent Memory Visual Guide">
-<meta property="og:title" content="11 · 运行时初始化与配置解析 / Runtime init and config parsing - TencentDB Agent Memory Visual Guide">
-<meta property="og:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜运行时初始化与配置解析 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta property="og:title" content="20 · PersonaGenerator 与增量画像更新 / PersonaGenerator and incremental profile updates - TencentDB Agent Memory Visual Guide">
+<meta property="og:description" content="第五部分 · L2/L3：场景与画像记忆｜PersonaGenerator 与增量画像更新 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="11 · 运行时初始化与配置解析 / Runtime init and config parsing - TencentDB Agent Memory Visual Guide">
-<meta name="twitter:description" content="第三部分 · Hooks、Adapters 与 TdaiCore｜运行时初始化与配置解析 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
+<meta name="twitter:title" content="20 · PersonaGenerator 与增量画像更新 / PersonaGenerator and incremental profile updates - TencentDB Agent Memory Visual Guide">
+<meta name="twitter:description" content="第五部分 · L2/L3：场景与画像记忆｜PersonaGenerator 与增量画像更新 - TencentDB Agent Memory 图解学习指南（中英双语，配数据流图、源码对应与自测题）">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -317,245 +317,234 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="topbar">
   <div class="topbar-inner">
     <a class="home" href="../index.html">🧠 <b class="lang-zh">TencentDB Agent Memory 图解指南</b><b class="lang-en">TencentDB Agent Memory Visual Guide</b></a>
-    <span class="pill"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></span>
-    <span class="pill">11 / 20</span>
+    <span class="pill"><span class="lang-zh">第五部分 · L2/L3：场景与画像记忆</span><span class="lang-en">Part 5 · L2/L3: scene and persona memory</span></span>
+    <span class="pill">20 / 20</span>
     <button class="langtoggle" onclick="tdamvgToggleLang()" aria-label="switch language"><span class="lang-zh">EN</span><span class="lang-en">中</span></button>
   </div>
-  <div class="progress"><span style="width:55%"></span></div>
+  <div class="progress"><span style="width:100%"></span></div>
 </div>
 <div class="wrap">
   <div class="hero">
-    <div class="part"><span class="lang-zh">第三部分 · Hooks、Adapters 与 TdaiCore</span><span class="lang-en">Part 3 · Hooks, adapters, and TdaiCore</span></div>
-    <h1><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></h1>
+    <div class="part"><span class="lang-zh">第五部分 · L2/L3：场景与画像记忆</span><span class="lang-en">Part 5 · L2/L3: scene and persona memory</span></div>
+    <h1><span class="lang-zh">PersonaGenerator 与增量画像更新</span><span class="lang-en">PersonaGenerator and incremental profile updates</span></h1>
   </div>
   <div class="lang-zh">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-本课把前几课的“入口壳、adapter、core”串到启动顺序上：OpenClaw 给插件一份原始 <span class="inline">api.pluginConfig</span>，
-<span class="inline">index.ts</span> 每次注册只解析一次，先准备配置、时间模块和目录；<span class="inline">TdaiCore.initialize()</span> 随后启动异步 store 初始化，但不会等 store 全部完成才创建 pipeline manager。
+PersonaGenerator 把 L2 scene blocks 提炼成 L3 <span class="inline">persona.md</span>：第一次生成建立稳定画像，
+后续增量更新只优先阅读自上次 persona checkpoint 之后变化的场景，同时保留旧画像中的稳定信息。
 </p>
 
 <div class="card analogy">
-  <div class="tag">🧩 生活类比</div>
-  开店前先看当天排班表：店长只读一次排班表，把默认岗位补齐，先开门并准备货架；清点库房可以在后台继续，收银系统也能先接线。
-  运行时初始化也是这样：配置和目录先稳定下来，store 初始化异步推进；需要 store 的路径再等待 <span class="inline">storeReady</span>，或在 store 不可用时降级。
+  <div class="tag">🧑‍🏫 生活类比</div>
+  L2 场景像一叠项目日志，L3 persona 像交给新同事的长期协作简介。第一次要读足够多日志形成简介；
+  之后不应每次重写整个人设，而是查看最近新增/改动的日志，在保留稳定结论的基础上修订简介。
 </div>
 
-<h2>启动主线：原始配置到 hooks</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> 从 <span class="inline">api.pluginConfig</span> 取得原始对象，并记录收到的 key 数量。</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> 把用户配置与默认值合并成 <span class="inline">MemoryTdaiConfig</span>，本次 register 后续都复用它。</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> 选出 OpenClaw state 目录；<span class="inline">index.ts</span> 先创建 conversations、records、scene_blocks、.metadata 和 .backup。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>core starts</h4><p><span class="inline">core.initialize()</span> 再确认目录，立即把 <span class="inline">storeReady = initStores()</span> 放到后台，并同步创建 pipeline manager。</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>hooks / tools</h4><p><span class="inline">index.ts</span> 在 core 初始化启动后注册 hooks/tools；store 依赖路径在调用时 await <span class="inline">storeReady</span>，pipeline runners 在 store 完成或失败后接线。</p></div></div>
-</div>
-
-<p>
-注意“每次注册解析一次”并不等于全进程只解析一次。OpenClaw 可能因为插件扫描、Gateway 启动、channel bootstrap 或配置 reload 多次调用
-<span class="inline">register(api)</span>；每次调用都收到完整配置，所以入口直接解析当前 raw object，避免复用过期配置。
-</p>
-
-<h2>零配置与高级配置的差别</h2>
-<div class="cols">
-  <div class="col"><h4>零配置</h4><p><span class="inline">parseConfig(undefined)</span> 或 <span class="inline">{}</span> 仍会启动：capture、extraction、pipeline、recall 默认启用；SQLite 是默认 store；embedding provider 为 none，因此向量能力禁用但主对话不被阻塞；offload 默认关闭。</p></div>
-  <div class="col"><h4>高级配置</h4><p>用户可以按组覆盖 capture、extraction、pipeline、recall、persona、embedding、offload、store、report、llm、bm25、tcvdb 等行为。远程 embedding 字段不完整时，配置保留错误消息并降级为无 embedding。</p></div>
-</div>
-
-<h2>配置组分别喂给谁</h2>
+<h2>L3 不是证据层，而是注入上下文</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lh"><span class="badge">Entry</span><span class="name">timezone / report / offload</span></div><div class="ld">入口先用 timezone 初始化时间模块，用 report 控制上报行为，并仅在 offload.enabled 为 true 时注册 Context Offload。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Core</span><span class="name">capture / extraction / pipeline / recall / persona</span></div><div class="ld">这些组决定是否捕获 L0、如何抽取 L1、scheduler 何时跑、召回数量/超时/策略，以及 L2/L3 画像生成节奏。</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend 决定 SQLite 还是 TCVDB；SQLite 再按 embedding 配置决定是否创建远程 embedding service；TCVDB 使用服务端 embedding 与可选 BM25。</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">L1</span><span class="name">evidence atoms</span></div><div class="ld">细粒度事实与 <span class="inline">source_message_ids</span>，负责可搜索、可追溯。</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">L2</span><span class="name">scene blocks</span></div><div class="ld">把相关 L1 聚合成活动叙事、时间线、摘要和场景导航。</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">persona.md</span></div><div class="ld">稳定偏好、长期目标、协作方式与背景摘要，用于下一轮注入。</div></div>
 </div>
 
-<h2>目录、manifest 与 checkpoint 为什么先于 store 完成态</h2>
+<div class="card warn">
+  <div class="tag">⚠️ 设计警告</div>
+  persona 是被注入给 agent 的高层上下文，不是不可变的事实来源。遇到冲突或需要审计时，应沿
+  Scene Navigation 回到 L2 场景，再下钻到 L1/L0 证据，而不是把 <span class="inline">persona.md</span> 当成最终真相。
+</div>
+
+<h2>第一次生成 vs 增量更新</h2>
+<div class="cols">
+  <div class="col"><h4>First generation</h4><p>当没有已有 persona，prompt 输入主要是可用场景、场景索引和生成要求。模型需要从 L2 中总结长期偏好、工作方式、项目背景和稳定约束，写出一个可读的 <span class="inline">persona.md</span>。</p></div>
+  <div class="col"><h4>Incremental update</h4><p>当已有 persona，工程代码先用 <span class="inline">stripSceneNavigation</span> 去掉旧导航，再把现有画像与变化场景一起交给 prompt。模型应保留仍成立的稳定信息，只吸收新证据支持的变化。</p></div>
+</div>
+
 <p>
-<span class="inline">initDataDirectories(dataDir)</span> 先把运行时目录建好，后续 L0 JSONL、L1 records、scene blocks、metadata 和备份才有稳定落点。
-进入 <span class="inline">TdaiCore.initialize()</span> 后，<span class="inline">initStores</span> 以 promise 形式启动：它会维护 manifest、创建 store bundle，并在失败时记录降级。
-同时 <span class="inline">createPipelineManager</span> 可以同步创建，因为 runner 接线被挂到 <span class="inline">storeReady.then(...).catch(...)</span> 后面。
+增量模式的关键游标是 <span class="inline">last_persona_time</span>。PersonaGenerator 读取
+<span class="inline">.metadata/recall_checkpoint.json</span> 后，用 scene index 里的 <span class="inline">updated</span>
+过滤出“自上次 persona 生成后变化过”的场景。这样 L3 不需要每轮重扫所有场景，也不会因为一次局部活动把长期画像全部重写。
 </p>
+
+<h2>generateLocalPersona 的执行流</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>读取 checkpoint</h4><p>读取 <span class="inline">last_persona_time</span> 与处理计数，决定是否有足够新变化需要生成。</p><div class="mono">read checkpoint</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>加载旧 persona</h4><p>读取 <span class="inline">persona.md</span>，先去掉旧 Scene Navigation，避免导航重复或过期。</p><div class="mono">load persona -&gt; strip navigation</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>选择变化场景</h4><p>用 <span class="inline">scene.updated &gt; last_persona_time</span> 过滤 scene index，增量模式只优先分析这些场景。</p><div class="mono">select changed scenes</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>备份并让 LLM 写入</h4><p>写入前备份 <span class="inline">persona.md</span>；tool-enabled LLM 只在数据目录工作区写目标文件。</p><div class="mono">backup -&gt; LLM write</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>清洗、追加导航、推进游标</h4><p>重新读取 persona，执行 <span class="inline">escapeXmlTags</span> 与 <span class="inline">stripSceneNavigation</span>，追加新导航；只有写入成功后才调用 <span class="inline">markPersonaGenerated</span>。</p><div class="mono">sanitize -&gt; append navigation -&gt; checkpoint</div></div></div>
+</div>
+
+<h2>工程代码与 LLM 的边界</h2>
+<div class="cols">
+  <div class="col"><h4>Engineering code</h4><p>负责 checkpoint、scene index 过滤、备份、runner 工作区、后处理、Scene Navigation 追加和 <span class="inline">markPersonaGenerated</span>。这些状态更新必须在成功写入后发生。</p></div>
+  <div class="col"><h4>LLM writer</h4><p>负责根据 first 或 incremental prompt 改写 <span class="inline">persona.md</span> 正文。它可以整理表达，但不拥有 checkpoint、索引或“哪些场景算变化”的判断。</p></div>
+</div>
+
+<h2>核心伪代码</h2>
+<pre class="code">cp = checkpoint.read()
+existing = stripSceneNavigation(read(persona.md))
+changed = sceneIndex.filter(scene.updated &gt; cp.last_persona_time)
+mode = existing ? "incremental" : "first"
+backup(persona.md)
+llm.run(buildPersonaPrompt(mode, changed, existing), workspaceDir=dataDir)
+persona = escapeXmlTags(stripSceneNavigation(read(persona.md)))
+write(persona.md, persona + generateSceneNavigation(sceneIndex))
+checkpoint.markPersonaGenerated(cp.total_processed)</pre>
+
 <p>
-因此“目录先准备”是真的；“store 一定先于 pipeline manager、hooks 和 tools 完成”不准确。自动 recall、capture、session end 等 store 依赖入口会 await <span class="inline">storeReady</span>；搜索工具则使用当前可用的 store 句柄，缺失时走无向量/空结果等降级路径。
-</p>
-
-<h2>伪代码</h2>
-<pre class="code">raw = api.pluginConfig
-cfg = parseConfig(raw)
-initTimeModule(cfg.timezone)
-initDataDirectories(dataDir)
-core = new TdaiCore(adapter, cfg)
-coreReady = core.initialize()
-
-TdaiCore.initialize():
-    initDataDirectories(dataDir)
-    storeReady = initStores()      # async; do not await here
-    scheduler = createPipelineManager()  # sync; no store needed
-    storeReady.then(wirePipelineRunners).catch(wireDegradedRunners)
-
-register_tools_and_hooks(core)     # after initialize starts
-
-handleBeforeRecall / handleTurnCommitted:
-    await storeReady.catch(ignore)
-    run recall or capture with available stores</pre>
-
-<p>
-这段伪代码省略了日志、hook policy 和 adapter 细节，但保留了关键顺序：先把 raw config 固化为 cfg，再准备运行目录；
-然后 <span class="inline">TdaiCore</span> 启动异步 <span class="inline">storeReady</span>，pipeline manager 可先创建，hooks/tools 在 core 初始化启动后注册。offload 是旁路能力：只有 <span class="inline">cfg.offload.enabled</span> 为真，入口才调用 <span class="inline">registerOffload(api, cfg.offload)</span>。
+注意最后一行的顺序：只有 <span class="inline">persona.md</span> 写入、清洗和导航追加都成功后，
+checkpoint 才能前进。否则下一轮仍会看到同一批变化场景，避免“画像没有落盘但游标已经跳过”的数据丢失。
 </p>
 
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/config.ts</span>：<span class="inline">parseConfig</span>、配置接口与默认值</li>
-    <li><span class="inline">index.ts</span>：读取 <span class="inline">api.pluginConfig</span>、配置日志、初始化时间和目录、启动 core 初始化、注册 hooks/tools、条件注册 offload</li>
-    <li><span class="inline">src/core/tdai-core.ts</span>：<span class="inline">initialize</span> 中启动 <span class="inline">storeReady</span>、同步创建 pipeline manager、store 依赖方法 await 或降级</li>
-    <li><span class="inline">src/utils/pipeline-factory.ts</span>：<span class="inline">initDataDirectories</span>、<span class="inline">initStores</span>、<span class="inline">createPipelineManager</span></li>
-    <li><span class="inline">src/core/store/factory.ts</span>：<span class="inline">createStoreBundle</span> 按 storeBackend 与 embedding 配置选后端</li>
-    <li><span class="inline">src/utils/openclaw-state-dir.ts</span>：OpenClaw state 目录解析与 fallback</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>：<span class="inline">PersonaGenerator.generateLocalPersona</span> 与 <span class="inline">generate</span> 编排读取场景、备份、LLM 写入、后处理和 checkpoint 推进。</li>
+    <li><span class="inline">src/core/prompts/persona-generation.ts</span>：first 与 incremental prompt 输入不同；增量 prompt 带已有 persona 和变化场景。</li>
+    <li><span class="inline">src/core/persona/persona-trigger.ts</span>：封装是否触发 persona 更新的决策辅助逻辑。</li>
+    <li><span class="inline">src/core/profile/profile-sync.ts</span>：说明生成后的 profile/persona 同步路径，帮助理解 L3 如何被运行时消费。</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：保存 <span class="inline">last_persona_time</span>，并通过 <span class="inline">markPersonaGenerated</span> 在成功写入后推进 persona checkpoint。</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>：<span class="inline">escapeXmlTags</span> 清洗 persona 文本，避免注入型标签进入后续上下文。</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
-  运行时初始化的核心不是“读很多配置”，而是把配置稳定化、把默认值补齐、先准备目录，再让 store readiness 与 pipeline/hook 接线按各自依赖推进。
-  这样零配置能安全启动，高级配置能精确影响各功能组，store、offload 和 embedding 不完整时也能降级而不阻塞主对话。
+  PersonaGenerator 把 L2 场景提炼为稳定 L3 persona；第一次生成建立画像，增量更新读取变化场景并保留已有稳定信息。
+  写入前备份，写入后清洗并重新追加 Scene Navigation；checkpoint 只在成功落盘后推进。persona 是注入上下文，不是不可变事实源。
 </div>
 <div class="selftest">
 <h2>🧪 自测 · 想一想为什么这么设计</h2>
 <div class="quiz">
-  <div class="qn">1. 为什么零配置能启动？</div>
+  <div class="qn">1. 增量 persona 更新优先分析什么？</div>
   <ol class="opts">
-    <li>因为 offload 总是开启</li>
-    <li>parseConfig 为各功能组填入默认值</li>
-    <li>因为必须连接 TCVDB</li>
-    <li>因为跳过所有配置解析</li>
+    <li>只分析浏览器 CSS</li>
+    <li>自上次 persona 更新时间后变化的场景，同时保留已有画像</li>
+    <li>每次删除所有旧 persona</li>
+    <li>只读取 L0，不看 L2</li>
   </ol>
   <details class="accordion">
     <summary>看答案与解析 <span class="hint">点击展开</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：B</strong>。默认值让 capture/recall/pipeline 等可按安全默认运行。</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：B</strong>。L3 是稳定画像，增量更新应聚焦新变化并避免重写稳定信息。</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
-    <li>如果 embedding 配置不完整，系统应该如何降级才不阻塞主对话？</li>
+    <li>为什么 persona.md 写完后还要重新追加 Scene Navigation？</li>
   </ul>
 </div>
 </div></div>
   <div class="lang-en">
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
-This lesson connects the plugin shell, adapter, and core to startup order: OpenClaw gives the plugin raw <span class="inline">api.pluginConfig</span>;
-<span class="inline">index.ts</span> parses it once for that registration and prepares config, time, and directories first. Then <span class="inline">TdaiCore.initialize()</span> starts async store initialization, but does not wait for stores to finish before creating the pipeline manager.
+PersonaGenerator turns L2 scene blocks into the L3 <span class="inline">persona.md</span>: first generation builds the stable profile,
+while later incremental updates prioritize scenes changed since the last persona checkpoint and preserve stable facts from the existing profile.
 </p>
 
 <div class="card analogy">
-  <div class="tag">🧩 Analogy</div>
-  Before a shop opens, the manager reads the roster once, fills default roles, opens the door, and prepares shelves; inventory counting can continue in the background while the register is being wired.
-  Runtime initialization is similar: config and directories become stable first, store initialization proceeds asynchronously, and store-dependent paths later await <span class="inline">storeReady</span> or degrade when stores are unavailable.
+  <div class="tag">🧑‍🏫 Analogy</div>
+  L2 scenes are project journals; L3 persona is the long-term collaboration brief you give to a new teammate. The first brief needs enough journals.
+  Later updates should not rewrite the entire identity every time; they should read recent/changed journals and revise the brief while keeping stable conclusions.
 </div>
 
-<h2>Startup path: raw config to hooks</h2>
-<div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> reads <span class="inline">api.pluginConfig</span> and logs how many keys arrived.</p></div></div>
-  <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> merges user config with defaults into <span class="inline">MemoryTdaiConfig</span>; the rest of this register call reuses it.</p></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> chooses the OpenClaw state directory; <span class="inline">index.ts</span> first creates conversations, records, scene_blocks, .metadata, and .backup.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>core starts</h4><p><span class="inline">core.initialize()</span> confirms dirs again, starts <span class="inline">storeReady = initStores()</span> in the background, and creates the pipeline manager synchronously.</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>hooks / tools</h4><p><span class="inline">index.ts</span> registers hooks/tools after core initialization starts; store-dependent paths await <span class="inline">storeReady</span>, and pipeline runners wire after store success or failure.</p></div></div>
-</div>
-
-<p>
-“Parse once per registration” does not mean “parse once per process.” OpenClaw may call <span class="inline">register(api)</span> during plugin scan, Gateway startup,
-channel bootstrap, or config reload. Each call receives the full config, so the entry parses the current raw object directly instead of reusing stale config.
-</p>
-
-<h2>Zero config vs advanced config</h2>
-<div class="cols">
-  <div class="col"><h4>Zero config</h4><p><span class="inline">parseConfig(undefined)</span> or <span class="inline">{}</span> can still start: capture, extraction, pipeline, and recall default on; SQLite is the default store; embedding provider is none, so vector features are disabled without blocking chat; offload defaults off.</p></div>
-  <div class="col"><h4>Advanced config</h4><p>Users can override capture, extraction, pipeline, recall, persona, embedding, offload, store, report, llm, bm25, and tcvdb behavior by group. If remote embedding fields are incomplete, config keeps an error message and degrades to no embedding.</p></div>
-</div>
-
-<h2>Where config groups feed behavior</h2>
+<h2>L3 is injected context, not the evidence layer</h2>
 <div class="layers">
-  <div class="layer l-app"><div class="lh"><span class="badge">Entry</span><span class="name">timezone / report / offload</span></div><div class="ld">The entry initializes the time module from timezone, controls reporting with report, and registers Context Offload only when offload.enabled is true.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Core</span><span class="name">capture / extraction / pipeline / recall / persona</span></div><div class="ld">These groups decide whether to capture L0, how to extract L1, when the scheduler runs, recall count/timeout/strategy, and the L2/L3 persona cadence.</div></div>
-  <div class="layer l-main"><div class="lh"><span class="badge">Store</span><span class="name">storeBackend / embedding / tcvdb / bm25</span></div><div class="ld">storeBackend chooses SQLite or TCVDB; SQLite then checks embedding config before creating a remote embedding service; TCVDB uses server-side embedding and optional BM25.</div></div>
+  <div class="layer l-core"><div class="lh"><span class="badge">L1</span><span class="name">evidence atoms</span></div><div class="ld">Fine-grained facts and <span class="inline">source_message_ids</span> for search and traceability.</div></div>
+  <div class="layer l-main"><div class="lh"><span class="badge">L2</span><span class="name">scene blocks</span></div><div class="ld">Activity narratives, timelines, summaries, and scene navigation built from related L1 records.</div></div>
+  <div class="layer l-app"><div class="lh"><span class="badge">L3</span><span class="name">persona.md</span></div><div class="ld">Stable preferences, long-term goals, collaboration style, and background summary for future injection.</div></div>
 </div>
 
-<h2>Why directories come before store readiness</h2>
+<div class="card warn">
+  <div class="tag">⚠️ Design warning</div>
+  Persona is high-level context injected into the agent, not an immutable source of truth. When claims conflict or need audit,
+  follow Scene Navigation back to L2 scenes, then drill down to L1/L0 evidence instead of treating <span class="inline">persona.md</span> as final truth.
+</div>
+
+<h2>First generation vs incremental update</h2>
+<div class="cols">
+  <div class="col"><h4>First generation</h4><p>When there is no existing persona, the prompt primarily receives available scenes, the scene index, and generation rules. The model summarizes long-term preferences, work style, project background, and stable constraints into a readable <span class="inline">persona.md</span>.</p></div>
+  <div class="col"><h4>Incremental update</h4><p>When persona already exists, code first removes old navigation with <span class="inline">stripSceneNavigation</span>, then sends the existing profile plus changed scenes to the prompt. The model should keep still-valid stable information and absorb only changes supported by new evidence.</p></div>
+</div>
+
 <p>
-<span class="inline">initDataDirectories(dataDir)</span> creates stable homes for L0 JSONL, L1 records, scene blocks, metadata, and backups before any work writes files.
-Inside <span class="inline">TdaiCore.initialize()</span>, <span class="inline">initStores</span> starts as a promise: it maintains the manifest, creates the store bundle, and records degraded mode if initialization fails.
-At the same time, <span class="inline">createPipelineManager</span> can run synchronously because runner wiring is deferred behind <span class="inline">storeReady.then(...).catch(...)</span>.
+The key cursor for incremental mode is <span class="inline">last_persona_time</span>. After reading
+<span class="inline">.metadata/recall_checkpoint.json</span>, PersonaGenerator filters the scene index by
+<span class="inline">updated</span> to find scenes changed since the last persona generation. L3 therefore avoids rescanning every scene on every run,
+and a local activity does not cause the whole long-term profile to be rewritten.
 </p>
+
+<h2>generateLocalPersona flow</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Read checkpoint</h4><p>Read <span class="inline">last_persona_time</span> and processed counts to decide whether enough new change exists.</p><div class="mono">read checkpoint</div></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Load old persona</h4><p>Read <span class="inline">persona.md</span> and remove old Scene Navigation first, so repeated generation does not duplicate stale navigation.</p><div class="mono">load persona -&gt; strip navigation</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Select changed scenes</h4><p>Filter the scene index with <span class="inline">scene.updated &gt; last_persona_time</span>; incremental mode prioritizes these scenes.</p><div class="mono">select changed scenes</div></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Back up and let the LLM write</h4><p>Back up <span class="inline">persona.md</span> before writing; the tool-enabled LLM writes the target file in the data directory workspace.</p><div class="mono">backup -&gt; LLM write</div></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Sanitize, append navigation, advance cursor</h4><p>Read persona again, apply <span class="inline">escapeXmlTags</span> and <span class="inline">stripSceneNavigation</span>, append fresh navigation, then call <span class="inline">markPersonaGenerated</span> only after success.</p><div class="mono">sanitize -&gt; append navigation -&gt; checkpoint</div></div></div>
+</div>
+
+<h2>Engineering code vs LLM boundary</h2>
+<div class="cols">
+  <div class="col"><h4>Engineering code</h4><p>Owns checkpoints, scene-index filtering, backups, runner workspace, post-processing, Scene Navigation appending, and <span class="inline">markPersonaGenerated</span>. State must advance only after a successful write.</p></div>
+  <div class="col"><h4>LLM writer</h4><p>Uses the first or incremental prompt to rewrite the body of <span class="inline">persona.md</span>. It may organize prose, but it does not own checkpoints, indexes, or the decision about which scenes count as changed.</p></div>
+</div>
+
+<h2>Core pseudocode</h2>
+<pre class="code">cp = checkpoint.read()
+existing = stripSceneNavigation(read(persona.md))
+changed = sceneIndex.filter(scene.updated &gt; cp.last_persona_time)
+mode = existing ? "incremental" : "first"
+backup(persona.md)
+llm.run(buildPersonaPrompt(mode, changed, existing), workspaceDir=dataDir)
+persona = escapeXmlTags(stripSceneNavigation(read(persona.md)))
+write(persona.md, persona + generateSceneNavigation(sceneIndex))
+checkpoint.markPersonaGenerated(cp.total_processed)</pre>
+
 <p>
-So “directories first” is true; “stores are definitely ready before the pipeline manager, hooks, and tools” is not. Auto recall, capture, and session-end paths await <span class="inline">storeReady</span>; search tools use whatever store handles are currently available and degrade to no-vector or empty-result behavior when needed.
-</p>
-
-<h2>Pseudocode</h2>
-<pre class="code">raw = api.pluginConfig
-cfg = parseConfig(raw)
-initTimeModule(cfg.timezone)
-initDataDirectories(dataDir)
-core = new TdaiCore(adapter, cfg)
-coreReady = core.initialize()
-
-TdaiCore.initialize():
-    initDataDirectories(dataDir)
-    storeReady = initStores()      # async; do not await here
-    scheduler = createPipelineManager()  # sync; no store needed
-    storeReady.then(wirePipelineRunners).catch(wireDegradedRunners)
-
-register_tools_and_hooks(core)     # after initialize starts
-
-handleBeforeRecall / handleTurnCommitted:
-    await storeReady.catch(ignore)
-    run recall or capture with available stores</pre>
-
-<p>
-This pseudocode omits logging, hook policy, and adapter details, but keeps the important order: freeze raw config into cfg and prepare runtime directories first.
-Then <span class="inline">TdaiCore</span> starts async <span class="inline">storeReady</span>, the pipeline manager may already exist, and hooks/tools register after core initialization starts. Offload is a side capability: only when
-<span class="inline">cfg.offload.enabled</span> is true does the entry call <span class="inline">registerOffload(api, cfg.offload)</span>.
+The final line depends on the preceding work: the checkpoint should advance only after <span class="inline">persona.md</span>
+has been written, sanitized, and given fresh navigation. If writing fails, the next run still sees the same changed scenes,
+avoiding data loss where the profile was not persisted but the cursor skipped ahead.
 </p>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/config.ts</span>: <span class="inline">parseConfig</span>, interfaces, and defaults</li>
-    <li><span class="inline">index.ts</span>: reads <span class="inline">api.pluginConfig</span>, logs config, initializes time and dirs, starts core initialization, registers hooks/tools, conditionally registers offload</li>
-    <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">initialize</span> starts <span class="inline">storeReady</span>, creates the pipeline manager synchronously, and makes store-dependent methods await or degrade</li>
-    <li><span class="inline">src/utils/pipeline-factory.ts</span>: <span class="inline">initDataDirectories</span>, <span class="inline">initStores</span>, <span class="inline">createPipelineManager</span></li>
-    <li><span class="inline">src/core/store/factory.ts</span>: <span class="inline">createStoreBundle</span> selects the backend from storeBackend and embedding config</li>
-    <li><span class="inline">src/utils/openclaw-state-dir.ts</span>: OpenClaw state directory resolution and fallback</li>
+    <li><span class="inline">src/core/persona/persona-generator.ts</span>: <span class="inline">PersonaGenerator.generateLocalPersona</span> and <span class="inline">generate</span> orchestrate scene reading, backup, LLM writing, post-processing, and checkpoint advancement.</li>
+    <li><span class="inline">src/core/prompts/persona-generation.ts</span>: first and incremental prompt inputs differ; the incremental prompt includes existing persona plus changed scenes.</li>
+    <li><span class="inline">src/core/persona/persona-trigger.ts</span>: contains the helper that decides whether a persona update should run.</li>
+    <li><span class="inline">src/core/profile/profile-sync.ts</span>: shows the profile sync path after generation, clarifying how L3 is consumed by runtime context.</li>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: stores <span class="inline">last_persona_time</span> and uses <span class="inline">markPersonaGenerated</span> to advance the persona checkpoint after a successful write.</li>
+    <li><span class="inline">src/utils/sanitize.ts</span>: <span class="inline">escapeXmlTags</span> sanitizes persona text so injection-like tags do not enter later context.</li>
   </ul>
 </div>
 
 <div class="card key">
   <div class="tag">✅ Key points</div>
-  Runtime initialization is not “reading lots of config”; it stabilizes config, fills defaults, prepares directories first, then lets store readiness and pipeline/hook wiring advance according to their dependencies.
-  That lets zero config start safely, lets advanced config steer each functional group, and lets incomplete store, offload, or embedding setup degrade without blocking the main chat.
+  PersonaGenerator distills L2 scenes into stable L3 persona; first generation builds the profile, while incremental updates read changed scenes and preserve existing stable information.
+  The file is backed up before writing, sanitized and given fresh Scene Navigation after writing, and the checkpoint advances only after persistence succeeds. Persona is injected context, not an immutable source of truth.
 </div>
 <div class="selftest">
 <h2>🧪 Self-test - think about the design</h2>
 <div class="quiz">
-  <div class="qn">1. Why can zero config start?</div>
+  <div class="qn">1. What does incremental persona update analyze first?</div>
   <ol class="opts">
-    <li>Because offload is always enabled</li>
-    <li>parseConfig fills defaults for functional groups</li>
-    <li>Because TCVDB is mandatory</li>
-    <li>Because config parsing is skipped</li>
+    <li>Only browser CSS</li>
+    <li>Scenes changed since the last persona update while preserving the existing profile</li>
+    <li>Deleting the old persona every time</li>
+    <li>Reading only L0 and ignoring L2</li>
   </ol>
   <details class="accordion">
     <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
-    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: B</strong>. Defaults let capture/recall/pipeline run with safe baseline behavior.</div></div></div>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: B</strong>. L3 is a stable profile, so incremental updates focus on changes and avoid rewriting stable information.</div></div></div>
   </details>
 </div>
 <div class="card spark">
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
-    <li>If embedding config is incomplete, how should the system degrade without blocking the main chat?</li>
+    <li>Why append Scene Navigation again after persona.md is written?</li>
   </ul>
 </div>
 </div></div>
-  <div class="footnav"><a class="prev" href="10-host-adapter-boundaries.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">HostAdapter 与 LLMRunner 边界</span><span class="lang-en">HostAdapter and LLMRunner boundaries</span></div></a><a class="next" href="12-auto-capture-hook.html"><div class="dir"><span class="lang-zh">下一课 →</span><span class="lang-en">Next →</span></div><div class="ttl"><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></div></a></div>
+  <div class="footnav"><a class="prev" href="19-scene-index-navigation-backups.html"><div class="dir"><span class="lang-zh">← 上一课</span><span class="lang-en">← Prev</span></div><div class="ttl"><span class="lang-zh">Scene index、导航与备份</span><span class="lang-en">Scene index, navigation, and backups</span></div></a><a class="next" href="../index.html"><div class="dir"><span class="lang-zh">完成 →</span><span class="lang-en">Done →</span></div><div class="ttl"><span class="lang-zh">返回目录</span><span class="lang-en">Back to index</span></div></a></div>
 </div>
 <script>
 function tdamvgSetLang(l){

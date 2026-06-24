@@ -25,4 +25,5 @@ CONTENT = {
     "17-why-l2-scene-blocks.html": part5.LESSON_17,
     "18-scene-extractor-sandbox.html": part5.LESSON_18,
     "19-scene-index-navigation-backups.html": part5.LESSON_19,
+    "20-persona-generator-incremental.html": part5.LESSON_20,
 }

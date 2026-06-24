@@ -366,6 +366,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "为什么 scene_index 应由工程代码写，而不是让 LLM 直接维护？", "en": "Why should engineering code write scene_index instead of letting the LLM maintain it directly?"}],
     },
+    "20-persona-generator-incremental.html": {
+        "mcq": [{
+            "q": {"zh": "增量 persona 更新优先分析什么？", "en": "What does incremental persona update analyze first?"},
+            "opts": [
+                {"zh": "自上次 persona 更新时间后变化的场景，同时保留已有画像", "en": "Scenes changed since the last persona update while preserving the existing profile"},
+                {"zh": "只分析浏览器 CSS", "en": "Only browser CSS"},
+                {"zh": "每次删除所有旧 persona", "en": "Deleting the old persona every time"},
+                {"zh": "只读取 L0，不看 L2", "en": "Reading only L0 and ignoring L2"},
+            ],
+            "answer": 0,
+            "why": {"zh": "L3 是稳定画像，增量更新应聚焦新变化并避免重写稳定信息。", "en": "L3 is a stable profile, so incremental updates focus on changes and avoid rewriting stable information."},
+        }],
+        "open": [{"zh": "为什么 persona.md 写完后还要重新追加 Scene Navigation？", "en": "Why append Scene Navigation again after persona.md is written?"}],
+    },
 }
 
 

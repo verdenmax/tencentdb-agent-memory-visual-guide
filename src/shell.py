@@ -84,6 +84,8 @@ PAGES = [
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
     ("19-scene-index-navigation-backups.html", "Scene index、导航与备份", "Scene index, navigation, and backups",
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
+    ("20-persona-generator-incremental.html", "PersonaGenerator 与增量画像更新", "PersonaGenerator and incremental profile updates",
+     "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
 ]
 
 def bi(zh, en):
@@ -555,6 +557,8 @@ SUBTITLES = {
                                        "CleanContextRunner exposes only scene_blocks, so the LLM writes scenes without seeing metadata"),
     "19-scene-index-navigation-backups.html": ("工程侧维护 .metadata/scene_index.json，并生成可 read_file 下钻的 Scene Navigation",
                                            "engineering maintains .metadata/scene_index.json and generates read_file-ready Scene Navigation"),
+    "20-persona-generator-incremental.html": ("读取变化场景、保留已有 persona、沙箱写 persona.md、再追加场景导航",
+                                          "read changed scenes, preserve existing persona, sandbox-write persona.md, then append scene navigation"),
 }
 
 def index_page(lesson_prefix="lessons/"):
