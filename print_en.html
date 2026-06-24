@@ -4199,8 +4199,8 @@ The final lesson moves from understanding the system to debugging, validating, a
     <h4>Contributor validation checklist</h4>
     <ol>
       <li>Read <span class="inline">CONTRIBUTING.md</span> and <span class="inline">CONTRIBUTING_CN.md</span> for branch, commit, test, and PR expectations.</li>
-      <li>Read <span class="inline">package.json</span> scripts and use existing commands instead of adding ad hoc install or validation tools.</li>
-      <li>Read <span class="inline">vitest.config.ts</span> to understand test environment, include/exclude rules, setup, and timeouts.</li>
+      <li>Read <span class="inline">package.json</span> scripts and use the existing test / build commands; type checks run through tsdown / tsc in the build scripts.</li>
+      <li>Read <span class="inline">vitest.config.ts</span> to understand test environment, include/exclude rules, timeouts, and mock/env/global reset behavior.</li>
       <li>For guide changes, keep <span class="inline">src/shell.py</span>, <span class="inline">src/registry.py</span>, <span class="inline">src/quizzes.py</span>, and the matching <span class="inline">part*.py</span> in sync.</li>
       <li>For core changes, connect new behavior to a real boundary: TdaiCore, HostAdapter, Gateway route, store backend, or pipeline scheduler.</li>
       <li>Tests must prove behavior: fail first, then pass; do not only test mock call counts.</li>
@@ -4233,7 +4233,7 @@ The final lesson moves from understanding the system to debugging, validating, a
 
     collect_redacted_logs(request_id=REQUEST_ID_PLACEHOLDER)
     write_or_update_test_that_fails(case)
-    run_existing_project_scripts(["test", "lint", "build"])
+    run_existing_project_scripts(["test", "build"])
     follow_contributing_docs_before_pr()</pre>
 
 <h2>Glossary / index: terms should return to the main lesson</h2>
@@ -4267,7 +4267,7 @@ The final lesson moves from understanding the system to debugging, validating, a
   <ul>
     <li>Approved spec final guide expectations: the closing guide should provide an operator / contributor map, debugging checklist, test path, contribution path, and glossary.</li>
     <li><span class="inline">CONTRIBUTING.md</span> and <span class="inline">CONTRIBUTING_CN.md</span>: contribution flow, tests, commits, and PR expectations to read before changing behavior.</li>
-    <li><span class="inline">package.json</span> scripts and <span class="inline">vitest.config.ts</span>: accepted test / lint / build entry points and Vitest configuration.</li>
+    <li><span class="inline">package.json</span> scripts and <span class="inline">vitest.config.ts</span>: accepted test / build entry points; build runs tsdown / tsc for build and type checks, while Vitest config covers environment, include/exclude, timeouts, and mock/env/global reset.</li>
     <li>Visual-guide source: <span class="inline">README.md</span>, <span class="inline">src/shell.py</span>, <span class="inline">src/registry.py</span>, <span class="inline">src/quizzes.py</span>, and <span class="inline">src/part1.py</span> through <span class="inline">src/part8.py</span>.</li>
     <li>Glossary lesson links: L0, L1, L2, L3 Persona, Scene Block, Auto Capture, Auto Recall, TdaiCore, HostAdapter, Hermes Gateway, SQLite, Tencent VectorDB, Context Offload, refs, JSONL, MMD, node_id, seed, migration, and glossary should all point to existing lesson pages.</li>
   </ul>
