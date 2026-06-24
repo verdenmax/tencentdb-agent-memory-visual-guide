@@ -346,7 +346,7 @@ after-tool-call hook 是 Context Offload 的入口之一：每次工具调用结
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>解析工具事件</h4><p><span class="inline">createAfterToolCallHandler</span> 从事件中解析 tool call ID、工具名、参数和结果；如果事件缺少可用 ID，后续 dedup 就无法稳定工作。</p><div class="mono">event -&gt; tool_call_id + params + result</div></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>过滤非结果事件</h4><p>heartbeat 只说明宿主还活着；approval-pending 只说明工具尚未真正执行。两者都不应进入证据层，避免把“尚无结果”当成事实。</p><div class="mono">skip heartbeat / approval-pending</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>加入 ToolPair buffer</h4><p><span class="inline">stateManager.addToolPair</span> 缓存完成的工具调用，并保存 latest-turn context，让后续 L1 摘要知道这批结果属于哪一轮任务。</p><div class="mono">ToolPair -&gt; pending_pairs</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>加入 ToolPair buffer</h4><p><span class="inline">stateManager.addToolPair</span> 只负责缓存已经完成的工具调用；latest-turn context cache 是 after-tool-call 中另一条独立分支，用来保留本轮任务框架。</p><div class="mono">ToolPair -&gt; pending_pairs</div></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>达到阈值强制 L1</h4><p><span class="inline">shouldForceL1</span> 使用 <span class="inline">forceTriggerThreshold</span> 判断 pending pairs 是否足够多；达到阈值就走 L1 trigger orchestration。</p><div class="mono">pending_pairs &gt;= forceTriggerThreshold</div></div></div>
   <div class="step"><div class="num">5</div><div class="sc"><h4>写 refs 与 JSONL</h4><p>L1 输出变成 <span class="inline">OffloadEntry</span>；原始结果由 <span class="inline">writeRefMd</span> 写入 refs，紧凑行由 <span class="inline">appendOffloadEntries</span> 追加。</p><div class="mono">entries -&gt; refs/*.md + offload JSONL</div></div></div>
 </div>
@@ -357,14 +357,16 @@ after-tool-call hook 是 Context Offload 的入口之一：每次工具调用结
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">ToolPair buffer</div><div class="nd">按 agent/session 的 state 暂存，跳过心跳和待审批事件。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">L1 summarize</div><div class="nd">本地 LLM prompt 生成摘要、score、node_id 和可导航任务符号。</div></div>
+  <div class="node"><div class="nt">L1 summarize</div><div class="nd">可插拔 Offload LLM client 生成 summary 与 score；L1 parser 此时把 <span class="inline">node_id</span> 设为 <span class="inline">null</span>。</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">refs file</div><div class="nd">完整原始结果写入 <span class="inline">refs/*.md</span>，必要时可下钻。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">offload JSONL row</div><div class="nd">一行保存紧凑索引和 ref path，不把大结果重复塞回上下文。</div></div>
+  <div class="node"><div class="nt">offload JSONL row</div><div class="nd">一行保存 summary、score 与 ref path，不把大结果重复塞回上下文。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">L2 MMD task symbol</div><div class="nd">Offload-L2 分配 <span class="inline">node_id</span>，并创建 Mermaid 任务节点符号。</div></div>
 </div>
 
-<h2>OffloadEntry 必备字段</h2>
+<h2>JSONL 行字段与写后标记</h2>
 <table class="t">
   <tr><th>字段</th><th>作用</th></tr>
   <tr><td class="mono">tool_call_id</td><td>写入去重的主键之一；同一工具结果重复到达时，<span class="inline">appendOffloadEntries</span> 跳过重复行。</td></tr>
@@ -372,23 +374,23 @@ after-tool-call hook 是 Context Offload 的入口之一：每次工具调用结
   <tr><td class="mono">summary</td><td>Offload-L1 生成的短摘要，是下一轮上下文最常读取的部分。</td></tr>
   <tr><td class="mono">timestamp</td><td>保留捕获时间，帮助按时间恢复任务过程。</td></tr>
   <tr><td class="mono">score</td><td>表示摘要对当前任务的相关性或重要性，供后续筛选。</td></tr>
-  <tr><td class="mono">node_id</td><td>连接 Mermaid MMD 的任务节点，让 JSONL 行能进入可视化画布。</td></tr>
+  <tr><td class="mono">node_id</td><td>L1 parser 写入时为 <span class="inline">null</span>；Offload-L2 后续分配它来连接 Mermaid MMD 任务节点。</td></tr>
   <tr><td class="mono">result_ref</td><td>指向 <span class="inline">refs/*.md</span> 的原始证据路径。</td></tr>
-  <tr><td class="mono">offload_status</td><td>由 <span class="inline">markOffloadStatus</span> 更新，区分 pending、summarized 或 injected 等状态。</td></tr>
+  <tr><td class="mono">offloaded</td><td>不是 L1 parser 产出的 <span class="inline">OffloadEntry</span> 核心字段；L1 写入后由 <span class="inline">markOffloadStatus</span> 添加/更新，值为 <span class="inline">true</span> 或 <span class="inline">"deleted"</span>。</td></tr>
 </table>
 
 <h2>存储隔离：当前 session 与共享 agent 目录</h2>
 <div class="cellgroup">
   <div class="cg-cap"><b>current session</b>：只追加本会话 JSONL，避免不同会话的工具结果互相污染。</div>
   <div class="cells"><span class="cell hot">offload-&lt;sessionId&gt;.jsonl</span><span class="cell">latest-turn context</span><span class="cell">pending ToolPairs</span></div>
-  <div class="cg-cap"><b>shared agent folders</b>：同一 agent 下的可下钻产物，路径仍由 session/ref 命名隔离。</div>
+  <div class="cg-cap"><b>shared agent folders</b>：同一 agent 下共享可下钻产物；refs 用时间戳文件名，mmds 按 agent 目录保存。</div>
   <div class="cells"><span class="cell">refs/</span><span class="cell">mmds/</span><span class="cell">state</span></div>
 </div>
 
 <p>
 隔离的关键不是“只写一个目录”，而是按 agent/session 创建存储上下文：当前会话的
-<span class="inline">offload-&lt;sessionId&gt;.jsonl</span> 保存轻量索引；同一 agent 下的
-<span class="inline">refs/</span> 和 <span class="inline">mmds/</span> 保存可下钻证据与任务画布。
+<span class="inline">offload-&lt;sessionId&gt;.jsonl</span> 保存轻量索引；同一 agent 下共享的
+<span class="inline">refs/</span> 用时间戳命名保存可下钻证据，<span class="inline">mmds/</span> 保存任务画布。
 写入时再用 <span class="inline">tool_call_id</span> 去重，保证重复 hook、重试或重放不会制造重复 JSONL 行。
 </p>
 
@@ -413,7 +415,7 @@ after-tool-call hook 是 Context Offload 的入口之一：每次工具调用结
     <li><span class="inline">src/offload/hooks/llm-output.ts</span>：<span class="inline">shouldForceL1</span> 和 <span class="inline">forceTriggerThreshold</span> 决定 pending pairs 何时触发 L1。</li>
     <li><span class="inline">src/offload/index.ts</span>：编排 L1 trigger、<span class="inline">appendOffloadEntries</span>、<span class="inline">writeRefMd</span> 与 <span class="inline">sanitizeText</span>。</li>
     <li><span class="inline">src/offload/storage.ts</span>：实现 <span class="inline">writeRefMd</span>、<span class="inline">appendOffloadEntries</span>、<span class="inline">readOffloadEntries</span>、<span class="inline">markOffloadStatus</span> 和 <span class="inline">parseJsonlSafe</span>。</li>
-    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>：定义 L1 摘要 prompt 与解析规则。</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> 与 <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>：定义 L1 摘要 prompt 与解析规则；实际调用通过可插拔 client，可走 <span class="inline">LocalLlmClient</span> 或 <span class="inline">BackendClient</span>。</li>
   </ul>
 </div>
 
@@ -464,7 +466,7 @@ Completed results first enter a pending buffer; when enough pairs accumulate, Of
 <div class="vflow">
   <div class="step"><div class="num">1</div><div class="sc"><h4>Resolve the tool event</h4><p><span class="inline">createAfterToolCallHandler</span> resolves tool call ID, tool name, parameters, and result from the event. Without a stable ID, later write-time dedup cannot be reliable.</p><div class="mono">event -&gt; tool_call_id + params + result</div></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>Filter non-result events</h4><p>A heartbeat only says the host is alive; approval-pending only says the tool has not actually run yet. Neither should become evidence.</p><div class="mono">skip heartbeat / approval-pending</div></div></div>
-  <div class="step"><div class="num">3</div><div class="sc"><h4>Add to the ToolPair buffer</h4><p><span class="inline">stateManager.addToolPair</span> caches completed tool calls and latest-turn context so L1 can summarize the batch in the right task frame.</p><div class="mono">ToolPair -&gt; pending_pairs</div></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Add to the ToolPair buffer</h4><p><span class="inline">stateManager.addToolPair</span> buffers completed tool calls only. The latest-turn context cache is a separate after-tool-call branch that preserves the current task frame.</p><div class="mono">ToolPair -&gt; pending_pairs</div></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>Force L1 at the threshold</h4><p><span class="inline">shouldForceL1</span> uses <span class="inline">forceTriggerThreshold</span> to decide whether enough pending pairs have accumulated, then enters L1 trigger orchestration.</p><div class="mono">pending_pairs &gt;= forceTriggerThreshold</div></div></div>
   <div class="step"><div class="num">5</div><div class="sc"><h4>Write refs and JSONL</h4><p>L1 output becomes <span class="inline">OffloadEntry</span> records; <span class="inline">writeRefMd</span> stores raw results under refs, and <span class="inline">appendOffloadEntries</span> appends compact rows.</p><div class="mono">entries -&gt; refs/*.md + offload JSONL</div></div></div>
 </div>
@@ -475,14 +477,16 @@ Completed results first enter a pending buffer; when enough pairs accumulate, Of
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">ToolPair buffer</div><div class="nd">Stored in agent/session state while heartbeat and approval-pending events are ignored.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">L1 summarize</div><div class="nd">The local LLM prompt produces a summary, score, node_id, and task symbol.</div></div>
+  <div class="node"><div class="nt">L1 summarize</div><div class="nd">A pluggable Offload LLM client produces summary and score; the L1 parser sets <span class="inline">node_id</span> to <span class="inline">null</span> at this point.</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">refs file</div><div class="nd">Full raw output is written under <span class="inline">refs/*.md</span> for drill-down.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">offload JSONL row</div><div class="nd">One compact index row points to the ref path instead of repeating the large result in context.</div></div>
+  <div class="node"><div class="nt">offload JSONL row</div><div class="nd">One compact row stores summary, score, and ref path instead of repeating the large result in context.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">L2 MMD task symbol</div><div class="nd">Offload-L2 assigns <span class="inline">node_id</span> and creates the Mermaid task-node symbol.</div></div>
 </div>
 
-<h2>Essential OffloadEntry fields</h2>
+<h2>JSONL row fields and post-write marker</h2>
 <table class="t">
   <tr><th>Field</th><th>Purpose</th></tr>
   <tr><td class="mono">tool_call_id</td><td>One write-time dedup key; when the same tool result arrives again, <span class="inline">appendOffloadEntries</span> skips the duplicate row.</td></tr>
@@ -490,23 +494,23 @@ Completed results first enter a pending buffer; when enough pairs accumulate, Of
   <tr><td class="mono">summary</td><td>The Offload-L1 short summary, usually the part injected or read in the next turn.</td></tr>
   <tr><td class="mono">timestamp</td><td>Capture time, useful for reconstructing task order.</td></tr>
   <tr><td class="mono">score</td><td>Relevance or importance signal used by later filtering.</td></tr>
-  <tr><td class="mono">node_id</td><td>Connects the row to a Mermaid MMD task node.</td></tr>
+  <tr><td class="mono">node_id</td><td>The L1 parser writes <span class="inline">null</span>; Offload-L2 assigns it later to connect the row to a Mermaid MMD task node.</td></tr>
   <tr><td class="mono">result_ref</td><td>Path to the raw evidence in <span class="inline">refs/*.md</span>.</td></tr>
-  <tr><td class="mono">offload_status</td><td>Updated by <span class="inline">markOffloadStatus</span> to distinguish pending, summarized, injected, and related states.</td></tr>
+  <tr><td class="mono">offloaded</td><td>Not a core <span class="inline">OffloadEntry</span> field from the L1 parser. After the L1 write, <span class="inline">markOffloadStatus</span> adds/updates it with <span class="inline">true</span> or <span class="inline">"deleted"</span>.</td></tr>
 </table>
 
 <h2>Storage isolation: current session and shared agent folders</h2>
 <div class="cellgroup">
   <div class="cg-cap"><b>current session</b>: append only this session's JSONL so tool results from different sessions do not mix.</div>
   <div class="cells"><span class="cell hot">offload-&lt;sessionId&gt;.jsonl</span><span class="cell">latest-turn context</span><span class="cell">pending ToolPairs</span></div>
-  <div class="cg-cap"><b>shared agent folders</b>: drill-down artifacts under the same agent, still separated by session/ref naming.</div>
+  <div class="cg-cap"><b>shared agent folders</b>: drill-down artifacts under the same agent; refs use timestamp filenames, and mmds live in the agent directory.</div>
   <div class="cells"><span class="cell">refs/</span><span class="cell">mmds/</span><span class="cell">state</span></div>
 </div>
 
 <p>
 Isolation is not merely "write one directory"; storage context is created per agent and per session. The current session's
-<span class="inline">offload-&lt;sessionId&gt;.jsonl</span> keeps lightweight indexes, while <span class="inline">refs/</span> and
-<span class="inline">mmds/</span> under the agent directory hold drill-down evidence and task canvases. Write-time dedup by
+<span class="inline">offload-&lt;sessionId&gt;.jsonl</span> keeps lightweight indexes, while shared <span class="inline">refs/</span>
+under the agent directory use timestamp names for drill-down evidence and <span class="inline">mmds/</span> holds task canvases. Write-time dedup by
 <span class="inline">tool_call_id</span> prevents repeated hooks, retries, or replays from creating duplicate JSONL rows.
 </p>
 
@@ -531,7 +535,7 @@ Isolation is not merely "write one directory"; storage context is created per ag
     <li><span class="inline">src/offload/hooks/llm-output.ts</span>: <span class="inline">shouldForceL1</span> and <span class="inline">forceTriggerThreshold</span> decide when pending pairs trigger L1.</li>
     <li><span class="inline">src/offload/index.ts</span>: orchestrates L1 triggering, <span class="inline">appendOffloadEntries</span>, <span class="inline">writeRefMd</span>, and <span class="inline">sanitizeText</span>.</li>
     <li><span class="inline">src/offload/storage.ts</span>: implements <span class="inline">writeRefMd</span>, <span class="inline">appendOffloadEntries</span>, <span class="inline">readOffloadEntries</span>, <span class="inline">markOffloadStatus</span>, and <span class="inline">parseJsonlSafe</span>.</li>
-    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>: define the L1 summarization prompt and parser rules.</li>
+    <li><span class="inline">src/offload/local-llm/prompts/l1-prompt.ts</span> and <span class="inline">src/offload/local-llm/parsers/l1-parser.ts</span>: define the L1 summarization prompt and parser rules; execution goes through a pluggable client, either <span class="inline">LocalLlmClient</span> or <span class="inline">BackendClient</span>.</li>
   </ul>
 </div>
 
