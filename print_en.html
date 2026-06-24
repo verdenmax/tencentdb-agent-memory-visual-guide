@@ -2130,24 +2130,28 @@ a stable trait. L2 is the middle layer: it preserves event context and activity 
 <h2>L1 and L2 responsibility boundaries</h2>
 <div class="cols">
   <div class="col"><h4>L1 atom responsibilities</h4><p>Atomic, searchable, deduplicated. Each record should express one fact and carry type, priority, time, and <span class="inline">source_message_ids</span> for recall and evidence drill-down.</p></div>
-  <div class="col"><h4>L2 scene responsibilities</h4><p>Human-readable, contextual, navigable. A scene block clusters related L1 records and maintains activity summary, timeline, evidence links, heat, and update history.</p></div>
+  <div class="col"><h4>L2 scene responsibilities</h4><p>Human-readable, contextual, navigable. A scene block clusters related L1 records and maintains activity summary, timeline, source references, heat, and update history.</p></div>
 </div>
 
-<h2>What a Scene Block preserves</h2>
+<h2>Parsed Scene Block META fields</h2>
 <table class="t">
   <tr><th>Field</th><th>Purpose</th></tr>
-  <tr><td class="mono">filename</td><td>Stable scene-block filename for incremental updates, navigation, and persona-generator reads.</td></tr>
-  <tr><td class="mono">summary</td><td>Compact description of the activity context, avoiding injection of every L1 atom.</td></tr>
-  <tr><td class="mono">heat</td><td>Recent activity or importance signal, so recall and maintenance can prioritize hot scenes.</td></tr>
   <tr><td class="mono">created</td><td>When the scene first formed, separating old background from new activity.</td></tr>
   <tr><td class="mono">updated</td><td>When new L1 atoms were last merged, forming an activity timeline.</td></tr>
-  <tr><td class="mono">evidence</td><td>Links back to L1 / L0 evidence so summaries remain traceable instead of source-free claims.</td></tr>
+  <tr><td class="mono">summary</td><td>Compact description of the activity context, avoiding injection of every L1 atom.</td></tr>
+  <tr><td class="mono">heat</td><td>Recent activity or importance signal, so recall and maintenance can prioritize hot scenes.</td></tr>
 </table>
 
 <p>
-Together, these fields answer the core L2 question: why are these facts related? L2 does not replace L1 search or delete raw L0 text.
-It organizes relationships, order, and evidence across many L1 records into a readable block. Recall can inject the relevant scene summary first,
-then drill through evidence back to L1 and L0 when verification is needed.
+These are the META keys that <span class="inline">parseSceneBlock</span> actually parses and formats. Evidence is not a parsed META field:
+it stays in the scene narrative, source references, and links that explain which L1 atoms support the summary; when verification is needed,
+L1 <span class="inline">source_message_ids</span> lead back to the raw L0 text.
+</p>
+
+<p>
+Together, these fields and narrative references answer the core L2 question: why are these facts related? L2 does not replace L1 search or delete raw L0 text.
+It organizes relationships, order, and source traceability across many L1 records into a readable block. Recall can inject the relevant scene summary first,
+then drill through the narrative/source references back to L1 and L0 when verification is needed.
 </p>
 
 <h2>Extraction and update pseudocode</h2>
@@ -2155,15 +2159,15 @@ then drill through evidence back to L1 and L0 when verification is needed.
 related_context = load_scene_summaries()
 scene_blocks = cluster_atoms_by_activity(new_l1_atoms, related_context)
 for block in scene_blocks:
-    preserve_evidence_links(block)
+    write_traceable_scene_narrative(block)
     update_summary_and_heat(block)</pre>
 
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
     <li><span class="inline">src/core/scene/scene-extractor.ts</span>: <span class="inline">SceneExtractor.extract</span> reads new L1 records and drives scene extraction; <span class="inline">buildSceneSummaries</span> supplies existing scene summaries to support incremental merging.</li>
-    <li><span class="inline">src/core/prompts/scene-extraction.ts</span>: the scene block prompt contract asks the model for parseable, evidence-linked, updatable scene blocks rather than free-form prose.</li>
-    <li><span class="inline">src/core/scene/scene-format.ts</span>: <span class="inline">parseSceneBlock</span> parses text blocks back into structured fields so downstream code can read metadata, summary, and evidence.</li>
+    <li><span class="inline">src/core/prompts/scene-extraction.ts</span>: the scene block prompt contract asks the model for parseable, source-traceable, updatable scene blocks rather than free-form prose.</li>
+    <li><span class="inline">src/core/scene/scene-format.ts</span>: <span class="inline">parseSceneBlock</span> parses text blocks back into <span class="inline">created</span>, <span class="inline">updated</span>, <span class="inline">summary</span>, and <span class="inline">heat</span>.</li>
     <li><span class="inline">src/core/record/l1-reader.ts</span>: reads L1 records for scene extraction, showing that L2 consumes structured L1 atoms, not raw L0 text.</li>
     <li><span class="inline">src/core/persona/persona-generator.ts</span>: downstream consumer of scene blocks, deriving stable L3 persona from multiple L2 scenes.</li>
   </ul>

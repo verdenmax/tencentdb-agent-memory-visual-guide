@@ -108,6 +108,29 @@ def check_lesson(fname, html):
             add("ERR", fname, f"prev link missing -> {ORDER[idx - 1]}")
 
 
+def check_lesson17_scene_metadata_source():
+    src = CONTENT.get("17-why-l2-scene-blocks.html", {})
+    allowed = {"created", "updated", "summary", "heat"}
+    for lang in ("zh", "en"):
+        html = src.get(lang, "")
+        table_match = re.search(r"<h2>[^<]*(?:META|已解析)[^<]*</h2>\s*<table class=\"t\">(.*?)</table>", html, re.S)
+        if not table_match:
+            add("ERR", "17-why-l2-scene-blocks.html", f"{lang} scene metadata table missing")
+            continue
+        fields = set(re.findall(r'<td class="mono">([^<]+)</td>', table_match.group(1)))
+        if fields != allowed:
+            add(
+                "ERR",
+                "17-why-l2-scene-blocks.html",
+                f"{lang} scene metadata fields {sorted(fields)} != {sorted(allowed)}",
+            )
+        if "preserve_evidence_links(block)" in html:
+            add("ERR", "17-why-l2-scene-blocks.html", f"{lang} pseudocode treats evidence as a structured field")
+        for li in re.findall(r"<li>.*?</li>", html, re.S):
+            if "scene-format.ts" in li and "parseSceneBlock" in li and re.search(r"\bevidence\b", li, re.I):
+                add("ERR", "17-why-l2-scene-blocks.html", f"{lang} parseSceneBlock anchor mentions evidence as parsed metadata")
+
+
 def main():
     for page in PAGES:
         fname = page[0]
@@ -137,6 +160,7 @@ def main():
     for fname in CONTENT:
         if fname not in ORDER:
             add("ERR", "registry", f"CONTENT key not in PAGES: {fname}")
+    check_lesson17_scene_metadata_source()
 
     index_path = os.path.join(ROOT, shell.INDEX_FILE)
     with open(index_path, encoding="utf-8") as fh:
