@@ -2778,7 +2778,7 @@ Auto Recall 发生在 prompt 真正交给模型之前。插件先保留用户原
 <div class="card analogy">
   <div class="tag">🧭 生活类比</div>
   这像会议助理只把三五条最相关的便签贴到发言稿旁边，而不是把整本会议记录塞进来。
-  便签先按关键词或语义找，再按预算裁短；如果语义检索的设备没准备好，就退回可靠的关键词检索。
+  便签可以由云端档案柜一次完成“关键词 + 语义”混合查找，也可以由本地助理分别查两份清单后再合并；如果配置里根本没有语义设备，就按关键词查。
 </div>
 
 <h2>searchMemories 的召回管线</h2>
@@ -2789,7 +2789,7 @@ Auto Recall 发生在 prompt 真正交给模型之前。插件先保留用户原
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">candidates</div><div class="nd">FTS5 BM25 和/或向量余弦相似度产生候选 L1。</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">threshold / RRF</div><div class="nd">单路结果用分数阈值过滤；混合结果用 RRF 合并排序。</div></div>
+  <div class="node"><div class="nt">threshold / hybrid rank</div><div class="nd">关键词或 embedding 单路结果用 <span class="inline">scoreThreshold</span> 过滤；混合路径优先由原生 store 执行，否则本地候选用 RRF 排名。</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">budget</div><div class="nd"><span class="inline">maxResults</span> 与字符预算限制注入规模。</div></div>
   <div class="arrow">-&gt;</div>
@@ -2800,20 +2800,20 @@ Auto Recall 发生在 prompt 真正交给模型之前。插件先保留用户原
 <div class="cols">
   <div class="col"><h4>keyword</h4><p><span class="inline">searchByKeyword</span> 走 SQLite FTS5。<span class="inline">buildFtsQuery</span> 把清洗后的词变成 FTS 查询，结果用 BM25 排序，适合精确术语、文件名、函数名。</p></div>
   <div class="col"><h4>embedding</h4><p><span class="inline">searchByEmbedding</span> 先把 query 编成向量，再用余弦相似度找语义接近的 L1。它适合用户换一种说法提问，但依赖 embedding 资源可用。</p></div>
-  <div class="col"><h4>hybrid</h4><p><span class="inline">searchHybrid</span> 同时跑 keyword 与 embedding，并在 <span class="inline">auto-recall.ts</span> 内部用本地 RRF 合并两个排行榜。RRF 常量让高排名结果稳定胜出，而不是只看某一路绝对分数。</p></div>
+  <div class="col"><h4>hybrid</h4><p>混合召回有两条路：如果 store 声明 <span class="inline">nativeHybridSearch</span>，例如 TCVDB 的 <span class="inline">hybridSearch</span>，就让服务端完成 dense + sparse/RRF-like 混合；SQLite 或非原生路径才由本地 <span class="inline">searchHybrid()</span> 分别跑 keyword 与 embedding，再在 <span class="inline">auto-recall.ts</span> 内部做 RRF 合并。</p></div>
 </div>
 
 <p>
-降级规则很重要：如果配置选择 <span class="inline">embedding</span> 或 <span class="inline">hybrid</span>，但 embedding client、模型维度或向量索引没有准备好，
-<span class="inline">searchMemories()</span> 会安全退回 <span class="inline">keyword</span>。
-这不会阻塞主对话，也不会捏造语义分数；它只是使用本地 FTS5 能力继续提供可解释的 L1 候选。
+降级规则要读窄一点：当配置选择 <span class="inline">embedding</span> 或 <span class="inline">hybrid</span>，但没有配置 vector store 或 embedding service 时，
+<span class="inline">searchMemories()</span> 会走 <span class="inline">keyword</span> 路径。
+这不是“任何运行时向量/index 错误都必然降级”的承诺；实际异常仍受调用链、timeout 和错误处理保护，主对话应继续，但本轮不一定还能拿到关键词结果。
 </p>
 
 <h2>预算控制点</h2>
 <table class="t">
   <tr><th>控制项</th><th>作用</th><th>为什么需要</th></tr>
   <tr><td class="mono">maxResults</td><td>限制最多格式化多少条 L1</td><td>避免命中很多时把 prompt 挤满。</td></tr>
-  <tr><td class="mono">scoreThreshold</td><td>过滤低相关候选</td><td>宁可少注入，也不要把弱相关记忆带进本轮。</td></tr>
+  <tr><td class="mono">scoreThreshold</td><td>过滤 keyword 或 embedding 单策略候选</td><td>阈值主要作用在单路分数上；本地 hybrid 更依赖候选数量、RRF 排名、<span class="inline">maxResults</span> 和字符预算，原生 hybrid 则接收 <span class="inline">topK</span>/store-side 行为。</td></tr>
   <tr><td class="mono">timeoutMs</td><td>保护召回耗时</td><td>搜索慢或资源异常时，主对话继续。</td></tr>
   <tr><td class="mono">line truncation</td><td>把每条 memory 行裁成短摘要</td><td>L1 负责给模型线索，不负责搬运完整 transcript。</td></tr>
   <tr><td class="mono">applyRecallBudget</td><td>按总字符预算截断最终注入文本</td><td>让 recall 有边界，给用户问题和系统规则保留空间。</td></tr>
@@ -2822,10 +2822,13 @@ Auto Recall 发生在 prompt 真正交给模型之前。插件先保留用户原
 <h2>核心伪代码</h2>
 <pre class="code">clean = sanitizeText(userText)
 strategy = cfg.recall.strategy or "hybrid"
-if strategy needs embedding and embedding not ready:
+if strategy needs embedding and (no vectorStore or no embeddingService):
     strategy = "keyword"
 if strategy == "hybrid":
-    lines = searchHybrid(clean)  # local RRF merge inside auto-recall
+    if vectorStore.nativeHybridSearch:
+        lines = vectorStore.searchL1Hybrid(query=clean, topK=maxResults)
+    else:
+        lines = searchHybrid(clean, maxResults)  # local candidate lists + RRF
 else:
     candidates = search_one_strategy(clean)
     lines = format_top_results(candidates, maxResults, scoreThreshold)
@@ -2834,9 +2837,11 @@ return applyRecallBudget(lines, cfg.recall)</pre>
 <div class="card detail">
   <div class="tag">🔬 源码锚点</div>
   <ul>
-    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：<span class="inline">searchMemories</span> 选择 <span class="inline">keyword</span>、<span class="inline">embedding</span>、<span class="inline">hybrid</span>；<span class="inline">searchByKeyword</span>、<span class="inline">searchByEmbedding</span>、<span class="inline">searchHybrid</span> 分别实现三条路径；<span class="inline">searchHybrid</span> 在自动召回路径内完成本地 RRF 合并；<span class="inline">formatMemoryLine</span> 生成最终注入行；<span class="inline">applyRecallBudget</span> 做最终裁剪。</li>
+    <li><span class="inline">src/config.ts</span> 与 <span class="inline">openclaw.plugin.json</span>：配置默认值包括 <span class="inline">recall.strategy = "hybrid"</span>、<span class="inline">maxResults = 5</span>、<span class="inline">scoreThreshold = 0.3</span>、<span class="inline">timeoutMs = 5000</span>。</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：<span class="inline">searchMemories</span> 选择 <span class="inline">keyword</span>、<span class="inline">embedding</span>、<span class="inline">hybrid</span>；先检查 vector store 与 embedding service 是否配置，再决定是否退回关键词；<span class="inline">searchHybrid</span> 只负责非原生路径的本地 RRF 合并；<span class="inline">formatMemoryLine</span> 生成最终注入行；<span class="inline">applyRecallBudget</span> 做最终裁剪。</li>
+    <li><span class="inline">src/core/store/types.ts</span>：<span class="inline">StoreCapabilities.nativeHybridSearch</span> 表示 store 是否支持原生混合检索；<span class="inline">L1SearchResult</span> 与 <span class="inline">L1FtsResult</span> 描述召回候选和 FTS 命中的结构。</li>
+    <li><span class="inline">src/core/store/tcvdb.ts</span> 与 <span class="inline">src/core/store/tcvdb-client.ts</span>：TCVDB 后端通过 <span class="inline">searchL1HybridAsync</span>/<span class="inline">hybridSearch</span> 走服务端 dense + sparse/RRF-like 混合检索。</li>
     <li><span class="inline">src/core/store/sqlite.ts</span>：<span class="inline">buildFtsQuery</span> 与 FTS5 helpers 负责关键词查询、BM25 排名和 SQLite 搜索细节。</li>
-    <li><span class="inline">src/core/store/types.ts</span>：<span class="inline">L1SearchResult</span> 与 <span class="inline">L1FtsResult</span> 描述召回候选和 FTS 命中的结构。</li>
     <li><span class="inline">src/core/tools/memory-search.ts</span>：显式 memory search 工具路径；当自动召回只给出短片段时，可以用工具继续下钻。</li>
   </ul>
 </div>
@@ -2844,8 +2849,8 @@ return applyRecallBudget(lines, cfg.recall)</pre>
 <div class="card key">
   <div class="tag">✅ 本课要点</div>
   L1 recall 的目标是“少量、相关、可追踪”。<span class="inline">keyword</span> 提供本地可解释检索，
-  <span class="inline">embedding</span> 提供语义相似度，<span class="inline">hybrid</span> 用 RRF 合并两者；
-  资源不可用时退回 <span class="inline">keyword</span>，最后由 <span class="inline">maxResults</span>、阈值和字符预算保证 prompt 不被记忆挤满。
+  <span class="inline">embedding</span> 提供语义相似度，<span class="inline">hybrid</span> 可能是 TCVDB 等原生 store-side 混合，也可能是本地 <span class="inline">searchHybrid()</span> 的 RRF fallback。
+  未配置 vector store 或 embedding service 时可退回 <span class="inline">keyword</span>；单策略阈值、混合排名、<span class="inline">maxResults</span> 和字符预算共同保证 prompt 不被记忆挤满。
 </div>
 
 <div class="selftest">

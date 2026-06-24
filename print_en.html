@@ -2770,7 +2770,7 @@ Recall output is not a full transcript. It is a compact set of relevant L1 snipp
 <div class="card analogy">
   <div class="tag">🧭 Analogy</div>
   Think of a meeting assistant attaching three to five relevant sticky notes beside your speaking notes, not dropping the whole meeting archive into the room.
-  The notes are found by words or semantics, then trimmed by budget; if semantic equipment is unavailable, the assistant safely falls back to keyword lookup.
+  A cloud archive may do "keyword + semantics" in one hybrid lookup, or a local assistant may search two lists and merge them; if semantic equipment was never configured, the assistant uses keywords.
 </div>
 
 <h2>The searchMemories recall pipeline</h2>
@@ -2781,7 +2781,7 @@ Recall output is not a full transcript. It is a compact set of relevant L1 snipp
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">candidates</div><div class="nd">FTS5 BM25 and/or vector cosine similarity produce candidate L1 memories.</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">threshold / RRF</div><div class="nd">Single-strategy results are filtered by score; hybrid results are merged with RRF.</div></div>
+  <div class="node"><div class="nt">threshold / hybrid rank</div><div class="nd">Keyword or embedding single-strategy results use <span class="inline">scoreThreshold</span>; hybrid uses native store ranking when available, otherwise local candidates are RRF-ranked.</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">budget</div><div class="nd"><span class="inline">maxResults</span> and character limits bound injection size.</div></div>
   <div class="arrow">-&gt;</div>
@@ -2792,20 +2792,20 @@ Recall output is not a full transcript. It is a compact set of relevant L1 snipp
 <div class="cols">
   <div class="col"><h4>keyword</h4><p><span class="inline">searchByKeyword</span> uses SQLite FTS5. <span class="inline">buildFtsQuery</span> turns sanitized words into an FTS query, and BM25 ranks the results. This is good for exact terms, file names, and function names.</p></div>
   <div class="col"><h4>embedding</h4><p><span class="inline">searchByEmbedding</span> embeds the query, then finds L1 memories by cosine similarity. It works when the user asks with different wording, but it depends on embedding resources being ready.</p></div>
-  <div class="col"><h4>hybrid</h4><p><span class="inline">searchHybrid</span> runs keyword and embedding, then performs a local RRF merge inside <span class="inline">auto-recall.ts</span>. The RRF constant makes high-ranked items win consistently instead of trusting one absolute score scale.</p></div>
+  <div class="col"><h4>hybrid</h4><p>Hybrid has two paths. If the store declares <span class="inline">nativeHybridSearch</span>, such as TCVDB <span class="inline">hybridSearch</span>, the server does dense + sparse/RRF-like retrieval. SQLite and other non-native paths use local <span class="inline">searchHybrid()</span>: run keyword and embedding separately, then merge rankings with RRF inside <span class="inline">auto-recall.ts</span>.</p></div>
 </div>
 
 <p>
-Fallback is part of the design. If config selects <span class="inline">embedding</span> or <span class="inline">hybrid</span> but the embedding client, dimensions, or vector index are unavailable,
-<span class="inline">searchMemories()</span> safely degrades to <span class="inline">keyword</span>.
-That does not block the main chat and does not invent semantic scores; it keeps serving explainable L1 candidates through local FTS5.
+Read fallback narrowly. If config selects <span class="inline">embedding</span> or <span class="inline">hybrid</span> but no vector store or embedding service is configured,
+<span class="inline">searchMemories()</span> uses the <span class="inline">keyword</span> path.
+This is not a guarantee that every runtime vector/index failure will produce keyword results; those failures are still bounded by timeout and error handling so the main chat can continue, but this turn may have no recall.
 </p>
 
 <h2>Budget controls</h2>
 <table class="t">
   <tr><th>Control</th><th>Effect</th><th>Why it matters</th></tr>
   <tr><td class="mono">maxResults</td><td>Limits how many L1 memories are formatted</td><td>Prevents many hits from crowding the prompt.</td></tr>
-  <tr><td class="mono">scoreThreshold</td><td>Filters weak candidates</td><td>It is safer to inject less than to add loosely related memories.</td></tr>
+  <tr><td class="mono">scoreThreshold</td><td>Filters keyword or embedding single-strategy candidates</td><td>The threshold mainly applies to one scoring scale. Local hybrid relies more on candidate count, RRF rank, <span class="inline">maxResults</span>, and character budgets; native hybrid receives <span class="inline">topK</span> and store-side ranking behavior.</td></tr>
   <tr><td class="mono">timeoutMs</td><td>Bounds recall latency</td><td>If search is slow or resources fail, the main chat continues.</td></tr>
   <tr><td class="mono">line truncation</td><td>Trims each memory line into a short summary</td><td>L1 gives the model clues; it does not transport full transcripts.</td></tr>
   <tr><td class="mono">applyRecallBudget</td><td>Truncates final injected text by total character budget</td><td>Recall stays bounded, leaving room for the user request and system rules.</td></tr>
@@ -2814,10 +2814,13 @@ That does not block the main chat and does not invent semantic scores; it keeps 
 <h2>Core pseudocode</h2>
 <pre class="code">clean = sanitizeText(userText)
 strategy = cfg.recall.strategy or "hybrid"
-if strategy needs embedding and embedding not ready:
+if strategy needs embedding and (no vectorStore or no embeddingService):
     strategy = "keyword"
 if strategy == "hybrid":
-    lines = searchHybrid(clean)  # local RRF merge inside auto-recall
+    if vectorStore.nativeHybridSearch:
+        lines = vectorStore.searchL1Hybrid(query=clean, topK=maxResults)
+    else:
+        lines = searchHybrid(clean, maxResults)  # local candidate lists + RRF
 else:
     candidates = search_one_strategy(clean)
     lines = format_top_results(candidates, maxResults, scoreThreshold)
@@ -2826,9 +2829,11 @@ return applyRecallBudget(lines, cfg.recall)</pre>
 <div class="card detail">
   <div class="tag">🔬 Source anchors</div>
   <ul>
-    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">searchMemories</span> selects <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>; <span class="inline">searchByKeyword</span>, <span class="inline">searchByEmbedding</span>, and <span class="inline">searchHybrid</span> implement the paths; <span class="inline">searchHybrid</span> owns the auto-recall local RRF merge; <span class="inline">formatMemoryLine</span> creates the injected lines; <span class="inline">applyRecallBudget</span> does final trimming.</li>
+    <li><span class="inline">src/config.ts</span> and <span class="inline">openclaw.plugin.json</span>: config defaults include <span class="inline">recall.strategy = "hybrid"</span>, <span class="inline">maxResults = 5</span>, <span class="inline">scoreThreshold = 0.3</span>, and <span class="inline">timeoutMs = 5000</span>.</li>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">searchMemories</span> selects <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>; checks whether vector store and embedding service are configured before keyword fallback; <span class="inline">searchHybrid</span> owns only the non-native local RRF merge; <span class="inline">formatMemoryLine</span> creates injected lines; <span class="inline">applyRecallBudget</span> does final trimming.</li>
+    <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">StoreCapabilities.nativeHybridSearch</span> marks stores that can perform native hybrid search; <span class="inline">L1SearchResult</span> and <span class="inline">L1FtsResult</span> describe recall candidates and FTS hits.</li>
+    <li><span class="inline">src/core/store/tcvdb.ts</span> and <span class="inline">src/core/store/tcvdb-client.ts</span>: the TCVDB backend uses <span class="inline">searchL1HybridAsync</span>/<span class="inline">hybridSearch</span> for server-side dense + sparse/RRF-like hybrid retrieval.</li>
     <li><span class="inline">src/core/store/sqlite.ts</span>: <span class="inline">buildFtsQuery</span> and FTS5 helpers handle keyword query construction, BM25 ranking, and SQLite search details.</li>
-    <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">L1SearchResult</span> and <span class="inline">L1FtsResult</span> describe recall candidates and FTS hits.</li>
     <li><span class="inline">src/core/tools/memory-search.ts</span>: explicit memory search tool path; when automatic recall injects only short snippets, the tool can drill deeper.</li>
   </ul>
 </div>
@@ -2836,8 +2841,8 @@ return applyRecallBudget(lines, cfg.recall)</pre>
 <div class="card key">
   <div class="tag">✅ Key points</div>
   L1 recall aims for "small, relevant, traceable". <span class="inline">keyword</span> provides local explainable search,
-  <span class="inline">embedding</span> provides semantic similarity, and <span class="inline">hybrid</span> combines both with RRF.
-  When resources are unavailable, recall falls back to <span class="inline">keyword</span>; then <span class="inline">maxResults</span>, thresholds, and character budgets keep memory from crowding the prompt.
+  <span class="inline">embedding</span> provides semantic similarity, and <span class="inline">hybrid</span> may be native store-side retrieval such as TCVDB or local <span class="inline">searchHybrid()</span> RRF fallback.
+  Missing vector store or embedding service can fall back to <span class="inline">keyword</span>; single-strategy thresholds, hybrid ranking, <span class="inline">maxResults</span>, and character budgets keep memory from crowding the prompt.
 </div>
 
 <div class="selftest">
