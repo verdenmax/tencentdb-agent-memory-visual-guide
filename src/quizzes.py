@@ -282,6 +282,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "recorder 什么时候可以恢复缓存的原始 prompt，什么时候会回退到清洗与日志？", "en": "When can the recorder restore the cached original prompt, and when does it fall back to sanitization and logging?"}],
     },
+    "14-checkpoints-races.html": {
+        "mcq": [{
+            "q": {"zh": "captureAtomically 保护的是哪段关键区？", "en": "Which critical section does captureAtomically protect?"},
+            "opts": [
+                {"zh": "读游标 -&gt; 写 L0 -&gt; 推进游标", "en": "read cursor -&gt; write L0 -&gt; advance cursor"},
+                {"zh": "渲染 HTML -&gt; 打印 PDF", "en": "render HTML -&gt; print PDF"},
+                {"zh": "删除 vectors.db -&gt; 重启", "en": "delete vectors.db -&gt; restart"},
+                {"zh": "选择 favicon", "en": "choose favicon"},
+            ],
+            "answer": 0,
+            "why": {"zh": "这段必须原子化，否则两个并发 capture 会读到同一个旧游标并重复写入。", "en": "This must be atomic; otherwise concurrent captures can read the same stale cursor and duplicate writes."},
+        }],
+        "open": [{"zh": "position slice 和 timestamp cursor 分别防哪类问题？", "en": "What different problems do position slice and timestamp cursor defend against?"}],
+    },
 }
 
 

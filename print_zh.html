@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 13 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">13 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 14 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">14 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -345,6 +345,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></li>
   <li><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></li>
   <li><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></li>
+  <li><span class="lang-zh">Checkpoint：游标、锁与防重复</span><span class="lang-en">Checkpoints: cursors, locks, and duplicate prevention</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1780,6 +1781,114 @@ L0 不是摘要层，而是“原始对话证据层”：它把可追溯的 user
   <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
   <ul>
     <li>recorder 什么时候可以恢复缓存的原始 prompt，什么时候会回退到清洗与日志？</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">Checkpoint：游标、锁与防重复</span><span class="lang-en">Checkpoints: cursors, locks, and duplicate prevention</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Checkpoint 是捕获路径里的“防重复保险”。重复 L0 捕获通常不是因为 JSONL 自己会重复，而是两个
+<span class="inline">agent_end</span> / Gateway 调用并发进入，或者某次捕获读到了过期 cursor。
+本课把 <span class="inline">captureAtomically()</span>、position slice、timestamp cursor 和 scheduler 启动门放在同一张图里看。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  把 L0 想成仓库入库单。两名库管如果同时看见“上一张单号是 100”，就都可能把 101 号货物登记一遍。
+  正确做法是先锁住登记簿：读到 100、写入新单、把游标推进到 101，这三步完成后再交给下一位库管。
+</div>
+
+<h2>没有锁时：旧游标会制造重复捕获</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>并发入口</h4><p>OpenClaw 的 <span class="inline">agent_end</span> 和 Gateway capture 可能几乎同时提交同一会话的 messages。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>读到同一个旧 cursor</h4><p>如果 cursor 在临界区外读取，两个调用都可能看到 <span class="inline">afterTimestamp = T0</span>。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>重复写 L0</h4><p>两个 recorder 都认为 T0 之后的消息是新增，于是相同 user / assistant 记录被追加两次。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>迟到推进</h4><p>最后才写 checkpoint 已经太晚：重复证据已经进入 L0，后续 L1 也可能重复抽取。</p></div></div>
+</div>
+
+<h2>有锁时：cursor 读取、写入、推进成为一个原子区</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>captureAtomically(sessionKey)</h4><p><span class="inline">CheckpointManager</span> 按会话键加锁，让同一 session 的捕获串行进入。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>read checkpoint</h4><p>在锁内读取 timestamp cursor、记录计数和其他 checkpoint 状态，调用方不携带外部旧 cursor。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>record L0</h4><p>回调调用 <span class="inline">recordConversation</span>，只写 cursor 或位置切片之后真正新增的消息。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>advance cursor</h4><p>如果本次写入了消息，就在同一把锁内把 checkpoint 推进到新记录的最大 timestamp。</p></div></div>
+</div>
+
+<h2>伪代码</h2>
+<pre class="code">captureAtomically(sessionKey):
+    lock(sessionKey)
+    cursor = read_checkpoint()
+    messages = record_after_cursor(cursor)
+    if messages:
+        write_checkpoint(max_timestamp(messages))
+    unlock(sessionKey)</pre>
+
+<h2>position slice 与 timestamp cursor 分工不同</h2>
+<div class="cols">
+  <div class="col"><h4>position slice</h4><p>优先使用 prompt build 前缓存的 message count，例如 <span class="inline">originalUserMessageCount</span>。提交后只取这个位置之后的数组切片，能避免同一轮 messages 中 timestamp 漂移、同毫秒或宿主改写时间造成的边界误判。</p></div>
+  <div class="col"><h4>timestamp cursor</h4><p>当位置缓存不可用时，checkpoint 中的 <span class="inline">afterTimestamp</span> 仍是增量捕获的 fallback。它也是审计证据：可以解释“上次捕获推进到了哪一刻，为什么这条消息被认为是新增”。</p></div>
+</div>
+
+<p>
+因此二者不是互相替代：position slice 保护“本轮新增范围”的结构边界，timestamp cursor 保护跨调用的持久增量边界。
+一个防数组位置漂移，一个防进程重启或缺少缓存时失去增量依据。
+</p>
+
+<h2>schedulerStartPromise：启动状态不能覆盖并发 capture</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Gateway starts</div><div class="nd">恢复 scheduler 持久化状态</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">schedulerStartPromise</div><div class="nd">所有调用等待同一个启动 promise</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">capture / notify</div><div class="nd">启动完成后再通知会话计数</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">no clobber</div><div class="nd">恢复状态不会覆盖并发捕获刚写入的状态</div></div>
+</div>
+
+<p>
+<span class="inline">TdaiCore.schedulerStartPromise</span> 解决的是另一类竞态：Gateway 恢复 scheduler 状态时，
+同时到来的 capture 如果直接通知 scheduler，可能先写入新计数，随后又被“刚恢复出来的旧状态”覆盖。
+启动 promise 把恢复过程变成一道门，让并发调用共享同一个启动结果，而不是各自抢跑。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：<span class="inline">CheckpointManager</span>、<span class="inline">captureAtomically</span>、按 sessionKey 锁住 cursor 读写</li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：position slice、timestamp cursor、增量提取 user / assistant 消息</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>：<span class="inline">schedulerStartPromise</span> 防止恢复状态覆盖并发通知</li>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>：<span class="inline">performAutoCapture</span> 如何进入 checkpoint 原子捕获并通知 scheduler</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  重复捕获的风险来自并发 capture 与 stale cursor。<span class="inline">captureAtomically()</span>
+  把“读游标 -&gt; 写 L0 -&gt; 推进游标”锁成关键区；position slice 优先保护同一轮消息边界，timestamp cursor 作为持久 fallback 与审计证据；
+  <span class="inline">schedulerStartPromise</span> 则防止 scheduler 启动恢复覆盖同时发生的捕获通知。
+</div>
+
+<div class="selftest">
+<h2>🧪 自测 · 想一想为什么这么设计</h2>
+<div class="quiz">
+  <div class="qn">1. captureAtomically 保护的是哪段关键区？</div>
+  <ol class="opts">
+    <li>选择 favicon</li>
+    <li>读游标 -&gt; 写 L0 -&gt; 推进游标</li>
+    <li>渲染 HTML -&gt; 打印 PDF</li>
+    <li>删除 vectors.db -&gt; 重启</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>看答案与解析 <span class="hint">点击展开</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>答案：B</strong>。这段必须原子化，否则两个并发 capture 会读到同一个旧游标并重复写入。</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 发散思考（没有标准答案，动手或动脑想想）</div>
+  <ul>
+    <li>position slice 和 timestamp cursor 分别防哪类问题？</li>
   </ul>
 </div>
 </div>

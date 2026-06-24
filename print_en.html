@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 13 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">13 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 14 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">14 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -345,6 +345,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">运行时初始化与配置解析</span><span class="lang-en">Runtime init and config parsing</span></li>
   <li><span class="lang-zh">Auto Capture：对话提交后的捕获</span><span class="lang-en">Auto Capture after a turn commits</span></li>
   <li><span class="lang-zh">L0 JSONL：原始对话证据层</span><span class="lang-en">L0 JSONL: raw conversation evidence</span></li>
+  <li><span class="lang-zh">Checkpoint：游标、锁与防重复</span><span class="lang-en">Checkpoints: cursors, locks, and duplicate prevention</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -1766,6 +1767,114 @@ Otherwise L1 may treat old recalled memory as a new fact from this turn, creatin
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>When can the recorder restore the cached original prompt, and when does it fall back to sanitization and logging?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">Checkpoint：游标、锁与防重复</span><span class="lang-en">Checkpoints: cursors, locks, and duplicate prevention</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Checkpoints are the duplicate-prevention safety rail in the capture path. Duplicate L0 capture usually does not come from JSONL itself;
+it comes from concurrent <span class="inline">agent_end</span> / Gateway calls, or from a capture that reads a stale cursor.
+This lesson connects <span class="inline">captureAtomically()</span>, position slicing, timestamp cursors, and the scheduler start gate.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  Think of L0 as a warehouse intake ledger. If two clerks both see “the last receipt was 100”, both may register the same item as 101.
+  The fix is to lock the ledger: read 100, write the new receipt, advance the cursor to 101, then let the next clerk in.
+</div>
+
+<h2>Without the lock: stale cursors duplicate capture</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Concurrent entry</h4><p>OpenClaw <span class="inline">agent_end</span> and Gateway capture can submit messages for the same session at nearly the same time.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Same old cursor</h4><p>If the cursor is read outside the critical section, both calls may observe <span class="inline">afterTimestamp = T0</span>.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Duplicate L0 writes</h4><p>Both recorders believe messages after T0 are new, so the same user / assistant records are appended twice.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Late advance</h4><p>Writing the checkpoint afterward is too late: duplicate evidence has already entered L0, and L1 may extract it twice.</p></div></div>
+</div>
+
+<h2>With the lock: cursor read, write, and advance are atomic</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>captureAtomically(sessionKey)</h4><p><span class="inline">CheckpointManager</span> locks by session key so captures for the same session enter serially.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>read checkpoint</h4><p>The timestamp cursor, record count, and checkpoint state are read under the lock; callers do not bring an external stale cursor.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>record L0</h4><p>The callback calls <span class="inline">recordConversation</span> and writes only messages truly new after the cursor or position slice.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>advance cursor</h4><p>If messages were written, the same lock advances the checkpoint to the maximum timestamp from this capture.</p></div></div>
+</div>
+
+<h2>Pseudocode</h2>
+<pre class="code">captureAtomically(sessionKey):
+    lock(sessionKey)
+    cursor = read_checkpoint()
+    messages = record_after_cursor(cursor)
+    if messages:
+        write_checkpoint(max_timestamp(messages))
+    unlock(sessionKey)</pre>
+
+<h2>Position slice and timestamp cursor solve different problems</h2>
+<div class="cols">
+  <div class="col"><h4>position slice</h4><p>The recorder prefers the cached message count from before prompt build, such as <span class="inline">originalUserMessageCount</span>. After commit it slices the array after that position, protecting the turn boundary from timestamp drift, same-millisecond messages, or host timestamp rewrites.</p></div>
+  <div class="col"><h4>timestamp cursor</h4><p>When the position cache is unavailable, the checkpoint <span class="inline">afterTimestamp</span> remains the fallback for incremental capture. It is also evidence: it explains where the previous capture advanced and why this message counted as new.</p></div>
+</div>
+
+<p>
+So they are not substitutes. Position slice protects the structural boundary of “messages added by this turn”.
+Timestamp cursor protects the persistent incremental boundary across calls, restarts, or missing caches.
+</p>
+
+<h2>schedulerStartPromise: restored state must not clobber concurrent capture</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Gateway starts</div><div class="nd">restore persisted scheduler state</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">schedulerStartPromise</div><div class="nd">all callers await one startup promise</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">capture / notify</div><div class="nd">notify conversation counts after startup</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">no clobber</div><div class="nd">restored state does not overwrite concurrent capture state</div></div>
+</div>
+
+<p>
+<span class="inline">TdaiCore.schedulerStartPromise</span> handles a different race: while Gateway restores scheduler state,
+a simultaneous capture could notify the scheduler, write a fresh count, and then be overwritten by an older restored snapshot.
+The promise turns startup into a gate, so concurrent callers share the same startup result instead of racing ahead independently.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">CheckpointManager</span>, <span class="inline">captureAtomically</span>, sessionKey-scoped cursor locking</li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: position slice, timestamp cursor, incremental user / assistant extraction</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">schedulerStartPromise</span> prevents restored state from clobbering concurrent notifications</li>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>: how <span class="inline">performAutoCapture</span> enters atomic checkpoint capture and notifies the scheduler</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Duplicate capture risk comes from concurrent capture and stale cursors. <span class="inline">captureAtomically()</span>
+  locks “read cursor -&gt; write L0 -&gt; advance cursor” as the critical section; position slice protects the same-turn message boundary first,
+  timestamp cursor remains the persistent fallback and audit evidence; <span class="inline">schedulerStartPromise</span> prevents scheduler startup restore from overwriting concurrent capture notifications.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. Which critical section does captureAtomically protect?</div>
+  <ol class="opts">
+    <li>choose favicon</li>
+    <li>read cursor -&gt; write L0 -&gt; advance cursor</li>
+    <li>render HTML -&gt; print PDF</li>
+    <li>delete vectors.db -&gt; restart</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: B</strong>. This must be atomic; otherwise concurrent captures can read the same stale cursor and duplicate writes.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>What different problems do position slice and timestamp cursor defend against?</li>
   </ul>
 </div>
 </div>

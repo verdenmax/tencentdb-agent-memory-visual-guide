@@ -338,3 +338,173 @@ Otherwise L1 may treat old recalled memory as a new fact from this turn, creatin
 </div>
 """,
 }
+
+
+LESSON_14 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Checkpoint 是捕获路径里的“防重复保险”。重复 L0 捕获通常不是因为 JSONL 自己会重复，而是两个
+<span class="inline">agent_end</span> / Gateway 调用并发进入，或者某次捕获读到了过期 cursor。
+本课把 <span class="inline">captureAtomically()</span>、position slice、timestamp cursor 和 scheduler 启动门放在同一张图里看。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 生活类比</div>
+  把 L0 想成仓库入库单。两名库管如果同时看见“上一张单号是 100”，就都可能把 101 号货物登记一遍。
+  正确做法是先锁住登记簿：读到 100、写入新单、把游标推进到 101，这三步完成后再交给下一位库管。
+</div>
+
+<h2>没有锁时：旧游标会制造重复捕获</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>并发入口</h4><p>OpenClaw 的 <span class="inline">agent_end</span> 和 Gateway capture 可能几乎同时提交同一会话的 messages。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>读到同一个旧 cursor</h4><p>如果 cursor 在临界区外读取，两个调用都可能看到 <span class="inline">afterTimestamp = T0</span>。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>重复写 L0</h4><p>两个 recorder 都认为 T0 之后的消息是新增，于是相同 user / assistant 记录被追加两次。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>迟到推进</h4><p>最后才写 checkpoint 已经太晚：重复证据已经进入 L0，后续 L1 也可能重复抽取。</p></div></div>
+</div>
+
+<h2>有锁时：cursor 读取、写入、推进成为一个原子区</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>captureAtomically(sessionKey)</h4><p><span class="inline">CheckpointManager</span> 按会话键加锁，让同一 session 的捕获串行进入。</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>read checkpoint</h4><p>在锁内读取 timestamp cursor、记录计数和其他 checkpoint 状态，调用方不携带外部旧 cursor。</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>record L0</h4><p>回调调用 <span class="inline">recordConversation</span>，只写 cursor 或位置切片之后真正新增的消息。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>advance cursor</h4><p>如果本次写入了消息，就在同一把锁内把 checkpoint 推进到新记录的最大 timestamp。</p></div></div>
+</div>
+
+<h2>伪代码</h2>
+<pre class="code">captureAtomically(sessionKey):
+    lock(sessionKey)
+    cursor = read_checkpoint()
+    messages = record_after_cursor(cursor)
+    if messages:
+        write_checkpoint(max_timestamp(messages))
+    unlock(sessionKey)</pre>
+
+<h2>position slice 与 timestamp cursor 分工不同</h2>
+<div class="cols">
+  <div class="col"><h4>position slice</h4><p>优先使用 prompt build 前缓存的 message count，例如 <span class="inline">originalUserMessageCount</span>。提交后只取这个位置之后的数组切片，能避免同一轮 messages 中 timestamp 漂移、同毫秒或宿主改写时间造成的边界误判。</p></div>
+  <div class="col"><h4>timestamp cursor</h4><p>当位置缓存不可用时，checkpoint 中的 <span class="inline">afterTimestamp</span> 仍是增量捕获的 fallback。它也是审计证据：可以解释“上次捕获推进到了哪一刻，为什么这条消息被认为是新增”。</p></div>
+</div>
+
+<p>
+因此二者不是互相替代：position slice 保护“本轮新增范围”的结构边界，timestamp cursor 保护跨调用的持久增量边界。
+一个防数组位置漂移，一个防进程重启或缺少缓存时失去增量依据。
+</p>
+
+<h2>schedulerStartPromise：启动状态不能覆盖并发 capture</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Gateway starts</div><div class="nd">恢复 scheduler 持久化状态</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">schedulerStartPromise</div><div class="nd">所有调用等待同一个启动 promise</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">capture / notify</div><div class="nd">启动完成后再通知会话计数</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">no clobber</div><div class="nd">恢复状态不会覆盖并发捕获刚写入的状态</div></div>
+</div>
+
+<p>
+<span class="inline">TdaiCore.schedulerStartPromise</span> 解决的是另一类竞态：Gateway 恢复 scheduler 状态时，
+同时到来的 capture 如果直接通知 scheduler，可能先写入新计数，随后又被“刚恢复出来的旧状态”覆盖。
+启动 promise 把恢复过程变成一道门，让并发调用共享同一个启动结果，而不是各自抢跑。
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/utils/checkpoint.ts</span>：<span class="inline">CheckpointManager</span>、<span class="inline">captureAtomically</span>、按 sessionKey 锁住 cursor 读写</li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>：position slice、timestamp cursor、增量提取 user / assistant 消息</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>：<span class="inline">schedulerStartPromise</span> 防止恢复状态覆盖并发通知</li>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>：<span class="inline">performAutoCapture</span> 如何进入 checkpoint 原子捕获并通知 scheduler</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  重复捕获的风险来自并发 capture 与 stale cursor。<span class="inline">captureAtomically()</span>
+  把“读游标 -&gt; 写 L0 -&gt; 推进游标”锁成关键区；position slice 优先保护同一轮消息边界，timestamp cursor 作为持久 fallback 与审计证据；
+  <span class="inline">schedulerStartPromise</span> 则防止 scheduler 启动恢复覆盖同时发生的捕获通知。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Checkpoints are the duplicate-prevention safety rail in the capture path. Duplicate L0 capture usually does not come from JSONL itself;
+it comes from concurrent <span class="inline">agent_end</span> / Gateway calls, or from a capture that reads a stale cursor.
+This lesson connects <span class="inline">captureAtomically()</span>, position slicing, timestamp cursors, and the scheduler start gate.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧩 Analogy</div>
+  Think of L0 as a warehouse intake ledger. If two clerks both see “the last receipt was 100”, both may register the same item as 101.
+  The fix is to lock the ledger: read 100, write the new receipt, advance the cursor to 101, then let the next clerk in.
+</div>
+
+<h2>Without the lock: stale cursors duplicate capture</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>Concurrent entry</h4><p>OpenClaw <span class="inline">agent_end</span> and Gateway capture can submit messages for the same session at nearly the same time.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>Same old cursor</h4><p>If the cursor is read outside the critical section, both calls may observe <span class="inline">afterTimestamp = T0</span>.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>Duplicate L0 writes</h4><p>Both recorders believe messages after T0 are new, so the same user / assistant records are appended twice.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>Late advance</h4><p>Writing the checkpoint afterward is too late: duplicate evidence has already entered L0, and L1 may extract it twice.</p></div></div>
+</div>
+
+<h2>With the lock: cursor read, write, and advance are atomic</h2>
+<div class="vflow">
+  <div class="step"><div class="num">1</div><div class="sc"><h4>captureAtomically(sessionKey)</h4><p><span class="inline">CheckpointManager</span> locks by session key so captures for the same session enter serially.</p></div></div>
+  <div class="step"><div class="num">2</div><div class="sc"><h4>read checkpoint</h4><p>The timestamp cursor, record count, and checkpoint state are read under the lock; callers do not bring an external stale cursor.</p></div></div>
+  <div class="step"><div class="num">3</div><div class="sc"><h4>record L0</h4><p>The callback calls <span class="inline">recordConversation</span> and writes only messages truly new after the cursor or position slice.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>advance cursor</h4><p>If messages were written, the same lock advances the checkpoint to the maximum timestamp from this capture.</p></div></div>
+</div>
+
+<h2>Pseudocode</h2>
+<pre class="code">captureAtomically(sessionKey):
+    lock(sessionKey)
+    cursor = read_checkpoint()
+    messages = record_after_cursor(cursor)
+    if messages:
+        write_checkpoint(max_timestamp(messages))
+    unlock(sessionKey)</pre>
+
+<h2>Position slice and timestamp cursor solve different problems</h2>
+<div class="cols">
+  <div class="col"><h4>position slice</h4><p>The recorder prefers the cached message count from before prompt build, such as <span class="inline">originalUserMessageCount</span>. After commit it slices the array after that position, protecting the turn boundary from timestamp drift, same-millisecond messages, or host timestamp rewrites.</p></div>
+  <div class="col"><h4>timestamp cursor</h4><p>When the position cache is unavailable, the checkpoint <span class="inline">afterTimestamp</span> remains the fallback for incremental capture. It is also evidence: it explains where the previous capture advanced and why this message counted as new.</p></div>
+</div>
+
+<p>
+So they are not substitutes. Position slice protects the structural boundary of “messages added by this turn”.
+Timestamp cursor protects the persistent incremental boundary across calls, restarts, or missing caches.
+</p>
+
+<h2>schedulerStartPromise: restored state must not clobber concurrent capture</h2>
+<div class="flow">
+  <div class="node"><div class="nt">Gateway starts</div><div class="nd">restore persisted scheduler state</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">schedulerStartPromise</div><div class="nd">all callers await one startup promise</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">capture / notify</div><div class="nd">notify conversation counts after startup</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">no clobber</div><div class="nd">restored state does not overwrite concurrent capture state</div></div>
+</div>
+
+<p>
+<span class="inline">TdaiCore.schedulerStartPromise</span> handles a different race: while Gateway restores scheduler state,
+a simultaneous capture could notify the scheduler, write a fresh count, and then be overwritten by an older restored snapshot.
+The promise turns startup into a gate, so concurrent callers share the same startup result instead of racing ahead independently.
+</p>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/utils/checkpoint.ts</span>: <span class="inline">CheckpointManager</span>, <span class="inline">captureAtomically</span>, sessionKey-scoped cursor locking</li>
+    <li><span class="inline">src/core/conversation/l0-recorder.ts</span>: position slice, timestamp cursor, incremental user / assistant extraction</li>
+    <li><span class="inline">src/core/tdai-core.ts</span>: <span class="inline">schedulerStartPromise</span> prevents restored state from clobbering concurrent notifications</li>
+    <li><span class="inline">src/core/hooks/auto-capture.ts</span>: how <span class="inline">performAutoCapture</span> enters atomic checkpoint capture and notifies the scheduler</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  Duplicate capture risk comes from concurrent capture and stale cursors. <span class="inline">captureAtomically()</span>
+  locks “read cursor -&gt; write L0 -&gt; advance cursor” as the critical section; position slice protects the same-turn message boundary first,
+  timestamp cursor remains the persistent fallback and audit evidence; <span class="inline">schedulerStartPromise</span> prevents scheduler startup restore from overwriting concurrent capture notifications.
+</div>
+""",
+}

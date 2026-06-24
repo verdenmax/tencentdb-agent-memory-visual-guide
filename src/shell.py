@@ -72,6 +72,8 @@ PAGES = [
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
     ("13-l0-jsonl-recorder.html", "L0 JSONL：原始对话证据层", "L0 JSONL: raw conversation evidence",
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
+    ("14-checkpoints-races.html", "Checkpoint：游标、锁与防重复", "Checkpoints: cursors, locks, and duplicate prevention",
+     "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
 ]
 
 def bi(zh, en):
@@ -531,6 +533,8 @@ SUBTITLES = {
                                   "after agent_end / turn committed, write L0, index vectors, notify pipeline"),
     "13-l0-jsonl-recorder.html": ("一行一条消息、按天写入、清洗注入标签、保留可追溯证据",
                                   "one message per line, daily files, sanitize injected tags, preserve evidence"),
+    "14-checkpoints-races.html": ("captureAtomically、timestamp cursor、position slice、scheduler start gate",
+                                  "captureAtomically, timestamp cursor, position slice, scheduler start gate"),
 }
 
 def index_page(lesson_prefix="lessons/"):
