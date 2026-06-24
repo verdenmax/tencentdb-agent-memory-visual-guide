@@ -80,6 +80,8 @@ PAGES = [
      "第四部分 · L0 与 L1：捕获、抽取、去重", "Part 4 · L0 and L1: capture, extraction, dedup"),
     ("17-why-l2-scene-blocks.html", "为什么需要 L2 Scene Blocks", "Why L2 scene blocks exist",
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
+    ("18-scene-extractor-sandbox.html", "SceneExtractor 与沙箱文件写入工具", "SceneExtractor and sandboxed file-writing tools",
+     "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
 ]
 
 def bi(zh, en):
@@ -547,6 +549,8 @@ SUBTITLES = {
                                "batchDedup, vector candidates, JSONL write, store upsert, recall fallback"),
     "17-why-l2-scene-blocks.html": ("把零散 L1 原子组织成可导航、可追溯、可增长的情境块",
                                     "organize scattered L1 atoms into navigable, traceable, growing scene blocks"),
+    "18-scene-extractor-sandbox.html": ("CleanContextRunner 只暴露 scene_blocks 工作区，LLM 可写场景但看不到元数据",
+                                       "CleanContextRunner exposes only scene_blocks, so the LLM writes scenes without seeing metadata"),
 }
 
 def index_page(lesson_prefix="lessons/"):

@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 17 lessons.
+The guide currently contains 18 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -27,6 +27,7 @@ The guide currently contains 17 lessons.
 | 15 | L1 extraction: conversation to memory atoms |
 | 16 | L1 dedup, conflict detection, and write path |
 | 17 | Why L2 scene blocks exist |
+| 18 | SceneExtractor and sandboxed file-writing tools |
 
 ## How to view locally
 

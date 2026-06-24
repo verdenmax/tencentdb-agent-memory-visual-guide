@@ -23,4 +23,5 @@ CONTENT = {
     "15-l1-extraction.html": part4.LESSON_15,
     "16-l1-dedup-write.html": part4.LESSON_16,
     "17-why-l2-scene-blocks.html": part5.LESSON_17,
+    "18-scene-extractor-sandbox.html": part5.LESSON_18,
 }

@@ -338,6 +338,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "什么信息适合停留在 L1，什么信息应该进入 L2 场景？", "en": "What information should stay in L1, and what should become an L2 scene?"}],
     },
+    "18-scene-extractor-sandbox.html": {
+        "mcq": [{
+            "q": {"zh": "SceneExtractor 为什么把 LLM 的 workspaceDir 限制到 <code>scene_blocks/</code>？", "en": "Why does SceneExtractor restrict the LLM workspaceDir to <code>scene_blocks/</code>?"},
+            "opts": [
+                {"zh": "让 LLM 能写场景文件，但不能直接改 checkpoint、scene_index 或 persona", "en": "So the LLM can write scene files but cannot directly change checkpoints, scene_index, or persona"},
+                {"zh": "为了禁止 LLM 写任何文件", "en": "To forbid the LLM from writing any file"},
+                {"zh": "为了让 HTML 构建更快", "en": "To make HTML builds faster"},
+                {"zh": "为了跳过备份", "en": "To skip backups"},
+            ],
+            "answer": 0,
+            "why": {"zh": "沙箱把创造性编辑限制在场景块目录，工程代码负责索引、备份和后处理。", "en": "The sandbox confines creative edits to scene blocks while engineering code owns indexes, backups, and post-processing."},
+        }],
+        "open": [{"zh": "如果 LLM 写坏了一个 scene block，备份和索引同步分别能帮你排查什么？", "en": "If the LLM corrupts a scene block, what do backups and index sync help diagnose?"}],
+    },
 }
 
 
