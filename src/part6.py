@@ -149,3 +149,169 @@ If capture saved recall-prepended text, later L0/L1 processing would treat syste
 </div>
 """,
 }
+
+
+LESSON_23 = {
+    "zh": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+第 22 课看到 Auto Recall 在 prompt 构建前启动；本课下钻到 L1 搜索本身。
+<span class="inline">searchMemories()</span> 先清洗用户文本，再按 <span class="inline">keyword</span>、<span class="inline">embedding</span> 或 <span class="inline">hybrid</span> 选择检索路径。
+召回的产物不是完整 transcript，而是足够短、足够相关的 L1 片段；更长的证据应通过显式 memory search 工具继续查。
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 生活类比</div>
+  这像会议助理只把三五条最相关的便签贴到发言稿旁边，而不是把整本会议记录塞进来。
+  便签先按关键词或语义找，再按预算裁短；如果语义检索的设备没准备好，就退回可靠的关键词检索。
+</div>
+
+<h2>searchMemories 的召回管线</h2>
+<div class="flow">
+  <div class="node"><div class="nt">sanitized query</div><div class="nd"><span class="inline">sanitizeText(userText)</span> 去掉不可信控制片段，只保留适合检索的文本。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">strategy</div><div class="nd">配置可选 <span class="inline">keyword</span>、<span class="inline">embedding</span>、<span class="inline">hybrid</span>；未显式配置时按 recall 配置默认值决定。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">candidates</div><div class="nd">FTS5 BM25 和/或向量余弦相似度产生候选 L1。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">threshold / RRF</div><div class="nd">单路结果用分数阈值过滤；混合结果用 RRF 合并排序。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">budget</div><div class="nd"><span class="inline">maxResults</span> 与字符预算限制注入规模。</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">injected lines</div><div class="nd">只注入简洁 L1 行，保留 id、score、memory 摘要等可追踪线索。</div></div>
+</div>
+
+<h2>三种策略怎么选</h2>
+<div class="cols">
+  <div class="col"><h4>keyword</h4><p><span class="inline">searchByKeyword</span> 走 SQLite FTS5。<span class="inline">buildFtsQuery</span> 把清洗后的词变成 FTS 查询，结果用 BM25 排序，适合精确术语、文件名、函数名。</p></div>
+  <div class="col"><h4>embedding</h4><p><span class="inline">searchByEmbedding</span> 先把 query 编成向量，再用余弦相似度找语义接近的 L1。它适合用户换一种说法提问，但依赖 embedding 资源可用。</p></div>
+  <div class="col"><h4>hybrid</h4><p><span class="inline">searchHybrid</span> 同时跑 keyword 与 embedding，再用 <span class="inline">rrfMerge</span> 把两个排行榜融合。RRF 的 <span class="inline">RRF_K</span> 让高排名结果稳定胜出，而不是只看某一路绝对分数。</p></div>
+</div>
+
+<p>
+降级规则很重要：如果配置选择 <span class="inline">embedding</span> 或 <span class="inline">hybrid</span>，但 embedding client、模型维度或向量索引没有准备好，
+<span class="inline">searchMemories()</span> 会安全退回 <span class="inline">keyword</span>。
+这不会阻塞主对话，也不会捏造语义分数；它只是使用本地 FTS5 能力继续提供可解释的 L1 候选。
+</p>
+
+<h2>预算控制点</h2>
+<table class="t">
+  <tr><th>控制项</th><th>作用</th><th>为什么需要</th></tr>
+  <tr><td class="mono">maxResults</td><td>限制最多格式化多少条 L1</td><td>避免命中很多时把 prompt 挤满。</td></tr>
+  <tr><td class="mono">scoreThreshold</td><td>过滤低相关候选</td><td>宁可少注入，也不要把弱相关记忆带进本轮。</td></tr>
+  <tr><td class="mono">timeoutMs</td><td>保护召回耗时</td><td>搜索慢或资源异常时，主对话继续。</td></tr>
+  <tr><td class="mono">line truncation</td><td>把每条 memory 行裁成短摘要</td><td>L1 负责给模型线索，不负责搬运完整 transcript。</td></tr>
+  <tr><td class="mono">applyRecallBudget</td><td>按总字符预算截断最终注入文本</td><td>让 recall 有边界，给用户问题和系统规则保留空间。</td></tr>
+</table>
+
+<h2>核心伪代码</h2>
+<pre class="code">clean = sanitizeText(userText)
+strategy = cfg.recall.strategy or "hybrid"
+if strategy needs embedding and embedding not ready:
+    strategy = "keyword"
+if strategy == "hybrid":
+    candidates = rrfMerge([fts(clean), vector(embed(clean))])
+else:
+    candidates = search_one_strategy(clean)
+lines = format_top_results(candidates, maxResults, scoreThreshold)
+return applyRecallBudget(lines, cfg.recall)</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 源码锚点</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>：<span class="inline">searchMemories</span> 选择 <span class="inline">keyword</span>、<span class="inline">embedding</span>、<span class="inline">hybrid</span>；<span class="inline">searchByKeyword</span>、<span class="inline">searchByEmbedding</span>、<span class="inline">searchHybrid</span> 分别实现三条路径；<span class="inline">applyRecallBudget</span> 做最终裁剪。</li>
+    <li><span class="inline">src/core/store/search-utils.ts</span>：<span class="inline">rrfMerge</span> 与 <span class="inline">RRF_K</span> 定义 hybrid 的 reciprocal-rank fusion 排序。</li>
+    <li><span class="inline">src/core/store/sqlite.ts</span>：<span class="inline">buildFtsQuery</span> 与 FTS5 helpers 负责关键词查询、BM25 排名和 SQLite 搜索细节。</li>
+    <li><span class="inline">src/core/store/types.ts</span>：<span class="inline">L1SearchResult</span> 与 <span class="inline">L1FtsResult</span> 描述召回候选和 FTS 命中的结构。</li>
+    <li><span class="inline">src/core/tools/memory-search.ts</span>：显式 memory search 工具路径；当自动召回只给出短片段时，可以用工具继续下钻。</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ 本课要点</div>
+  L1 recall 的目标是“少量、相关、可追踪”。<span class="inline">keyword</span> 提供本地可解释检索，
+  <span class="inline">embedding</span> 提供语义相似度，<span class="inline">hybrid</span> 用 RRF 合并两者；
+  资源不可用时退回 <span class="inline">keyword</span>，最后由 <span class="inline">maxResults</span>、阈值和字符预算保证 prompt 不被记忆挤满。
+</div>
+""",
+    "en": r"""
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Lesson 22 showed Auto Recall starting before prompt build; this lesson drills into L1 search itself.
+<span class="inline">searchMemories()</span> sanitizes user text, then chooses <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>.
+Recall output is not a full transcript. It is a compact set of relevant L1 snippets; deeper evidence can be fetched through the explicit memory search tool.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Think of a meeting assistant attaching three to five relevant sticky notes beside your speaking notes, not dropping the whole meeting archive into the room.
+  The notes are found by words or semantics, then trimmed by budget; if semantic equipment is unavailable, the assistant safely falls back to keyword lookup.
+</div>
+
+<h2>The searchMemories recall pipeline</h2>
+<div class="flow">
+  <div class="node"><div class="nt">sanitized query</div><div class="nd"><span class="inline">sanitizeText(userText)</span> removes untrusted control fragments and keeps text suitable for search.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">strategy</div><div class="nd">Config can select <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>; if unset, recall config supplies the default.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">candidates</div><div class="nd">FTS5 BM25 and/or vector cosine similarity produce candidate L1 memories.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">threshold / RRF</div><div class="nd">Single-strategy results are filtered by score; hybrid results are merged with RRF.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">budget</div><div class="nd"><span class="inline">maxResults</span> and character limits bound injection size.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">injected lines</div><div class="nd">Only concise L1 lines are injected, keeping id, score, memory summary, and trace hints.</div></div>
+</div>
+
+<h2>How the three strategies differ</h2>
+<div class="cols">
+  <div class="col"><h4>keyword</h4><p><span class="inline">searchByKeyword</span> uses SQLite FTS5. <span class="inline">buildFtsQuery</span> turns sanitized words into an FTS query, and BM25 ranks the results. This is good for exact terms, file names, and function names.</p></div>
+  <div class="col"><h4>embedding</h4><p><span class="inline">searchByEmbedding</span> embeds the query, then finds L1 memories by cosine similarity. It works when the user asks with different wording, but it depends on embedding resources being ready.</p></div>
+  <div class="col"><h4>hybrid</h4><p><span class="inline">searchHybrid</span> runs keyword and embedding, then <span class="inline">rrfMerge</span> fuses both rankings. <span class="inline">RRF_K</span> makes high-ranked items win consistently instead of trusting one absolute score scale.</p></div>
+</div>
+
+<p>
+Fallback is part of the design. If config selects <span class="inline">embedding</span> or <span class="inline">hybrid</span> but the embedding client, dimensions, or vector index are unavailable,
+<span class="inline">searchMemories()</span> safely degrades to <span class="inline">keyword</span>.
+That does not block the main chat and does not invent semantic scores; it keeps serving explainable L1 candidates through local FTS5.
+</p>
+
+<h2>Budget controls</h2>
+<table class="t">
+  <tr><th>Control</th><th>Effect</th><th>Why it matters</th></tr>
+  <tr><td class="mono">maxResults</td><td>Limits how many L1 memories are formatted</td><td>Prevents many hits from crowding the prompt.</td></tr>
+  <tr><td class="mono">scoreThreshold</td><td>Filters weak candidates</td><td>It is safer to inject less than to add loosely related memories.</td></tr>
+  <tr><td class="mono">timeoutMs</td><td>Bounds recall latency</td><td>If search is slow or resources fail, the main chat continues.</td></tr>
+  <tr><td class="mono">line truncation</td><td>Trims each memory line into a short summary</td><td>L1 gives the model clues; it does not transport full transcripts.</td></tr>
+  <tr><td class="mono">applyRecallBudget</td><td>Truncates final injected text by total character budget</td><td>Recall stays bounded, leaving room for the user request and system rules.</td></tr>
+</table>
+
+<h2>Core pseudocode</h2>
+<pre class="code">clean = sanitizeText(userText)
+strategy = cfg.recall.strategy or "hybrid"
+if strategy needs embedding and embedding not ready:
+    strategy = "keyword"
+if strategy == "hybrid":
+    candidates = rrfMerge([fts(clean), vector(embed(clean))])
+else:
+    candidates = search_one_strategy(clean)
+lines = format_top_results(candidates, maxResults, scoreThreshold)
+return applyRecallBudget(lines, cfg.recall)</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">searchMemories</span> selects <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>; <span class="inline">searchByKeyword</span>, <span class="inline">searchByEmbedding</span>, and <span class="inline">searchHybrid</span> implement the paths; <span class="inline">applyRecallBudget</span> does final trimming.</li>
+    <li><span class="inline">src/core/store/search-utils.ts</span>: <span class="inline">rrfMerge</span> and <span class="inline">RRF_K</span> define reciprocal-rank fusion for hybrid ranking.</li>
+    <li><span class="inline">src/core/store/sqlite.ts</span>: <span class="inline">buildFtsQuery</span> and FTS5 helpers handle keyword query construction, BM25 ranking, and SQLite search details.</li>
+    <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">L1SearchResult</span> and <span class="inline">L1FtsResult</span> describe recall candidates and FTS hits.</li>
+    <li><span class="inline">src/core/tools/memory-search.ts</span>: explicit memory search tool path; when automatic recall injects only short snippets, the tool can drill deeper.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  L1 recall aims for "small, relevant, traceable". <span class="inline">keyword</span> provides local explainable search,
+  <span class="inline">embedding</span> provides semantic similarity, and <span class="inline">hybrid</span> combines both with RRF.
+  When resources are unavailable, recall falls back to <span class="inline">keyword</span>; then <span class="inline">maxResults</span>, thresholds, and character budgets keep memory from crowding the prompt.
+</div>
+""",
+}

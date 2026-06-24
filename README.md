@@ -6,7 +6,7 @@ A visual, bilingual (中文 + English) guide to [TencentDB Agent Memory](https:/
 
 ## Current lessons
 
-The guide currently contains 22 lessons.
+The guide currently contains 23 lessons.
 
 | Lesson | Topic |
 | --- | --- |
@@ -32,6 +32,7 @@ The guide currently contains 22 lessons.
 | 20 | PersonaGenerator and incremental profile updates |
 | 21 | L2/L3 scheduling and trigger rules |
 | 22 | Auto-recall before prompt build |
+| 23 | L1 memory search and recall budgeting |
 
 ## How to view locally
 

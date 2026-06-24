@@ -329,7 +329,7 @@ details[open] > summary { list-style: none; }
 </head>
 <body>
 <h1><span class="lang-zh">TencentDB Agent Memory 图解学习指南 - 打印版</span><span class="lang-en">TencentDB Agent Memory Visual Guide - Print Edition</span></h1>
-<p style="color:var(--muted)"><span class="lang-zh">当前共 22 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">22 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
+<p style="color:var(--muted)"><span class="lang-zh">当前共 23 课 - 逐课分页。用浏览器 Ctrl/Cmd+P 即可导出 PDF。</span><span class="lang-en">23 lessons currently - one page each. Use Ctrl/Cmd+P in a browser to export a PDF.</span></p>
 <div class="print-toc"><h2><span class="lang-zh">目录</span><span class="lang-en">Contents</span></h2>
 <ol>
   <li><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></li>
@@ -354,6 +354,7 @@ details[open] > summary { list-style: none; }
   <li><span class="lang-zh">PersonaGenerator 与增量画像更新</span><span class="lang-en">PersonaGenerator and incremental profile updates</span></li>
   <li><span class="lang-zh">L2/L3 调度与触发规则</span><span class="lang-en">L2/L3 scheduling and trigger rules</span></li>
   <li><span class="lang-zh">Prompt 构建前的 Auto Recall</span><span class="lang-en">Auto-recall before prompt build</span></li>
+  <li><span class="lang-zh">L1 记忆搜索与召回预算</span><span class="lang-en">L1 memory search and recall budgeting</span></li>
 </ol></div>
 <section class="lesson-print">
 <h1><span class="lang-zh">为什么需要 Agent Memory</span><span class="lang-en">Why Agent Memory</span></h1>
@@ -2753,6 +2754,112 @@ If capture saved recall-prepended text, later L0/L1 processing would treat syste
   <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
   <ul>
     <li>Why does capture need the original prompt cache instead of saving recall-prepended text?</li>
+  </ul>
+</div>
+</div>
+</section>
+<section class="lesson-print">
+<h1><span class="lang-zh">L1 记忆搜索与召回预算</span><span class="lang-en">L1 memory search and recall budgeting</span></h1>
+
+<p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
+Lesson 22 showed Auto Recall starting before prompt build; this lesson drills into L1 search itself.
+<span class="inline">searchMemories()</span> sanitizes user text, then chooses <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>.
+Recall output is not a full transcript. It is a compact set of relevant L1 snippets; deeper evidence can be fetched through the explicit memory search tool.
+</p>
+
+<div class="card analogy">
+  <div class="tag">🧭 Analogy</div>
+  Think of a meeting assistant attaching three to five relevant sticky notes beside your speaking notes, not dropping the whole meeting archive into the room.
+  The notes are found by words or semantics, then trimmed by budget; if semantic equipment is unavailable, the assistant safely falls back to keyword lookup.
+</div>
+
+<h2>The searchMemories recall pipeline</h2>
+<div class="flow">
+  <div class="node"><div class="nt">sanitized query</div><div class="nd"><span class="inline">sanitizeText(userText)</span> removes untrusted control fragments and keeps text suitable for search.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">strategy</div><div class="nd">Config can select <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>; if unset, recall config supplies the default.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">candidates</div><div class="nd">FTS5 BM25 and/or vector cosine similarity produce candidate L1 memories.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">threshold / RRF</div><div class="nd">Single-strategy results are filtered by score; hybrid results are merged with RRF.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node"><div class="nt">budget</div><div class="nd"><span class="inline">maxResults</span> and character limits bound injection size.</div></div>
+  <div class="arrow">-&gt;</div>
+  <div class="node hl"><div class="nt">injected lines</div><div class="nd">Only concise L1 lines are injected, keeping id, score, memory summary, and trace hints.</div></div>
+</div>
+
+<h2>How the three strategies differ</h2>
+<div class="cols">
+  <div class="col"><h4>keyword</h4><p><span class="inline">searchByKeyword</span> uses SQLite FTS5. <span class="inline">buildFtsQuery</span> turns sanitized words into an FTS query, and BM25 ranks the results. This is good for exact terms, file names, and function names.</p></div>
+  <div class="col"><h4>embedding</h4><p><span class="inline">searchByEmbedding</span> embeds the query, then finds L1 memories by cosine similarity. It works when the user asks with different wording, but it depends on embedding resources being ready.</p></div>
+  <div class="col"><h4>hybrid</h4><p><span class="inline">searchHybrid</span> runs keyword and embedding, then <span class="inline">rrfMerge</span> fuses both rankings. <span class="inline">RRF_K</span> makes high-ranked items win consistently instead of trusting one absolute score scale.</p></div>
+</div>
+
+<p>
+Fallback is part of the design. If config selects <span class="inline">embedding</span> or <span class="inline">hybrid</span> but the embedding client, dimensions, or vector index are unavailable,
+<span class="inline">searchMemories()</span> safely degrades to <span class="inline">keyword</span>.
+That does not block the main chat and does not invent semantic scores; it keeps serving explainable L1 candidates through local FTS5.
+</p>
+
+<h2>Budget controls</h2>
+<table class="t">
+  <tr><th>Control</th><th>Effect</th><th>Why it matters</th></tr>
+  <tr><td class="mono">maxResults</td><td>Limits how many L1 memories are formatted</td><td>Prevents many hits from crowding the prompt.</td></tr>
+  <tr><td class="mono">scoreThreshold</td><td>Filters weak candidates</td><td>It is safer to inject less than to add loosely related memories.</td></tr>
+  <tr><td class="mono">timeoutMs</td><td>Bounds recall latency</td><td>If search is slow or resources fail, the main chat continues.</td></tr>
+  <tr><td class="mono">line truncation</td><td>Trims each memory line into a short summary</td><td>L1 gives the model clues; it does not transport full transcripts.</td></tr>
+  <tr><td class="mono">applyRecallBudget</td><td>Truncates final injected text by total character budget</td><td>Recall stays bounded, leaving room for the user request and system rules.</td></tr>
+</table>
+
+<h2>Core pseudocode</h2>
+<pre class="code">clean = sanitizeText(userText)
+strategy = cfg.recall.strategy or "hybrid"
+if strategy needs embedding and embedding not ready:
+    strategy = "keyword"
+if strategy == "hybrid":
+    candidates = rrfMerge([fts(clean), vector(embed(clean))])
+else:
+    candidates = search_one_strategy(clean)
+lines = format_top_results(candidates, maxResults, scoreThreshold)
+return applyRecallBudget(lines, cfg.recall)</pre>
+
+<div class="card detail">
+  <div class="tag">🔬 Source anchors</div>
+  <ul>
+    <li><span class="inline">src/core/hooks/auto-recall.ts</span>: <span class="inline">searchMemories</span> selects <span class="inline">keyword</span>, <span class="inline">embedding</span>, or <span class="inline">hybrid</span>; <span class="inline">searchByKeyword</span>, <span class="inline">searchByEmbedding</span>, and <span class="inline">searchHybrid</span> implement the paths; <span class="inline">applyRecallBudget</span> does final trimming.</li>
+    <li><span class="inline">src/core/store/search-utils.ts</span>: <span class="inline">rrfMerge</span> and <span class="inline">RRF_K</span> define reciprocal-rank fusion for hybrid ranking.</li>
+    <li><span class="inline">src/core/store/sqlite.ts</span>: <span class="inline">buildFtsQuery</span> and FTS5 helpers handle keyword query construction, BM25 ranking, and SQLite search details.</li>
+    <li><span class="inline">src/core/store/types.ts</span>: <span class="inline">L1SearchResult</span> and <span class="inline">L1FtsResult</span> describe recall candidates and FTS hits.</li>
+    <li><span class="inline">src/core/tools/memory-search.ts</span>: explicit memory search tool path; when automatic recall injects only short snippets, the tool can drill deeper.</li>
+  </ul>
+</div>
+
+<div class="card key">
+  <div class="tag">✅ Key points</div>
+  L1 recall aims for "small, relevant, traceable". <span class="inline">keyword</span> provides local explainable search,
+  <span class="inline">embedding</span> provides semantic similarity, and <span class="inline">hybrid</span> combines both with RRF.
+  When resources are unavailable, recall falls back to <span class="inline">keyword</span>; then <span class="inline">maxResults</span>, thresholds, and character budgets keep memory from crowding the prompt.
+</div>
+
+<div class="selftest">
+<h2>🧪 Self-test - think about the design</h2>
+<div class="quiz">
+  <div class="qn">1. What is the core purpose of recall budgeting?</div>
+  <ol class="opts">
+    <li>Inject only the most relevant and compact L1 snippets so memory does not crowd out the prompt</li>
+    <li>To skip query sanitization</li>
+    <li>To disable BM25</li>
+    <li>To put all raw L0 text into every prompt</li>
+  </ol>
+  <details class="accordion" open>
+    <summary>Show answer &amp; explanation <span class="hint">click to expand</span></summary>
+    <div class="acc-body"><div class="qa"><div class="a"><strong>Answer: A</strong>. Budgeting keeps recall helpful but bounded; deeper details can be fetched with tools.</div></div></div>
+  </details>
+</div>
+<div class="card spark">
+  <div class="tag">💭 Open questions (no single right answer - just think or try)</div>
+  <ul>
+    <li>When does embedding or hybrid degrade to keyword, and why is that safe?</li>
   </ul>
 </div>
 </div>

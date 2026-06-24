@@ -408,6 +408,20 @@ QUIZZES = {
         }],
         "open": [{"zh": "为什么 capture 时需要原始 prompt 缓存，而不是直接保存被 recall prepend 后的文本？", "en": "Why does capture need the original prompt cache instead of saving recall-prepended text?"}],
     },
+    "23-l1-search-recall-budget.html": {
+        "mcq": [{
+            "q": {"zh": "召回预算控制的核心目的是什么？", "en": "What is the core purpose of recall budgeting?"},
+            "opts": [
+                {"zh": "只注入最相关且足够短的 L1 片段，避免 prompt 被记忆挤满", "en": "Inject only the most relevant and compact L1 snippets so memory does not crowd out the prompt"},
+                {"zh": "让所有 L0 原文每轮进入 prompt", "en": "To put all raw L0 text into every prompt"},
+                {"zh": "禁用 BM25", "en": "To disable BM25"},
+                {"zh": "跳过 query sanitize", "en": "To skip query sanitization"},
+            ],
+            "answer": 0,
+            "why": {"zh": "预算让 recall 有帮助但不过量，长细节可通过工具继续搜索。", "en": "Budgeting keeps recall helpful but bounded; deeper details can be fetched with tools."},
+        }],
+        "open": [{"zh": "什么时候 embedding 或 hybrid 会退化成 keyword？这种降级为什么安全？", "en": "When does embedding or hybrid degrade to keyword, and why is that safe?"}],
+    },
 }
 
 

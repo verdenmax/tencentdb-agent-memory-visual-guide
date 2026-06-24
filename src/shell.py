@@ -90,6 +90,8 @@ PAGES = [
      "第五部分 · L2/L3：场景与画像记忆", "Part 5 · L2/L3: scene and persona memory"),
     ("22-auto-recall-before-prompt.html", "Prompt 构建前的 Auto Recall", "Auto-recall before prompt build",
      "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
+    ("23-l1-search-recall-budget.html", "L1 记忆搜索与召回预算", "L1 memory search and recall budgeting",
+     "第六部分 · Recall、Search 与 Store", "Part 6 · Recall, search, and storage"),
 ]
 
 def bi(zh, en):
@@ -567,6 +569,8 @@ SUBTITLES = {
                                           "L1 resettable idle, L2 downward-only timer, L3 global serial queue with pending dedup"),
     "22-auto-recall-before-prompt.html": ("before_prompt_build 调 performAutoRecall，超时则跳过注入以保护主对话",
                                       "before_prompt_build calls performAutoRecall; timeout skips injection to protect the main chat"),
+    "23-l1-search-recall-budget.html": ("keyword、embedding、hybrid 策略先找相关 L1，再用 maxResults 与字符预算裁剪",
+                                    "keyword, embedding, and hybrid strategies find relevant L1, then maxResults and character budgets trim output"),
 }
 
 def index_page(lesson_prefix="lessons/"):

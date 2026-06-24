@@ -29,4 +29,5 @@ CONTENT = {
     "20-persona-generator-incremental.html": part5.LESSON_20,
     "21-l2-l3-scheduling-triggers.html": part5.LESSON_21,
     "22-auto-recall-before-prompt.html": part6.LESSON_22,
+    "23-l1-search-recall-budget.html": part6.LESSON_23,
 }
