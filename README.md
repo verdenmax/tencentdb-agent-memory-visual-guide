@@ -1,5 +1,6 @@
 # TencentDB Agent Memory Visual Guide / TencentDB Agent Memory 图解学习指南
 
+[![Read online](https://img.shields.io/badge/read-online-0f766e?logo=githubpages&logoColor=white)](https://verdenmax.github.io/tencentdb-agent-memory-visual-guide/)
 [![CI](https://github.com/verdenmax/tencentdb-agent-memory-visual-guide/actions/workflows/ci.yml/badge.svg)](https://github.com/verdenmax/tencentdb-agent-memory-visual-guide/actions/workflows/ci.yml)
 [![Pages workflow](https://github.com/verdenmax/tencentdb-agent-memory-visual-guide/actions/workflows/pages.yml/badge.svg)](https://github.com/verdenmax/tencentdb-agent-memory-visual-guide/actions/workflows/pages.yml)
 [![Lessons](https://img.shields.io/badge/lessons-34-0f766e)](#lesson-table)
@@ -8,6 +9,8 @@
 [![Dependencies](https://img.shields.io/badge/dependencies-0-2b8a3e)](#build--validate)
 [![Code: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
 [![Content: CC BY 4.0](https://img.shields.io/badge/content-CC_BY_4.0-blue.svg)](LICENSE-CONTENT)
+
+**📖 Read the guide online → <https://verdenmax.github.io/tencentdb-agent-memory-visual-guide/>**
 
 A visual, bilingual (English + 中文) guide to [TencentDB Agent Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory). The guide contains **34 lessons across 8 parts**, starting from one conversation's data flow and building up to L0-L3 long-term memory, recall/search, context offload, gateway operations, and contribution workflows.
 
@@ -67,13 +70,13 @@ Generated HTML is committed and kept in sync with `src/`. Re-running the build a
 
 ## GitHub Pages
 
-This repository is ready for GitHub Pages once it is published on GitHub:
+**📖 Live site: <https://verdenmax.github.io/tencentdb-agent-memory-visual-guide/>**
+
+The guide is published to GitHub Pages by the **Deploy GitHub Pages** workflow (`.github/workflows/pages.yml`) on every push to `main`/`master`. First-time setup (owner only, one-time):
 
 1. Open repository **Settings → Pages**.
 2. Set **Source** to **GitHub Actions**.
-3. Run the **Deploy GitHub Pages** workflow, or push to `main` or `master`.
-
-The README intentionally does not publish a live Pages URL until the guide repository exists on GitHub.
+3. Push to `main`/`master` or run the **Deploy GitHub Pages** workflow; each later push redeploys the site automatically.
 
 ## Lesson table
 
@@ -153,6 +156,8 @@ Dual-licensed:
 这是一份 [TencentDB Agent Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory) 的**图解、双语**学习指南。指南包含 **8 个部分、34 课**，从一次对话的数据流讲起，逐步覆盖 L0-L3 长期记忆、召回与搜索、上下文卸载、Gateway 运维以及调试/贡献流程。
 
 > **声明：** 本项目是第三方、非官方学习材料，不包含 TencentDB-Agent-Memory 源码；仅通过图解、伪代码和少量标注来源的引用来讲解。TencentDB Agent Memory 本身由其作者/仓库按其许可证发布。
+
+**在线阅读：** <https://verdenmax.github.io/tencentdb-agent-memory-visual-guide/>
 
 **本地阅读：** `cd src && python3 build.py`，然后用浏览器打开 `../index.html`。
 
