@@ -393,6 +393,7 @@ on_l2_success():
     persist_pipeline_state_for_recovery()
     if destroyed:
         return
+    arm_l2_max_interval_timer()        # periodic poll guarantee
     if l3Running:
         l3Pending = true
     else:
@@ -519,6 +520,7 @@ on_l2_success():
     persist_pipeline_state_for_recovery()
     if destroyed:
         return
+    arm_l2_max_interval_timer()        # periodic poll guarantee
     if l3Running:
         l3Pending = true
     else:
