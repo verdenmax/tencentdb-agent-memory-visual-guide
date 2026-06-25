@@ -26,8 +26,8 @@ Auto Recall 发生在 prompt 真正交给模型之前。插件先保留用户原
 
 <h2>两种注入位置</h2>
 <div class="cols">
-  <div class="col"><h4>Prepend user context</h4><p>适合放“与本轮用户问题直接相关”的记忆片段。它贴近用户文本，让模型把这些事实当成本轮问题的可用背景，而不是新的用户命令。</p></div>
-  <div class="col"><h4>Append system context</h4><p>适合放更稳定的系统侧说明，例如 recall 结果摘要、来源提示或使用边界。它补充系统上下文，但不覆盖原始系统规则。</p></div>
+  <div class="col"><h4>Prepend user context</h4><p>放本轮 <span class="inline">searchMemories()</span> 召回的 L1 相关记忆，包在 <span class="inline">&lt;relevant-memories&gt;</span> 里。它每轮变化、贴近用户文本，让模型把这些事实当成本轮问题的可用背景，而不是新的用户命令。</p></div>
+  <div class="col"><h4>Append system context</h4><p>放相对稳定的系统侧上下文：<span class="inline">&lt;user-persona&gt;</span>（L3 persona）、<span class="inline">&lt;scene-navigation&gt;</span>（L2 场景导航）与 <span class="inline">MEMORY_TOOLS_GUIDE</span>。它追加到系统上下文末尾，不覆盖原始系统规则，且因变化少而利于 prompt cache。</p></div>
 </div>
 
 <h2>缓存、清洗与指标</h2>
@@ -100,8 +100,8 @@ continues so memory enhancement never blocks the user's response.
 
 <h2>Two injection positions</h2>
 <div class="cols">
-  <div class="col"><h4>Prepend user context</h4><p>Best for memory snippets directly relevant to the current user request. It sits near the user text so the model treats those facts as available background for this turn, not as new user commands.</p></div>
-  <div class="col"><h4>Append system context</h4><p>Best for more stable system-side notes such as recall summaries, source hints, or usage boundaries. It extends system context without replacing the original system rules.</p></div>
+  <div class="col"><h4>Prepend user context</h4><p>Holds this turn's L1 relevant memories from <span class="inline">searchMemories()</span>, wrapped in <span class="inline">&lt;relevant-memories&gt;</span>. It changes every turn and sits near the user text, so the model treats those facts as available background for this turn, not as new user commands.</p></div>
+  <div class="col"><h4>Append system context</h4><p>Holds the relatively stable system-side context: <span class="inline">&lt;user-persona&gt;</span> (L3 persona), <span class="inline">&lt;scene-navigation&gt;</span> (L2 scene navigation), and <span class="inline">MEMORY_TOOLS_GUIDE</span>. It is appended to the system tail without replacing the original system rules, and its low change rate is friendly to prompt caching.</p></div>
 </div>
 
 <h2>Caches, sanitization, and metrics</h2>
