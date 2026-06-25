@@ -1623,6 +1623,10 @@ It keeps the capture path short and deterministic: write local L0 first, index i
 </div>
 
 <p>
+Why the same text carries two field names: <span class="inline">L0MessageRecord</span> is the <strong>raw on-disk record</strong> written to JSONL (its field is <span class="inline">content</span>), while <span class="inline">L0Record</span> is the projection built for the <strong>vector / search index</strong>, which renames the same text to <span class="inline">messageText</span>. Same content, different purpose &mdash; hence the different field name.
+</p>
+
+<p>
 The important word is “new”. <span class="inline">recordConversation</span> prefers the <span class="inline">originalUserMessageCount</span>
 recorded before prompt build and slices the raw messages after that position; if that cache is unavailable, <span class="inline">captureAtomically</span> reads the checkpoint-owned <span class="inline">afterTimestamp</span> cursor inside the atomic section and passes it to the callback for filtering.
 The caller does not provide a cursor outside the critical section; checkpoint owns cursor read/update under the same lock. Auto Capture therefore does not keep rewriting the whole history into L0. It appends only the incremental messages that appeared after the committed turn.

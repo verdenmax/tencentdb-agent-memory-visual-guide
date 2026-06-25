@@ -360,6 +360,10 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 </div>
 
 <p>
+同一段正文为什么有两个字段名：<span class="inline">L0MessageRecord</span> 是写入 JSONL 的<strong>原始落盘记录</strong>（字段名 <span class="inline">content</span>），而 <span class="inline">L0Record</span> 是为<strong>向量 / 搜索索引</strong>构造的投影记录，把同一段文本改名为 <span class="inline">messageText</span>。内容相同、用途不同，所以字段名不同。
+</p>
+
+<p>
 关键是“新增”：<span class="inline">recordConversation</span> 优先使用 before-prompt 阶段缓存的 <span class="inline">originalUserMessageCount</span> 做位置切片，
 只看本轮 prompt build 之后追加的消息；如果这个缓存不可用，<span class="inline">captureAtomically</span> 会在原子区内读取 checkpoint 自己维护的 <span class="inline">afterTimestamp</span> 游标并传给回调过滤。
 调用方不在临界区外提供 cursor；checkpoint 在同一个锁内负责 cursor 的读取与推进。因此 Auto Capture 不是把整段历史反复写入 L0，而是把提交后新出现的消息增量写入。
@@ -455,6 +459,10 @@ It keeps the capture path short and deterministic: write local L0 first, index i
   <div class="arrow">-&gt;</div>
   <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, messageText, recordedAt, timestamp (vector index record; the text field is messageText, while the JSONL L0MessageRecord uses content)</div></div>
 </div>
+
+<p>
+Why the same text carries two field names: <span class="inline">L0MessageRecord</span> is the <strong>raw on-disk record</strong> written to JSONL (its field is <span class="inline">content</span>), while <span class="inline">L0Record</span> is the projection built for the <strong>vector / search index</strong>, which renames the same text to <span class="inline">messageText</span>. Same content, different purpose &mdash; hence the different field name.
+</p>
 
 <p>
 The important word is “new”. <span class="inline">recordConversation</span> prefers the <span class="inline">originalUserMessageCount</span>
