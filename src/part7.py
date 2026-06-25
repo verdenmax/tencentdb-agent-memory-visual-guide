@@ -203,11 +203,11 @@ after-tool-call hook 是 Context Offload 的入口之一：每次工具调用结
 <h2>JSONL 行字段与写后标记</h2>
 <table class="t">
   <tr><th>字段</th><th>作用</th></tr>
-  <tr><td class="mono">tool_call_id</td><td>写入去重的主键之一；同一工具结果重复到达时，<span class="inline">appendOffloadEntries</span> 跳过重复行。</td></tr>
+  <tr><td class="mono">tool_call_id</td><td>写入去重的主键之一；同一工具结果重复到达时，<span class="inline">appendOffloadEntries</span> 跳过重复行。L1 parser 把它视为必填，缺失该字段的条目会被直接丢弃。</td></tr>
   <tr><td class="mono">tool_call</td><td>紧凑记录工具名和参数摘要，避免 JSONL 行保存完整大参数或敏感原文。</td></tr>
   <tr><td class="mono">summary</td><td>Offload-L1 生成的短摘要，是下一轮上下文最常读取的部分。</td></tr>
   <tr><td class="mono">timestamp</td><td>保留捕获时间，帮助按时间恢复任务过程。</td></tr>
-  <tr><td class="mono">score</td><td>表示摘要对当前任务的相关性或重要性，供后续筛选。</td></tr>
+  <tr><td class="mono">score</td><td>L1 LLM 给出的可替代分（0-10，越高表示摘要越能替代原始结果）；解析缺失时 L1 parser 默认填 5。Offload-L3 温和压缩按此分降序替换。</td></tr>
   <tr><td class="mono">node_id</td><td>L1 parser 写入时为 <span class="inline">null</span>；Offload-L2 后续分配它来连接 Mermaid MMD 任务节点。</td></tr>
   <tr><td class="mono">result_ref</td><td>指向 <span class="inline">refs/*.md</span> 的原始证据路径。</td></tr>
   <tr><td class="mono">offloaded</td><td>不是 L1 parser 产出的 <span class="inline">OffloadEntry</span> 核心字段；L1 写入后由 <span class="inline">markOffloadStatus</span> 添加/更新，值为 <span class="inline">true</span> 或 <span class="inline">"deleted"</span>。</td></tr>
@@ -302,11 +302,11 @@ Completed results first enter a pending buffer; when enough pairs accumulate, Of
 <h2>JSONL row fields and post-write marker</h2>
 <table class="t">
   <tr><th>Field</th><th>Purpose</th></tr>
-  <tr><td class="mono">tool_call_id</td><td>One write-time dedup key; when the same tool result arrives again, <span class="inline">appendOffloadEntries</span> skips the duplicate row.</td></tr>
+  <tr><td class="mono">tool_call_id</td><td>One write-time dedup key; when the same tool result arrives again, <span class="inline">appendOffloadEntries</span> skips the duplicate row. The L1 parser treats it as required and drops entries that lack it.</td></tr>
   <tr><td class="mono">tool_call</td><td>Compact tool name and parameter summary, without storing huge arguments or sensitive raw text in the JSONL row.</td></tr>
   <tr><td class="mono">summary</td><td>The Offload-L1 short summary, usually the part injected or read in the next turn.</td></tr>
   <tr><td class="mono">timestamp</td><td>Capture time, useful for reconstructing task order.</td></tr>
-  <tr><td class="mono">score</td><td>Relevance or importance signal used by later filtering.</td></tr>
+  <tr><td class="mono">score</td><td>The L1 LLM replaceability score (0-10; higher means the summary can better replace the raw result); the L1 parser defaults to 5 when it is missing. Offload-L3 mild compression replaces by descending score.</td></tr>
   <tr><td class="mono">node_id</td><td>The L1 parser writes <span class="inline">null</span>; Offload-L2 assigns it later to connect the row to a Mermaid MMD task node.</td></tr>
   <tr><td class="mono">result_ref</td><td>Path to the raw evidence in <span class="inline">refs/*.md</span>.</td></tr>
   <tr><td class="mono">offloaded</td><td>Not a core <span class="inline">OffloadEntry</span> field from the L1 parser. After the L1 write, <span class="inline">markOffloadStatus</span> adds/updates it with <span class="inline">true</span> or <span class="inline">"deleted"</span>.</td></tr>
