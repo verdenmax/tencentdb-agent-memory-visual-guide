@@ -346,7 +346,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <div class="step"><div class="num">2</div><div class="sc"><h4>启用最小配置</h4><p>在 <span class="inline">~/.openclaw/openclaw.json</span> 中只打开 <span class="inline">enabled</span>。不要在教程示例里写真实 API Key。</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>重启 Gateway</h4><p>插件配置、hooks 和 tools 注册发生在 Gateway 生命周期里，改完配置后要重启才能稳定生效。</p><p class="mono">openclaw gateway restart</p></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>对话 2-3 轮</h4><p>告诉 Agent 一个可复用偏好或项目约束，再继续追问，让自动捕获先沉淀到 L0 原文与 L1 结构化记忆。</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>验证文件与召回/搜索</h4><p>先确认 <span class="inline">~/.openclaw/state/memory-tdai/</span> 下出现 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span> 或 <span class="inline">vectors.db</span> 等产物，再验证 L0 捕获、L1 搜索/召回；L2 场景块和 L3 persona 可能需要管线延迟或触发条件才会出现。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>验证文件与召回/搜索</h4><p>先确认 <span class="inline">~/.openclaw/memory-tdai/</span> 下出现 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span> 或 <span class="inline">vectors.db</span> 等产物，再验证 L0 捕获、L1 搜索/召回；L2 场景块和 L3 persona 可能需要管线延迟或触发条件才会出现。</p></div></div>
 </div>
 
 <h2>最小配置就是这么少</h2>
@@ -381,7 +381,7 @@ openclaw gateway restart</pre>
 
 <h2>Smoke test：三种现象一起看</h2>
 <ul>
-  <li><strong>先看文件产物：</strong>检查 <span class="inline">~/.openclaw/state/memory-tdai/</span>，预期可见 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">vectors.db</span> 等本地状态产物。</li>
+  <li><strong>先看文件产物：</strong>检查 <span class="inline">~/.openclaw/memory-tdai/</span>，预期可见 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">vectors.db</span> 等本地状态产物。</li>
   <li><strong>先验证 L0/L1：</strong>连续 2-3 轮告诉 Agent 一个偏好，例如“这个项目的提交信息要简短”，随后开启新 turn 或新会话追问，先确认 L0 原始对话被捕获、L1 结构化记忆能被搜索或 Recall 使用。</li>
   <li><strong>工具范围要分清：</strong><span class="inline">tdai_memory_search</span> 搜索结构化 L1 记忆，<span class="inline">tdai_conversation_search</span> 搜索原始 L0 对话；L2 场景块和 L3 persona 可能在管线延迟或触发条件满足后才出现。</li>
 </ul>
@@ -449,7 +449,7 @@ restart the Gateway, then first verify L0 capture and L1 search/recall. L2/L3 ma
   <div class="step"><div class="num">2</div><div class="sc"><h4>Enable the smallest config</h4><p>Set only <span class="inline">enabled</span> in <span class="inline">~/.openclaw/openclaw.json</span>. Never put real API keys in guide examples.</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>Restart the Gateway</h4><p>Plugin config, hooks, and tools are registered during the Gateway lifecycle, so a restart makes the new config take effect reliably.</p><p class="mono">openclaw gateway restart</p></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>Talk for 2-3 turns</h4><p>Give the agent a reusable preference or project constraint, then continue the conversation so capture first lands in L0 raw conversation and L1 structured memory.</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>Verify files, recall, and search</h4><p>First check for artifacts under <span class="inline">~/.openclaw/state/memory-tdai/</span>, such as <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, or <span class="inline">vectors.db</span>; then verify L0 capture and L1 search/recall. L2 scene blocks and L3 persona may appear only after pipeline delay or trigger conditions.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Verify files, recall, and search</h4><p>First check for artifacts under <span class="inline">~/.openclaw/memory-tdai/</span>, such as <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, or <span class="inline">vectors.db</span>; then verify L0 capture and L1 search/recall. L2 scene blocks and L3 persona may appear only after pipeline delay or trigger conditions.</p></div></div>
 </div>
 
 <h2>The minimal config</h2>
@@ -484,7 +484,7 @@ openclaw gateway restart</pre>
 
 <h2>Smoke test: observe three things</h2>
 <ul>
-  <li><strong>Check file artifacts first:</strong> inspect <span class="inline">~/.openclaw/state/memory-tdai/</span>; expected local state artifacts include <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, and <span class="inline">vectors.db</span>.</li>
+  <li><strong>Check file artifacts first:</strong> inspect <span class="inline">~/.openclaw/memory-tdai/</span>; expected local state artifacts include <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, and <span class="inline">vectors.db</span>.</li>
   <li><strong>Verify L0/L1 first:</strong> talk for 2-3 turns, state a durable preference or project rule, then ask about it in a later turn or session. First confirm L0 raw conversation capture and L1 structured memory search/recall.</li>
   <li><strong>Keep tool scope clear:</strong> <span class="inline">tdai_memory_search</span> searches structured L1 memories; <span class="inline">tdai_conversation_search</span> searches raw L0 conversations. L2 scene blocks and L3 persona may appear only after pipeline delay or trigger conditions.</li>
 </ul>

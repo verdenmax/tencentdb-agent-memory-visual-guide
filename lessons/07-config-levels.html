@@ -359,7 +359,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <li><strong>recall：</strong><span class="inline">RecallConfig</span> 管理策略、最大条数和 <span class="inline">timeoutMs</span>；超时是安全默认值，防止召回卡住用户请求。</li>
   <li><strong>embedding：</strong><span class="inline">EmbeddingConfig</span> 决定本地或远程向量能力；远程 provider 必须给出 <span class="inline">apiKey</span>、<span class="inline">baseUrl</span>、<span class="inline">model</span>、<span class="inline">dimensions</span>。</li>
   <li><strong>bm25：</strong>关键词检索补足纯向量召回的盲区，适合术语、文件名、错误码和专有名词。</li>
-  <li><strong>tcvdb：</strong>远程 Tencent Cloud VectorDB 后端配置；只有同时设置顶层 <span class="inline">storeBackend: "tcvdb"</span>，后端才会切到 TCVDB。</li>
+  <li><strong>tcvdb：</strong>远程 Tencent Cloud VectorDB 后端配置；只有在 <span class="inline">config</span> 内同时设置 <span class="inline">storeBackend: "tcvdb"</span>，后端才会切到 TCVDB。</li>
   <li><strong>offload：</strong><span class="inline">OffloadConfig</span> 管理长任务材料外置、refs、MMD 和会话状态，服务当前任务压缩。</li>
   <li><strong>llm：</strong>控制抽取、总结或网关相关模型调用；真实密钥必须留在安全本地配置或环境变量中。</li>
   <li><strong>report：</strong>面向调试和可读产物，帮助人查看发生了什么，而不是替代底层证据链。</li>
@@ -368,17 +368,19 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <h2>本地默认与 TCVDB 后端</h2>
 <div class="cols">
   <div class="col"><h4>SQLite default</h4><p>零配置预期可运行：默认本地 SQLite / sqlite-vec 路径适合课程、离线试用和个人 smoke test。它降低启动门槛，也让新手先验证 capture、pipeline、recall 的闭环。清理策略默认保守：<span class="inline">capture.l0l1RetentionDays = 0</span> 表示禁用清理；任何激进清理都应显式 opt-in。</p></div>
-  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。不要只填 <span class="inline">tcvdb</span> 字段：还必须在 <span class="inline">memory-tencentdb</span> 插件块的顶层设置 <span class="inline">storeBackend: "tcvdb"</span>，store bundle 才会走远程后端。</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。不要只填 <span class="inline">tcvdb</span> 字段：还必须在 <span class="inline">memory-tencentdb</span> 插件块的 <span class="inline">config</span> 子对象里设置 <span class="inline">storeBackend: "tcvdb"</span>，store bundle 才会走远程后端。</p></div>
 </div>
 
-<p>TCVDB 路径需要两个部分同时出现在 <span class="inline">memory-tencentdb</span> 插件块中：顶层后端选择和 <span class="inline">tcvdb</span> 连接占位符。示例只使用假 URL 与环境变量名：</p>
+<p>插件的所有可调字段都放在 <span class="inline">memory-tencentdb</span> 插件块的 <span class="inline">config</span> 子对象里（顶层的 <span class="inline">enabled</span> 是 OpenClaw 的插件开关，不属于 <span class="inline">config</span>）；TCVDB 路径需要两个部分同时出现在 <span class="inline">config</span> 内：后端选择和 <span class="inline">tcvdb</span> 连接占位符。示例只使用假 URL 与环境变量名：</p>
 <pre class="code">{
   "memory-tencentdb": {
-    "storeBackend": "tcvdb",
-    "tcvdb": {
-      "url": "https://example.invalid",
-      "apiKey": "${TCVDB_API_KEY}",
-      "database": "my-memory-db"
+    "config": {
+      "storeBackend": "tcvdb",
+      "tcvdb": {
+        "url": "https://example.invalid",
+        "apiKey": "${TCVDB_API_KEY}",
+        "database": "my-memory-db"
+      }
     }
   }
 }</pre>
@@ -394,17 +396,19 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <h2>远程 embedding 示例只用占位符</h2>
 <pre class="code">{
   "memory-tencentdb": {
-    "recall": {
-      "strategy": "hybrid",
-      "maxResults": 5,
-      "timeoutMs": 5000
-    },
-    "embedding": {
-      "provider": "openai",
-      "baseUrl": "https://example.invalid/v1",
-      "apiKey": "${EMBEDDING_API_KEY}",
-      "model": "text-embedding-3-small",
-      "dimensions": 1536
+    "config": {
+      "recall": {
+        "strategy": "hybrid",
+        "maxResults": 5,
+        "timeoutMs": 5000
+      },
+      "embedding": {
+        "provider": "openai",
+        "baseUrl": "https://example.invalid/v1",
+        "apiKey": "${EMBEDDING_API_KEY}",
+        "model": "text-embedding-3-small",
+        "dimensions": 1536
+      }
     }
   }
 }</pre>
@@ -483,7 +487,7 @@ The levels are a learning order, not a permission model. <span class="inline">pa
   <li><strong>recall:</strong> <span class="inline">RecallConfig</span> manages strategy, result count, and <span class="inline">timeoutMs</span>; the timeout avoids blocking the user.</li>
   <li><strong>embedding:</strong> <span class="inline">EmbeddingConfig</span> selects local or remote vector behavior; remote providers require <span class="inline">apiKey</span>, <span class="inline">baseUrl</span>, <span class="inline">model</span>, and <span class="inline">dimensions</span>.</li>
   <li><strong>bm25:</strong> keyword retrieval for terms, file names, error codes, and project-specific names.</li>
-  <li><strong>tcvdb:</strong> Tencent Cloud VectorDB backend settings; the backend switches to TCVDB only when top-level <span class="inline">storeBackend: "tcvdb"</span> is also set.</li>
+  <li><strong>tcvdb:</strong> Tencent Cloud VectorDB backend settings; the backend switches to TCVDB only when <span class="inline">storeBackend: "tcvdb"</span> is also set inside <span class="inline">config</span>.</li>
   <li><strong>offload:</strong> <span class="inline">OffloadConfig</span> controls current-task compression, refs, MMDs, and session state.</li>
   <li><strong>llm:</strong> model calls for extraction, summarization, or gateway behavior; real secrets stay in secure local config or environment variables.</li>
   <li><strong>report:</strong> human-readable diagnostics and artifacts, not a replacement for lower-level evidence.</li>
@@ -492,17 +496,19 @@ The levels are a learning order, not a permission model. <span class="inline">pa
 <h2>SQLite default vs TCVDB backend</h2>
 <div class="cols">
   <div class="col"><h4>SQLite default</h4><p>Zero config is intended to run. The default local SQLite / sqlite-vec path is good for courses, offline trials, and personal smoke tests. Cleanup is conservative: <span class="inline">capture.l0l1RetentionDays = 0</span> disables cleanup, and aggressive deletion requires explicit opt-in.</p></div>
-  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Do not fill only the <span class="inline">tcvdb</span> object: set <span class="inline">storeBackend: "tcvdb"</span> at the top level of the <span class="inline">memory-tencentdb</span> plugin block so the store bundle uses the remote backend.</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Do not fill only the <span class="inline">tcvdb</span> object: set <span class="inline">storeBackend: "tcvdb"</span> inside the <span class="inline">config</span> object of the <span class="inline">memory-tencentdb</span> plugin block so the store bundle uses the remote backend.</p></div>
 </div>
 
-<p>The TCVDB path needs both pieces inside the <span class="inline">memory-tencentdb</span> plugin block: top-level backend selection and placeholder <span class="inline">tcvdb</span> connection fields. Use fake URLs and environment variable names in examples:</p>
+<p>All tunable plugin fields live inside the <span class="inline">config</span> object of the <span class="inline">memory-tencentdb</span> plugin block (the top-level <span class="inline">enabled</span> is OpenClaw's plugin toggle, not part of <span class="inline">config</span>). The TCVDB path needs both pieces inside that <span class="inline">config</span> object: the backend selection and placeholder <span class="inline">tcvdb</span> connection fields. Use fake URLs and environment variable names in examples:</p>
 <pre class="code">{
   "memory-tencentdb": {
-    "storeBackend": "tcvdb",
-    "tcvdb": {
-      "url": "https://example.invalid",
-      "apiKey": "${TCVDB_API_KEY}",
-      "database": "my-memory-db"
+    "config": {
+      "storeBackend": "tcvdb",
+      "tcvdb": {
+        "url": "https://example.invalid",
+        "apiKey": "${TCVDB_API_KEY}",
+        "database": "my-memory-db"
+      }
     }
   }
 }</pre>
@@ -518,17 +524,19 @@ The levels are a learning order, not a permission model. <span class="inline">pa
 <h2>Remote embedding example with placeholders only</h2>
 <pre class="code">{
   "memory-tencentdb": {
-    "recall": {
-      "strategy": "hybrid",
-      "maxResults": 5,
-      "timeoutMs": 5000
-    },
-    "embedding": {
-      "provider": "openai",
-      "baseUrl": "https://example.invalid/v1",
-      "apiKey": "${EMBEDDING_API_KEY}",
-      "model": "text-embedding-3-small",
-      "dimensions": 1536
+    "config": {
+      "recall": {
+        "strategy": "hybrid",
+        "maxResults": 5,
+        "timeoutMs": 5000
+      },
+      "embedding": {
+        "provider": "openai",
+        "baseUrl": "https://example.invalid/v1",
+        "apiKey": "${EMBEDDING_API_KEY}",
+        "model": "text-embedding-3-small",
+        "dimensions": 1536
+      }
     }
   }
 }</pre>

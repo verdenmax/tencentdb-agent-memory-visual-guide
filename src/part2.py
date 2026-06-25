@@ -19,7 +19,7 @@ LESSON_04 = {
   <div class="step"><div class="num">2</div><div class="sc"><h4>启用最小配置</h4><p>在 <span class="inline">~/.openclaw/openclaw.json</span> 中只打开 <span class="inline">enabled</span>。不要在教程示例里写真实 API Key。</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>重启 Gateway</h4><p>插件配置、hooks 和 tools 注册发生在 Gateway 生命周期里，改完配置后要重启才能稳定生效。</p><p class="mono">openclaw gateway restart</p></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>对话 2-3 轮</h4><p>告诉 Agent 一个可复用偏好或项目约束，再继续追问，让自动捕获先沉淀到 L0 原文与 L1 结构化记忆。</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>验证文件与召回/搜索</h4><p>先确认 <span class="inline">~/.openclaw/state/memory-tdai/</span> 下出现 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span> 或 <span class="inline">vectors.db</span> 等产物，再验证 L0 捕获、L1 搜索/召回；L2 场景块和 L3 persona 可能需要管线延迟或触发条件才会出现。</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>验证文件与召回/搜索</h4><p>先确认 <span class="inline">~/.openclaw/memory-tdai/</span> 下出现 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span> 或 <span class="inline">vectors.db</span> 等产物，再验证 L0 捕获、L1 搜索/召回；L2 场景块和 L3 persona 可能需要管线延迟或触发条件才会出现。</p></div></div>
 </div>
 
 <h2>最小配置就是这么少</h2>
@@ -54,7 +54,7 @@ openclaw gateway restart</pre>
 
 <h2>Smoke test：三种现象一起看</h2>
 <ul>
-  <li><strong>先看文件产物：</strong>检查 <span class="inline">~/.openclaw/state/memory-tdai/</span>，预期可见 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">vectors.db</span> 等本地状态产物。</li>
+  <li><strong>先看文件产物：</strong>检查 <span class="inline">~/.openclaw/memory-tdai/</span>，预期可见 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">vectors.db</span> 等本地状态产物。</li>
   <li><strong>先验证 L0/L1：</strong>连续 2-3 轮告诉 Agent 一个偏好，例如“这个项目的提交信息要简短”，随后开启新 turn 或新会话追问，先确认 L0 原始对话被捕获、L1 结构化记忆能被搜索或 Recall 使用。</li>
   <li><strong>工具范围要分清：</strong><span class="inline">tdai_memory_search</span> 搜索结构化 L1 记忆，<span class="inline">tdai_conversation_search</span> 搜索原始 L0 对话；L2 场景块和 L3 persona 可能在管线延迟或触发条件满足后才出现。</li>
 </ul>
@@ -101,7 +101,7 @@ restart the Gateway, then first verify L0 capture and L1 search/recall. L2/L3 ma
   <div class="step"><div class="num">2</div><div class="sc"><h4>Enable the smallest config</h4><p>Set only <span class="inline">enabled</span> in <span class="inline">~/.openclaw/openclaw.json</span>. Never put real API keys in guide examples.</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>Restart the Gateway</h4><p>Plugin config, hooks, and tools are registered during the Gateway lifecycle, so a restart makes the new config take effect reliably.</p><p class="mono">openclaw gateway restart</p></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>Talk for 2-3 turns</h4><p>Give the agent a reusable preference or project constraint, then continue the conversation so capture first lands in L0 raw conversation and L1 structured memory.</p></div></div>
-  <div class="step"><div class="num">5</div><div class="sc"><h4>Verify files, recall, and search</h4><p>First check for artifacts under <span class="inline">~/.openclaw/state/memory-tdai/</span>, such as <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, or <span class="inline">vectors.db</span>; then verify L0 capture and L1 search/recall. L2 scene blocks and L3 persona may appear only after pipeline delay or trigger conditions.</p></div></div>
+  <div class="step"><div class="num">5</div><div class="sc"><h4>Verify files, recall, and search</h4><p>First check for artifacts under <span class="inline">~/.openclaw/memory-tdai/</span>, such as <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, or <span class="inline">vectors.db</span>; then verify L0 capture and L1 search/recall. L2 scene blocks and L3 persona may appear only after pipeline delay or trigger conditions.</p></div></div>
 </div>
 
 <h2>The minimal config</h2>
@@ -136,7 +136,7 @@ openclaw gateway restart</pre>
 
 <h2>Smoke test: observe three things</h2>
 <ul>
-  <li><strong>Check file artifacts first:</strong> inspect <span class="inline">~/.openclaw/state/memory-tdai/</span>; expected local state artifacts include <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, and <span class="inline">vectors.db</span>.</li>
+  <li><strong>Check file artifacts first:</strong> inspect <span class="inline">~/.openclaw/memory-tdai/</span>; expected local state artifacts include <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, and <span class="inline">vectors.db</span>.</li>
   <li><strong>Verify L0/L1 first:</strong> talk for 2-3 turns, state a durable preference or project rule, then ask about it in a later turn or session. First confirm L0 raw conversation capture and L1 structured memory search/recall.</li>
   <li><strong>Keep tool scope clear:</strong> <span class="inline">tdai_memory_search</span> searches structured L1 memories; <span class="inline">tdai_conversation_search</span> searches raw L0 conversations. L2 scene blocks and L3 persona may appear only after pipeline delay or trigger conditions.</li>
 </ul>
@@ -380,7 +380,7 @@ LESSON_06 = {
 
 <h2>长期记忆目录 vs Offload 目录</h2>
 <div class="cols">
-  <div class="col"><h4>长期记忆：跨会话复用</h4><p><span class="inline">memory-tdai/</span> 位于解析后的 OpenClaw state dir 下，常见完整路径是 <span class="inline">~/.openclaw/state/memory-tdai/</span>；standalone 或 fallback 路径可能不同。里面的 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">persona.md</span>、<span class="inline">vectors.db</span>、<span class="inline">.metadata/</span>、<span class="inline">.backup/</span> 关注“未来会话还能不能记得、搜到、解释清楚”。它的证据链是 L3 -&gt; L2 -&gt; L1 -&gt; L0。</p></div>
+  <div class="col"><h4>长期记忆：跨会话复用</h4><p><span class="inline">memory-tdai/</span> 位于解析后的 OpenClaw state dir 下，常见完整路径是 <span class="inline">~/.openclaw/memory-tdai/</span>；standalone 或 fallback 路径可能不同。里面的 <span class="inline">conversations/</span>、<span class="inline">records/</span>、<span class="inline">scene_blocks/</span>、<span class="inline">persona.md</span>、<span class="inline">vectors.db</span>、<span class="inline">.metadata/</span>、<span class="inline">.backup/</span> 关注“未来会话还能不能记得、搜到、解释清楚”。它的证据链是 L3 -&gt; L2 -&gt; L1 -&gt; L0。</p></div>
   <div class="col"><h4>Context Offload：当前任务压缩</h4><p><span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span> 下会有 <span class="inline">refs/</span>、<span class="inline">mmds/</span>、<span class="inline">offload-&lt;session&gt;.jsonl</span>、<span class="inline">state.json</span>、<span class="inline">sessions-registry.json</span>。它关注“当前长任务如何把大块材料移出上下文，但仍能找回证据”。实现入口看 <span class="inline">src/offload/storage.ts</span>。</p></div>
 </div>
 
@@ -454,7 +454,7 @@ The long-term memory directory usually also contains <span class="inline">vector
 
 <h2>Long-term memory vs Offload directories</h2>
 <div class="cols">
-  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p><span class="inline">memory-tdai/</span> lives under the resolved OpenClaw state dir, commonly <span class="inline">~/.openclaw/state/memory-tdai/</span>; standalone or fallback paths may differ. Its <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -&gt; L2 -&gt; L1 -&gt; L0.</p></div>
+  <div class="col"><h4>Long-term memory: cross-session reuse</h4><p><span class="inline">memory-tdai/</span> lives under the resolved OpenClaw state dir, commonly <span class="inline">~/.openclaw/memory-tdai/</span>; standalone or fallback paths may differ. Its <span class="inline">conversations/</span>, <span class="inline">records/</span>, <span class="inline">scene_blocks/</span>, <span class="inline">persona.md</span>, <span class="inline">vectors.db</span>, <span class="inline">.metadata/</span>, and <span class="inline">.backup/</span> answer whether a future session can remember, search, and explain something. The evidence chain is L3 -&gt; L2 -&gt; L1 -&gt; L0.</p></div>
   <div class="col"><h4>Context Offload: current-task compression</h4><p>Under <span class="inline">~/.openclaw/context-offload/&lt;agent&gt;/</span>, expect <span class="inline">refs/</span>, <span class="inline">mmds/</span>, <span class="inline">offload-&lt;session&gt;.jsonl</span>, <span class="inline">state.json</span>, and <span class="inline">sessions-registry.json</span>. It answers how the current long task moved large evidence out of context while keeping it recoverable. See <span class="inline">src/offload/storage.ts</span>.</p></div>
 </div>
 
@@ -537,7 +537,7 @@ LESSON_07 = {
   <li><strong>recall：</strong><span class="inline">RecallConfig</span> 管理策略、最大条数和 <span class="inline">timeoutMs</span>；超时是安全默认值，防止召回卡住用户请求。</li>
   <li><strong>embedding：</strong><span class="inline">EmbeddingConfig</span> 决定本地或远程向量能力；远程 provider 必须给出 <span class="inline">apiKey</span>、<span class="inline">baseUrl</span>、<span class="inline">model</span>、<span class="inline">dimensions</span>。</li>
   <li><strong>bm25：</strong>关键词检索补足纯向量召回的盲区，适合术语、文件名、错误码和专有名词。</li>
-  <li><strong>tcvdb：</strong>远程 Tencent Cloud VectorDB 后端配置；只有同时设置顶层 <span class="inline">storeBackend: "tcvdb"</span>，后端才会切到 TCVDB。</li>
+  <li><strong>tcvdb：</strong>远程 Tencent Cloud VectorDB 后端配置；只有在 <span class="inline">config</span> 内同时设置 <span class="inline">storeBackend: "tcvdb"</span>，后端才会切到 TCVDB。</li>
   <li><strong>offload：</strong><span class="inline">OffloadConfig</span> 管理长任务材料外置、refs、MMD 和会话状态，服务当前任务压缩。</li>
   <li><strong>llm：</strong>控制抽取、总结或网关相关模型调用；真实密钥必须留在安全本地配置或环境变量中。</li>
   <li><strong>report：</strong>面向调试和可读产物，帮助人查看发生了什么，而不是替代底层证据链。</li>
@@ -546,17 +546,19 @@ LESSON_07 = {
 <h2>本地默认与 TCVDB 后端</h2>
 <div class="cols">
   <div class="col"><h4>SQLite default</h4><p>零配置预期可运行：默认本地 SQLite / sqlite-vec 路径适合课程、离线试用和个人 smoke test。它降低启动门槛，也让新手先验证 capture、pipeline、recall 的闭环。清理策略默认保守：<span class="inline">capture.l0l1RetentionDays = 0</span> 表示禁用清理；任何激进清理都应显式 opt-in。</p></div>
-  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。不要只填 <span class="inline">tcvdb</span> 字段：还必须在 <span class="inline">memory-tencentdb</span> 插件块的顶层设置 <span class="inline">storeBackend: "tcvdb"</span>，store bundle 才会走远程后端。</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>当数据规模、共享部署或远程向量检索成为真实需求，再配置 <span class="inline">tcvdb</span>。不要只填 <span class="inline">tcvdb</span> 字段：还必须在 <span class="inline">memory-tencentdb</span> 插件块的 <span class="inline">config</span> 子对象里设置 <span class="inline">storeBackend: "tcvdb"</span>，store bundle 才会走远程后端。</p></div>
 </div>
 
-<p>TCVDB 路径需要两个部分同时出现在 <span class="inline">memory-tencentdb</span> 插件块中：顶层后端选择和 <span class="inline">tcvdb</span> 连接占位符。示例只使用假 URL 与环境变量名：</p>
+<p>插件的所有可调字段都放在 <span class="inline">memory-tencentdb</span> 插件块的 <span class="inline">config</span> 子对象里（顶层的 <span class="inline">enabled</span> 是 OpenClaw 的插件开关，不属于 <span class="inline">config</span>）；TCVDB 路径需要两个部分同时出现在 <span class="inline">config</span> 内：后端选择和 <span class="inline">tcvdb</span> 连接占位符。示例只使用假 URL 与环境变量名：</p>
 <pre class="code">{
   "memory-tencentdb": {
-    "storeBackend": "tcvdb",
-    "tcvdb": {
-      "url": "https://example.invalid",
-      "apiKey": "${TCVDB_API_KEY}",
-      "database": "my-memory-db"
+    "config": {
+      "storeBackend": "tcvdb",
+      "tcvdb": {
+        "url": "https://example.invalid",
+        "apiKey": "${TCVDB_API_KEY}",
+        "database": "my-memory-db"
+      }
     }
   }
 }</pre>
@@ -572,17 +574,19 @@ LESSON_07 = {
 <h2>远程 embedding 示例只用占位符</h2>
 <pre class="code">{
   "memory-tencentdb": {
-    "recall": {
-      "strategy": "hybrid",
-      "maxResults": 5,
-      "timeoutMs": 5000
-    },
-    "embedding": {
-      "provider": "openai",
-      "baseUrl": "https://example.invalid/v1",
-      "apiKey": "${EMBEDDING_API_KEY}",
-      "model": "text-embedding-3-small",
-      "dimensions": 1536
+    "config": {
+      "recall": {
+        "strategy": "hybrid",
+        "maxResults": 5,
+        "timeoutMs": 5000
+      },
+      "embedding": {
+        "provider": "openai",
+        "baseUrl": "https://example.invalid/v1",
+        "apiKey": "${EMBEDDING_API_KEY}",
+        "model": "text-embedding-3-small",
+        "dimensions": 1536
+      }
     }
   }
 }</pre>
@@ -640,7 +644,7 @@ The levels are a learning order, not a permission model. <span class="inline">pa
   <li><strong>recall:</strong> <span class="inline">RecallConfig</span> manages strategy, result count, and <span class="inline">timeoutMs</span>; the timeout avoids blocking the user.</li>
   <li><strong>embedding:</strong> <span class="inline">EmbeddingConfig</span> selects local or remote vector behavior; remote providers require <span class="inline">apiKey</span>, <span class="inline">baseUrl</span>, <span class="inline">model</span>, and <span class="inline">dimensions</span>.</li>
   <li><strong>bm25:</strong> keyword retrieval for terms, file names, error codes, and project-specific names.</li>
-  <li><strong>tcvdb:</strong> Tencent Cloud VectorDB backend settings; the backend switches to TCVDB only when top-level <span class="inline">storeBackend: "tcvdb"</span> is also set.</li>
+  <li><strong>tcvdb:</strong> Tencent Cloud VectorDB backend settings; the backend switches to TCVDB only when <span class="inline">storeBackend: "tcvdb"</span> is also set inside <span class="inline">config</span>.</li>
   <li><strong>offload:</strong> <span class="inline">OffloadConfig</span> controls current-task compression, refs, MMDs, and session state.</li>
   <li><strong>llm:</strong> model calls for extraction, summarization, or gateway behavior; real secrets stay in secure local config or environment variables.</li>
   <li><strong>report:</strong> human-readable diagnostics and artifacts, not a replacement for lower-level evidence.</li>
@@ -649,17 +653,19 @@ The levels are a learning order, not a permission model. <span class="inline">pa
 <h2>SQLite default vs TCVDB backend</h2>
 <div class="cols">
   <div class="col"><h4>SQLite default</h4><p>Zero config is intended to run. The default local SQLite / sqlite-vec path is good for courses, offline trials, and personal smoke tests. Cleanup is conservative: <span class="inline">capture.l0l1RetentionDays = 0</span> disables cleanup, and aggressive deletion requires explicit opt-in.</p></div>
-  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Do not fill only the <span class="inline">tcvdb</span> object: set <span class="inline">storeBackend: "tcvdb"</span> at the top level of the <span class="inline">memory-tencentdb</span> plugin block so the store bundle uses the remote backend.</p></div>
+  <div class="col"><h4>TCVDB backend</h4><p>Configure <span class="inline">tcvdb</span> only when scale, shared deployment, or remote vector retrieval is a real requirement. Do not fill only the <span class="inline">tcvdb</span> object: set <span class="inline">storeBackend: "tcvdb"</span> inside the <span class="inline">config</span> object of the <span class="inline">memory-tencentdb</span> plugin block so the store bundle uses the remote backend.</p></div>
 </div>
 
-<p>The TCVDB path needs both pieces inside the <span class="inline">memory-tencentdb</span> plugin block: top-level backend selection and placeholder <span class="inline">tcvdb</span> connection fields. Use fake URLs and environment variable names in examples:</p>
+<p>All tunable plugin fields live inside the <span class="inline">config</span> object of the <span class="inline">memory-tencentdb</span> plugin block (the top-level <span class="inline">enabled</span> is OpenClaw's plugin toggle, not part of <span class="inline">config</span>). The TCVDB path needs both pieces inside that <span class="inline">config</span> object: the backend selection and placeholder <span class="inline">tcvdb</span> connection fields. Use fake URLs and environment variable names in examples:</p>
 <pre class="code">{
   "memory-tencentdb": {
-    "storeBackend": "tcvdb",
-    "tcvdb": {
-      "url": "https://example.invalid",
-      "apiKey": "${TCVDB_API_KEY}",
-      "database": "my-memory-db"
+    "config": {
+      "storeBackend": "tcvdb",
+      "tcvdb": {
+        "url": "https://example.invalid",
+        "apiKey": "${TCVDB_API_KEY}",
+        "database": "my-memory-db"
+      }
     }
   }
 }</pre>
@@ -675,17 +681,19 @@ The levels are a learning order, not a permission model. <span class="inline">pa
 <h2>Remote embedding example with placeholders only</h2>
 <pre class="code">{
   "memory-tencentdb": {
-    "recall": {
-      "strategy": "hybrid",
-      "maxResults": 5,
-      "timeoutMs": 5000
-    },
-    "embedding": {
-      "provider": "openai",
-      "baseUrl": "https://example.invalid/v1",
-      "apiKey": "${EMBEDDING_API_KEY}",
-      "model": "text-embedding-3-small",
-      "dimensions": 1536
+    "config": {
+      "recall": {
+        "strategy": "hybrid",
+        "maxResults": 5,
+        "timeoutMs": 5000
+      },
+      "embedding": {
+        "provider": "openai",
+        "baseUrl": "https://example.invalid/v1",
+        "apiKey": "${EMBEDDING_API_KEY}",
+        "model": "text-embedding-3-small",
+        "dimensions": 1536
+      }
     }
   }
 }</pre>
