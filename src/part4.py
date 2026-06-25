@@ -29,7 +29,7 @@ LESSON_12 = {
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">filteredMessages</div><div class="nd">只保留新增 user / assistant，清理召回包裹与结构噪声</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id、sessionKey、sessionId、role、content、recordedAt、timestamp</div></div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id、sessionKey、sessionId、role、messageText、recordedAt、timestamp（向量索引记录；正文字段名为 messageText，而 JSONL 的 L0MessageRecord 用 content）</div></div>
 </div>
 
 <p>
@@ -105,7 +105,7 @@ It keeps the capture path short and deterministic: write local L0 first, index i
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">filteredMessages</div><div class="nd">new user / assistant messages, cleaned of recall wrappers and structural noise</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, content, recordedAt, timestamp</div></div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, messageText, recordedAt, timestamp (vector index record; the text field is messageText, while the JSONL L0MessageRecord uses content)</div></div>
 </div>
 
 <p>
@@ -202,7 +202,7 @@ L0 不是摘要层，而是“原始对话证据层”：它把可追溯的 user
     <tr><td><span class="inline">sessionKey</span></td><td>逻辑会话键</td><td>把同一任务或窗口的记录归组</td></tr>
     <tr><td><span class="inline">sessionId</span></td><td>宿主会话 ID</td><td>保留宿主侧可追溯来源</td></tr>
     <tr><td><span class="inline">role</span></td><td>user 或 assistant</td><td>区分问题、回答和后续抽取方向</td></tr>
-    <tr><td><span class="inline">content</span></td><td>清洗后的消息正文</td><td>L1 抽取与人工排查的原文输入；向量或索引层可能映射为不同文本字段</td></tr>
+    <tr><td><span class="inline">content</span></td><td>清洗后的消息正文</td><td>L1 抽取与人工排查的原文输入；向量索引记录 <span class="inline">L0Record</span> 把同样的文本映射为 <span class="inline">messageText</span> 字段</td></tr>
     <tr><td><span class="inline">timestamp</span> / <span class="inline">recordedAt</span></td><td>消息时间与记录时间</td><td>支持游标过滤、排序和审计</td></tr>
   </tbody>
 </table>
@@ -292,7 +292,7 @@ Then <span class="inline">extractUserAssistantMessages</span> extracts only user
     <tr><td><span class="inline">sessionKey</span></td><td>Logical session key</td><td>Groups records from the same task or window</td></tr>
     <tr><td><span class="inline">sessionId</span></td><td>Host session ID</td><td>Preserves the traceable host source</td></tr>
     <tr><td><span class="inline">role</span></td><td>user or assistant</td><td>Separates requests, answers, and extraction direction</td></tr>
-    <tr><td><span class="inline">content</span></td><td>Sanitized message body</td><td>Raw input for L1 extraction and human inspection; vector or indexing layers may map text into different fields</td></tr>
+    <tr><td><span class="inline">content</span></td><td>Sanitized message body</td><td>Raw input for L1 extraction and human inspection; the vector index record <span class="inline">L0Record</span> maps the same text into a <span class="inline">messageText</span> field</td></tr>
     <tr><td><span class="inline">timestamp</span> / <span class="inline">recordedAt</span></td><td>Message time and record time</td><td>Supports cursor filtering, ordering, and audit</td></tr>
   </tbody>
 </table>

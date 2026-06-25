@@ -356,7 +356,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">filteredMessages</div><div class="nd">只保留新增 user / assistant，清理召回包裹与结构噪声</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id、sessionKey、sessionId、role、content、recordedAt、timestamp</div></div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id、sessionKey、sessionId、role、messageText、recordedAt、timestamp（向量索引记录；正文字段名为 messageText，而 JSONL 的 L0MessageRecord 用 content）</div></div>
 </div>
 
 <p>
@@ -453,7 +453,7 @@ It keeps the capture path short and deterministic: write local L0 first, index i
   <div class="arrow">-&gt;</div>
   <div class="node"><div class="nt">filteredMessages</div><div class="nd">new user / assistant messages, cleaned of recall wrappers and structural noise</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, content, recordedAt, timestamp</div></div>
+  <div class="node hl"><div class="nt">L0Record</div><div class="nd">id, sessionKey, sessionId, role, messageText, recordedAt, timestamp (vector index record; the text field is messageText, while the JSONL L0MessageRecord uses content)</div></div>
 </div>
 
 <p>
