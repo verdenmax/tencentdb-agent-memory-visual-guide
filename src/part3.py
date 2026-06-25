@@ -206,7 +206,7 @@ OpenClaw 的插件注册细节。两条路径都把请求变成 <span class="inl
 
 <h2>生命周期先于能力调用</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>initialize()</h4><p>创建数据目录，调用 <span class="inline">initStores</span> 准备向量/embedding 存储，并用 <span class="inline">createPipelineManager</span> 构造 scheduler。</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>initialize()</h4><p>创建数据目录，调用 <span class="inline">initStores</span> 准备向量/embedding 存储，并在 extraction 启用时用 <span class="inline">createPipelineManager</span> 构造 scheduler。</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>handleBeforeRecall</h4><p>在模型回答前转交给 <span class="inline">performAutoRecall</span>，返回要注入上下文的召回片段。</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>handleTurnCommitted</h4><p>对话提交后先确保 scheduler 已启动，再调用 <span class="inline">performAutoCapture</span> 写入 L0 并触发后续 pipeline。</p></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>scheduler / destroy()</h4><p>后台 pipeline 持续整理 L1-L3；关闭时 <span class="inline">destroy()</span> 先排空后台任务，再关闭 store。</p></div></div>
@@ -289,7 +289,7 @@ Both paths turn host events into method calls that <span class="inline">TdaiCore
 
 <h2>Lifecycle comes before capability calls</h2>
 <div class="vflow">
-  <div class="step"><div class="num">1</div><div class="sc"><h4>initialize()</h4><p>Create data directories, call <span class="inline">initStores</span> for vector/embedding storage, and build the scheduler with <span class="inline">createPipelineManager</span>.</p></div></div>
+  <div class="step"><div class="num">1</div><div class="sc"><h4>initialize()</h4><p>Create data directories, call <span class="inline">initStores</span> for vector/embedding storage, and, when extraction is enabled, build the scheduler with <span class="inline">createPipelineManager</span>.</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>handleBeforeRecall</h4><p>Before the model answers, delegate to <span class="inline">performAutoRecall</span> and return snippets that can be injected into context.</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>handleTurnCommitted</h4><p>After a turn is committed, ensure the scheduler has started, then call <span class="inline">performAutoCapture</span> to write L0 and trigger later pipeline work.</p></div></div>
   <div class="step"><div class="num">4</div><div class="sc"><h4>scheduler / destroy()</h4><p>The background pipeline keeps organizing L1-L3; shutdown drains background tasks before closing stores.</p></div></div>
@@ -364,7 +364,7 @@ LESSON_10 = {
 <h2>Adapter 是宿主与 core 的边界</h2>
 <div class="layers">
   <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway / Hermes</span></div><div class="ld">OpenClaw plugin API、Gateway HTTP handler、Hermes provider：负责生命周期、请求来源和宿主能力。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">统一暴露 logger、runtime context、dataDir 与 LLMRunnerFactory。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">统一暴露 logger、runtime context（含 dataDir）与 LLMRunnerFactory。</div></div>
   <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">TdaiCore、recall、capture、pipeline、persona prompts：只看接口，不看宿主。</div></div>
 </div>
 
@@ -385,7 +385,7 @@ LESSON_10 = {
 <div class="flow">
   <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw 或 Gateway/Hermes</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context (dataDir)</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
   <div class="arrow">-&gt;</div>
@@ -450,7 +450,7 @@ core = TdaiCore({
 <h2>The adapter is the host/core boundary</h2>
 <div class="layers">
   <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway / Hermes</span></div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">Exposes logger, runtime context (which carries dataDir), and LLMRunnerFactory in one shape.</div></div>
   <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">TdaiCore, recall, capture, pipeline, persona prompts: interface-only, host-free.</div></div>
 </div>
 
@@ -470,7 +470,7 @@ That boundary lets the core treat <span class="inline">RuntimeContext</span> as 
 <div class="flow">
   <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw or Gateway/Hermes</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context (dataDir)</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
   <div class="arrow">-&gt;</div>
@@ -539,7 +539,7 @@ LESSON_11 = {
   <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> 从 <span class="inline">api.pluginConfig</span> 取得原始对象，并记录收到的 key 数量。</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> 把用户配置与默认值合并成 <span class="inline">MemoryTdaiConfig</span>，本次 register 后续都复用它。</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> 选出 OpenClaw state 目录；<span class="inline">index.ts</span> 先创建 conversations、records、scene_blocks、.metadata 和 .backup。</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>core starts</h4><p><span class="inline">core.initialize()</span> 再确认目录，立即把 <span class="inline">storeReady = initStores()</span> 放到后台，并同步创建 pipeline manager。</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>core starts</h4><p><span class="inline">core.initialize()</span> 再确认目录，立即把 <span class="inline">storeReady = initStores()</span> 放到后台，并在 extraction 启用时同步创建 pipeline manager。</p></div></div>
   <div class="step"><div class="num">5</div><div class="sc"><h4>hooks / tools</h4><p><span class="inline">index.ts</span> 在 core 初始化启动后注册 hooks/tools；store 依赖路径在调用时 await <span class="inline">storeReady</span>，pipeline runners 在 store 完成或失败后接线。</p></div></div>
 </div>
 
@@ -565,7 +565,7 @@ LESSON_11 = {
 <p>
 <span class="inline">initDataDirectories(dataDir)</span> 先把运行时目录建好，后续 L0 JSONL、L1 records、scene blocks、metadata 和备份才有稳定落点。
 进入 <span class="inline">TdaiCore.initialize()</span> 后，<span class="inline">initStores</span> 以 promise 形式启动：它会维护 manifest、创建 store bundle，并在失败时记录降级。
-同时 <span class="inline">createPipelineManager</span> 可以同步创建，因为 runner 接线被挂到 <span class="inline">storeReady.then(...).catch(...)</span> 后面。
+同时，当 extraction 启用时，<span class="inline">createPipelineManager</span> 可以同步创建，因为 runner 接线被挂到 <span class="inline">storeReady.then(...).catch(...)</span> 后面。
 </p>
 <p>
 因此“目录先准备”是真的；“store 一定先于 pipeline manager、hooks 和 tools 完成”不准确。自动 recall、capture、session end 等 store 依赖入口会 await <span class="inline">storeReady</span>；搜索工具则使用当前可用的 store 句柄，缺失时走无向量/空结果等降级路径。
@@ -631,7 +631,7 @@ This lesson connects the plugin shell, adapter, and core to startup order: OpenC
   <div class="step"><div class="num">1</div><div class="sc"><h4>raw plugin config</h4><p><span class="inline">index.ts</span> reads <span class="inline">api.pluginConfig</span> and logs how many keys arrived.</p></div></div>
   <div class="step"><div class="num">2</div><div class="sc"><h4>parseConfig</h4><p><span class="inline">src/config.ts</span> merges user config with defaults into <span class="inline">MemoryTdaiConfig</span>; the rest of this register call reuses it.</p></div></div>
   <div class="step"><div class="num">3</div><div class="sc"><h4>init dirs</h4><p><span class="inline">resolveOpenClawStateDir</span> chooses the OpenClaw state directory; <span class="inline">index.ts</span> first creates conversations, records, scene_blocks, .metadata, and .backup.</p></div></div>
-  <div class="step"><div class="num">4</div><div class="sc"><h4>core starts</h4><p><span class="inline">core.initialize()</span> confirms dirs again, starts <span class="inline">storeReady = initStores()</span> in the background, and creates the pipeline manager synchronously.</p></div></div>
+  <div class="step"><div class="num">4</div><div class="sc"><h4>core starts</h4><p><span class="inline">core.initialize()</span> confirms dirs again, starts <span class="inline">storeReady = initStores()</span> in the background, and, when extraction is enabled, creates the pipeline manager synchronously.</p></div></div>
   <div class="step"><div class="num">5</div><div class="sc"><h4>hooks / tools</h4><p><span class="inline">index.ts</span> registers hooks/tools after core initialization starts; store-dependent paths await <span class="inline">storeReady</span>, and pipeline runners wire after store success or failure.</p></div></div>
 </div>
 
@@ -657,7 +657,7 @@ channel bootstrap, or config reload. Each call receives the full config, so the 
 <p>
 <span class="inline">initDataDirectories(dataDir)</span> creates stable homes for L0 JSONL, L1 records, scene blocks, metadata, and backups before any work writes files.
 Inside <span class="inline">TdaiCore.initialize()</span>, <span class="inline">initStores</span> starts as a promise: it maintains the manifest, creates the store bundle, and records degraded mode if initialization fails.
-At the same time, <span class="inline">createPipelineManager</span> can run synchronously because runner wiring is deferred behind <span class="inline">storeReady.then(...).catch(...)</span>.
+At the same time, when extraction is enabled, <span class="inline">createPipelineManager</span> can run synchronously because runner wiring is deferred behind <span class="inline">storeReady.then(...).catch(...)</span>.
 </p>
 <p>
 So “directories first” is true; “stores are definitely ready before the pipeline manager, hooks, and tools” is not. Auto recall, capture, and session-end paths await <span class="inline">storeReady</span>; search tools use whatever store handles are currently available and degrade to no-vector or empty-result behavior when needed.

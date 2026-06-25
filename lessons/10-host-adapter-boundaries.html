@@ -343,7 +343,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <h2>Adapter 是宿主与 core 的边界</h2>
 <div class="layers">
   <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway / Hermes</span></div><div class="ld">OpenClaw plugin API、Gateway HTTP handler、Hermes provider：负责生命周期、请求来源和宿主能力。</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">统一暴露 logger、runtime context、dataDir 与 LLMRunnerFactory。</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">统一暴露 logger、runtime context（含 dataDir）与 LLMRunnerFactory。</div></div>
   <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">TdaiCore、recall、capture、pipeline、persona prompts：只看接口，不看宿主。</div></div>
 </div>
 
@@ -364,7 +364,7 @@ html[data-lang="zh"] .lang-en { display: none !important; }
 <div class="flow">
   <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw 或 Gateway/Hermes</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context (dataDir)</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
   <div class="arrow">-&gt;</div>
@@ -450,7 +450,7 @@ core = TdaiCore({
 <h2>The adapter is the host/core boundary</h2>
 <div class="layers">
   <div class="layer l-app"><div class="lh"><span class="badge">Host</span><span class="name">OpenClaw / Gateway / Hermes</span></div><div class="ld">OpenClaw plugin API, Gateway HTTP handlers, Hermes provider: lifecycle, request source, and host capabilities.</div></div>
-  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">Exposes logger, runtime context, dataDir, and LLMRunnerFactory in one shape.</div></div>
+  <div class="layer l-part"><div class="lh"><span class="badge">Adapter</span><span class="name">HostAdapter</span></div><div class="ld">Exposes logger, runtime context (which carries dataDir), and LLMRunnerFactory in one shape.</div></div>
   <div class="layer l-main"><div class="lh"><span class="badge">Core</span><span class="name">TdaiCore</span></div><div class="ld">TdaiCore, recall, capture, pipeline, persona prompts: interface-only, host-free.</div></div>
 </div>
 
@@ -470,7 +470,7 @@ That boundary lets the core treat <span class="inline">RuntimeContext</span> as 
 <div class="flow">
   <div class="node"><div class="nt">Host</div><div class="nd">OpenClaw or Gateway/Hermes</div></div>
   <div class="arrow">-&gt;</div>
-  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context / dataDir</div></div>
+  <div class="node"><div class="nt">HostAdapter</div><div class="nd">logger / context (dataDir)</div></div>
   <div class="arrow">-&gt;</div>
   <div class="node hl"><div class="nt">LLMRunnerFactory</div><div class="nd">createRunner(model, tools)</div></div>
   <div class="arrow">-&gt;</div>
