@@ -148,6 +148,10 @@ jobs:
 
           root = Path.cwd()
           skip_dirs = {".git", ".github", ".pytest_cache", "__pycache__"}
+          # Internal development-process docs (implementation plans) intentionally
+          # enumerate placeholder anti-patterns (TODO/TBD/FIXME) as guidance, so they
+          # are not part of the shipped guide release and are excluded from this scan.
+          skip_rel_prefixes = ("docs/superpowers/plans/",)
           scanned_ext = {".py", ".md", ".html", ".yml", ".yaml", ".txt"}
           bad_terms = ["TO" + "DO", "TB" + "D", "FIX" + "ME"]
           branding_terms = ["OpenClaw visual guide draft", "planned to build up"]
@@ -159,10 +163,12 @@ jobs:
                   continue
               if any(part in skip_dirs for part in path.parts):
                   continue
+              rel = path.relative_to(root)
+              if any(rel.as_posix().startswith(prefix) for prefix in skip_rel_prefixes):
+                  continue
               if path.suffix not in scanned_ext and path.name not in {"LICENSE", "LICENSE-CONTENT"}:
                   continue
               text = path.read_text(encoding="utf-8", errors="ignore")
-              rel = path.relative_to(root)
               for term in bad_terms + branding_terms + secret_terms:
                   if term in text:
                       matches.append(f"{rel}: {term}")
