@@ -83,13 +83,14 @@ before_next_turn(user_text):
 <p class="lead" style="font-size:1.06rem;color:var(--muted);margin-top:-.6rem">
 TencentDB Agent Memory solves a recurring long-horizon agent problem: the longer an agent works, the more conversation history,
 tool logs, project rules, and user preferences accumulate, while the context window remains limited. The project does not dump
-all history back into the prompt; it stores and recalls information by layers.
+all history back into the prompt; it stores and recalls information by layers, so the agent both remembers long-term experience and
+compresses a long task's temporary logs into a traceable structure.
 </p>
 
 <div class="card analogy">
   <div class="tag">🔌 Analogy</div>
   Think of the context window as a desk. If every document is piled on the desk, the important part disappears. TencentDB Agent Memory
-  behaves like a layered filing cabinet: the desk keeps the current task map, drawers keep summaries, and the archive keeps evidence.
+  behaves like a layered filing cabinet: the desk keeps the current task map, drawers keep summaries, and the archive keeps evidence you can drill into by index when proof is needed.
 </div>
 
 <h2>Two memory problems</h2>
@@ -145,7 +146,7 @@ before_next_turn(user_text):
 <div class="card key">
   <div class="tag">✅ Key points</div>
   The project is not about remembering more text. It preserves structure in upper layers and evidence in lower layers. Long-term memory
-  handles cross-session experience, while context offload handles one long task's log explosion.
+  handles cross-session experience, while context offload handles one long task's log explosion. Both emphasize drill-down and recoverability.
 </div>
 """,
 }
@@ -207,7 +208,7 @@ LESSON_02 = {
         captured = perform_auto_capture(messages, session_key)
         scheduler.notify_conversation(session_key, captured)
 
-    async searchMemory(query):
+    async searchMemories(query):
         return execute_memory_search(query)</pre>
 
 <div class="card detail">
@@ -271,7 +272,7 @@ Start with the data flow; later lessons will open each source file.
         captured = perform_auto_capture(messages, session_key)
         scheduler.notify_conversation(session_key, captured)
 
-    async searchMemory(query):
+    async searchMemories(query):
         return execute_memory_search(query)</pre>
 
 <div class="card detail">
